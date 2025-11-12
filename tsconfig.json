@@ -1,0 +1,70 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "commonjs",
+        "lib": [
+            "ES2020"
+        ],
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "baseUrl": "./src",
+        "typeRoots": [
+            "./node_modules/@types"
+        ],
+        "paths": {
+            "@/*": [
+                "./*"
+            ],
+            "@config/*": [
+                "./config/*"
+            ],
+            "@controllers/*": [
+                "./controllers/*"
+            ],
+            "@services/*": [
+                "./services/*"
+            ],
+            "@routes/*": [
+                "./routes/*"
+            ],
+            "@middleware/*": [
+                "./middleware/*"
+            ],
+            "@utils/*": [
+                "./utils/*"
+            ],
+            "@validators/*": [
+                "./validators/*"
+            ],
+            "@types/*": [
+                "./types/*"
+            ]
+        },
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true
+    },
+    "ts-node": {
+        "compilerOptions": {
+            "module": "commonjs"
+        },
+        "transpileOnly": true,
+        "files": true,
+        "require": [
+            "tsconfig-paths/register"
+        ]
+    },
+    "include": [
+        "src"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "tests"
+    ]
+}

@@ -1,0 +1,552 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ============ User Management ============
+
+model SiteUser {
+  id                Int       @id @default(autoincrement())
+  username          String    @unique @db.VarChar(100)
+  email             String    @unique @db.VarChar(350)
+  phone             String?   @db.VarChar(20)
+  passwordHash      String    @map("password_hash") @db.VarChar(255)
+  passwordExpiresAt DateTime? @map("password_expires_at")
+  isActive          Boolean   @default(true) @map("is_active")
+  isEmailVerified   Boolean   @default(false) @map("is_email_verified")
+  failedLoginCount  Int       @default(0) @map("failed_login_count")
+  lockedUntil       DateTime? @map("locked_until")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  roles              UserRole[]
+  addresses          UserAddress[]
+  payments           UserPayment[]
+  sessions           UserSession[]
+  orders             ShopOrder[]
+  reviews            ProductReview[]
+  passwordHistory    PasswordHistory[]
+  verificationTokens VerificationToken[]
+  securityLogs       SecurityLog[]
+  shoppingCart       ShoppingCart?
+  OrderStatusHistory OrderStatusHistory[]
+
+  @@index([email, isActive])
+  @@index([username])
+  @@map("site_user")
+}
+
+model UserRole {
+  userId     Int      @map("user_id")
+  roleId     Int      @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  // Relations
+  user SiteUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_role")
+}
+
+model Role {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique @db.VarChar(50)
+  description String? @db.VarChar(200)
+
+  // Relations
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("role")
+}
+
+model Permission {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique @db.VarChar(100)
+  description String? @db.VarChar(200)
+
+  // Relations
+  roles RolePermission[]
+
+  @@map("permission")
+}
+
+model RolePermission {
+  roleId       Int @map("role_id")
+  permissionId Int @map("permission_id")
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permission")
+}
+
+model UserSession {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  tokenHash String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user SiteUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("user_session")
+}
+
+model PasswordHistory {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user SiteUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_history")
+}
+
+model VerificationToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  tokenHash String   @unique @db.VarChar(255)
+  tokenType String   @map("token_type") @db.VarChar(30)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user SiteUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([userId, tokenType, expiresAt])
+  @@map("verification_token")
+}
+
+model SecurityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  eventType String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user SiteUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+  @@map("security_log")
+}
+
+// ============ Address ============
+
+model Address {
+  id            Int     @id @default(autoincrement())
+  streetAddress String  @map("street_address") @db.VarChar(500)
+  city          String  @db.VarChar(100)
+  region        String? @db.VarChar(100)
+  postalCode    String? @map("postal_code") @db.VarChar(20)
+  country       String  @db.VarChar(100)
+
+  // Relations
+  userAddresses  UserAddress[]
+  shippingOrders ShopOrder[]   @relation("ShippingAddress")
+  billingOrders  ShopOrder[]   @relation("BillingAddress")
+
+  @@map("address")
+}
+
+model UserAddress {
+  userId      Int     @map("user_id")
+  addressId   Int     @map("address_id")
+  addressType String  @map("address_type") @db.VarChar(20) // 'shipping', 'billing'
+  isDefault   Boolean @default(false) @map("is_default")
+
+  // Relations
+  user    SiteUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address Address  @relation(fields: [addressId], references: [id], onDelete: Cascade)
+
+  @@id([userId, addressId])
+  @@map("user_address")
+}
+
+// ============ Products & Categories ============
+
+model ProductCategory {
+  id       Int    @id @default(autoincrement())
+  parentId Int?   @map("parent_id")
+  name     String @db.VarChar(100)
+  slug     String @unique @db.VarChar(150)
+
+  // Relations
+  parent     ProductCategory?    @relation("ParentChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children   ProductCategory[]   @relation("ParentChildren")
+  products   Product[]
+  attributes CategoryAttribute[]
+  variations Variation[]
+
+  @@index([parentId])
+  @@map("product_category")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  categoryId  Int      @map("category_id")
+  name        String   @db.VarChar(300)
+  slug        String   @unique @db.VarChar(350)
+  brand       String?  @db.VarChar(100)
+  model       String?  @db.VarChar(100)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  category        ProductCategory         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  items           ProductItem[]
+  images          ProductImage[]
+  attributeValues ProductAttributeValue[]
+  reviews         ProductReview[]
+  discounts       DiscountProduct[]
+
+  @@index([categoryId, isActive])
+  @@index([brand])
+  @@map("product")
+}
+
+model ProductItem {
+  id             Int      @id @default(autoincrement())
+  productId      Int      @map("product_id")
+  sku            String   @unique @db.VarChar(100)
+  price          Decimal  @db.Decimal(12, 2)
+  qtyInStock     Int      @default(0) @map("qty_in_stock")
+  weightKg       Decimal? @map("weight_kg") @db.Decimal(8, 2)
+  warrantyMonths Int      @default(12) @map("warranty_months")
+  isActive       Boolean  @default(true) @map("is_active")
+
+  // Relations
+  product        Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  configurations ProductConfiguration[]
+
+  @@index([productId, isActive])
+  @@map("product_item")
+}
+
+model ProductImage {
+  id           Int     @id @default(autoincrement())
+  productId    Int     @map("product_id")
+  imageUrl     String  @map("image_url") @db.VarChar(500)
+  displayOrder Int     @default(0) @map("display_order")
+  isPrimary    Boolean @default(false) @map("is_primary")
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_image")
+}
+
+model CategoryAttribute {
+  id            Int     @id @default(autoincrement())
+  categoryId    Int     @map("category_id")
+  attributeName String  @map("attribute_name") @db.VarChar(100)
+  attributeUnit String? @map("attribute_unit") @db.VarChar(20)
+  isFilterable  Boolean @default(true) @map("is_filterable")
+
+  // Relations
+  category      ProductCategory         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  productValues ProductAttributeValue[]
+
+  @@index([categoryId])
+  @@map("category_attribute")
+}
+
+model ProductAttributeValue {
+  productId   Int    @map("product_id")
+  attributeId Int    @map("attribute_id")
+  value       String @db.VarChar(500)
+
+  // Relations
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute CategoryAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@id([productId, attributeId])
+  @@map("product_attribute_value")
+}
+
+model Variation {
+  id         Int    @id @default(autoincrement())
+  categoryId Int    @map("category_id")
+  name       String @db.VarChar(50)
+
+  // Relations
+  category ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  options  VariationOption[]
+
+  @@index([categoryId])
+  @@map("variation")
+}
+
+model VariationOption {
+  id          Int    @id @default(autoincrement())
+  variationId Int    @map("variation_id")
+  value       String @db.VarChar(100)
+
+  // Relations
+  variation      Variation              @relation(fields: [variationId], references: [id], onDelete: Cascade)
+  configurations ProductConfiguration[]
+
+  @@index([variationId])
+  @@map("variation_option")
+}
+
+model ProductConfiguration {
+  productItemId     Int @map("product_item_id")
+  variationOptionId Int @map("variation_option_id")
+
+  // Relations
+  productItem     ProductItem     @relation(fields: [productItemId], references: [id], onDelete: Cascade)
+  variationOption VariationOption @relation(fields: [variationOptionId], references: [id], onDelete: Cascade)
+
+  @@id([productItemId, variationOptionId])
+  @@map("product_configuration")
+}
+
+// ============ Reviews ============
+
+model ProductReview {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @map("user_id")
+  productId          Int      @map("product_id")
+  orderItemId        Int?     @map("order_item_id")
+  rating             Int
+  comment            String?  @db.Text
+  isVerifiedPurchase Boolean  @default(false) @map("is_verified_purchase")
+  isApproved         Boolean  @default(false) @map("is_approved")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user      SiteUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+
+  @@index([productId, isApproved])
+  @@index([userId])
+  @@map("product_review")
+}
+
+// ============ Shopping Cart ============
+
+model ShoppingCart {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @unique @map("user_id")
+  sessionId String?  @map("session_id") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user  SiteUser?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("shopping_cart")
+}
+
+model CartItem {
+  id            Int @id @default(autoincrement())
+  cartId        Int @map("cart_id")
+  productItemId Int @map("product_item_id")
+  quantity      Int
+
+  // Relations
+  cart        ShoppingCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productItem ProductItem  @relation(fields: [productItemId], references: [id], onDelete: Cascade)
+
+  @@index([cartId])
+  @@index([productItemId])
+  @@map("cart_item")
+}
+
+// ============ Orders ============
+
+model OrderStatus {
+  id           Int    @id @default(autoincrement())
+  name         String @unique @db.VarChar(50)
+  displayOrder Int    @map("display_order")
+
+  // Relations
+  orders  ShopOrder[]
+  history OrderStatusHistory[]
+
+  @@map("order_status")
+}
+
+model ShopOrder {
+  id                Int      @id @default(autoincrement())
+  orderNumber       String   @unique @db.VarChar(50)
+  userId            Int      @map("user_id")
+  shippingAddressId Int      @map("shipping_address_id")
+  billingAddressId  Int      @map("billing_address_id")
+  paymentMethodId   Int      @map("payment_method_id")
+  shippingMethodId  Int      @map("shipping_method_id")
+  discountId        Int?     @map("discount_id")
+  statusId          Int      @map("status_id")
+  subtotal          Decimal  @db.Decimal(12, 2)
+  discountAmount    Decimal  @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  shippingFee       Decimal  @map("shipping_fee") @db.Decimal(10, 2)
+  totalAmount       Decimal  @map("total_amount") @db.Decimal(12, 2)
+  customerNote      String?  @map("customer_note") @db.Text
+  orderedAt         DateTime @map("ordered_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user            SiteUser             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shippingAddress Address              @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress  Address              @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  paymentMethod   UserPayment          @relation(fields: [paymentMethodId], references: [id])
+  shippingMethod  ShippingMethod       @relation(fields: [shippingMethodId], references: [id])
+  discount        Discount?            @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  status          OrderStatus          @relation(fields: [statusId], references: [id])
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+
+  @@index([userId, createdAt])
+  @@index([statusId])
+  @@index([orderNumber])
+  @@map("shop_order")
+}
+
+model OrderItem {
+  id            Int     @id @default(autoincrement())
+  orderId       Int     @map("order_id")
+  productItemId Int     @map("product_item_id")
+  productName   String  @map("product_name") @db.VarChar(300)
+  sku           String  @db.VarChar(100)
+  quantity      Int
+  unitPrice     Decimal @map("unit_price") @db.Decimal(12, 2)
+  subtotal      Decimal @db.Decimal(12, 2)
+
+  // Relations
+  order       ShopOrder       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productItem ProductItem     @relation(fields: [productItemId], references: [id])
+  reviews     ProductReview[]
+
+  @@index([orderId])
+  @@index([productItemId])
+  @@map("order_item")
+}
+
+model OrderStatusHistory {
+  id        Int      @id @default(autoincrement())
+  orderId   Int      @map("order_id")
+  statusId  Int      @map("status_id")
+  note      String?  @db.Text
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  order   ShopOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status  OrderStatus @relation(fields: [statusId], references: [id])
+  creator SiteUser    @relation(fields: [createdBy], references: [id])
+
+  @@index([orderId])
+  @@index([statusId])
+  @@map("order_status_history")
+}
+
+// ============ Payments & Shipping ============
+
+model PaymentMethod {
+  id       Int     @id @default(autoincrement())
+  name     String  @db.VarChar(100)
+  code     String  @unique @db.VarChar(50)
+  isActive Boolean @default(true) @map("is_active")
+
+  // Relations
+  payments UserPayment[]
+
+  @@map("payment_method")
+}
+
+model UserPayment {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @map("user_id")
+  paymentMethodId Int       @map("payment_method_id")
+  provider        String?   @db.VarChar(100)
+  maskedNumber    String?   @map("masked_number") @db.VarChar(20)
+  expiryDate      DateTime? @map("expiry_date") @db.Date
+  isDefault       Boolean   @default(false) @map("is_default")
+
+  // Relations
+  user          SiteUser      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  orders        ShopOrder[]
+
+  @@index([userId])
+  @@map("user_payment")
+}
+
+model ShippingMethod {
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(100)
+  code          String   @unique @db.VarChar(50)
+  basePrice     Decimal  @map("base_price") @db.Decimal(10, 2)
+  pricePerKg    Decimal? @map("price_per_kg") @db.Decimal(10, 2)
+  estimatedDays Int?     @map("estimated_days")
+  isActive      Boolean  @default(true) @map("is_active")
+
+  // Relations
+  orders ShopOrder[]
+
+  @@map("shipping_method")
+}
+
+// ============ Discounts ============
+
+model Discount {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique @db.VarChar(50)
+  description    String?  @map("description") @db.VarChar(300)
+  discountType   String   @map("discount_type") @db.VarChar(20) // 'percentage' or 'fixed_amount'
+  discountValue  Decimal  @map("discount_value") @db.Decimal(10, 2)
+  minOrderAmount Decimal? @map("min_order_amount") @db.Decimal(10, 2)
+  maxUses        Int?     @map("max_uses")
+  usedCount      Int      @default(0) @map("used_count")
+  startsAt       DateTime @map("starts_at")
+  endsAt         DateTime @map("ends_at")
+  isActive       Boolean  @default(true) @map("is_active")
+
+  // Relations
+  products DiscountProduct[]
+  orders   ShopOrder[]
+
+  @@index([code, isActive])
+  @@map("discount")
+}
+
+model DiscountProduct {
+  discountId Int @map("discount_id")
+  productId  Int @map("product_id")
+
+  // Relations
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([discountId, productId])
+  @@map("discount_product")
+}
