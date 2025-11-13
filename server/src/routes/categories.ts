@@ -1,179 +1,76 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 
 const router = Router();
 
 type Category = {
   id: string;
   name: string;
-  nameVi: string;
   slug: string;
-  description: string;
-  descriptionVi: string;
-  icon?: string;
+  description?: string;
   image?: string;
-  productCount: number;
-  parentId?: string | null;
-  order: number;
 };
 
-let categories: Category[] = [
+const sampleCategories: Category[] = [
   { 
-    id: 'cat-1', 
-    name: 'Network Switches', 
-    nameVi: 'Switch Mạng',
-    slug: 'network-switches', 
-    description: 'Managed and unmanaged network switches',
-    descriptionVi: 'Switch mạng có quản lý và không quản lý',
-    icon: 'switch-icon',
-    image: '/images/categories/switches.jpg',
-    productCount: 45,
-    parentId: null,
-    order: 1
+    id: '1', 
+    name: 'Router', 
+    slug: 'router', 
+    description: 'Thiết bị định tuyến mạng',
+    image: '/images/categories/router.png'
   },
   { 
-    id: 'cat-2', 
-    name: 'Routers', 
-    nameVi: 'Bộ Định Tuyến',
-    slug: 'routers', 
-    description: 'Enterprise and SOHO routers',
-    descriptionVi: 'Router doanh nghiệp và văn phòng nhỏ',
-    icon: 'router-icon',
-    image: '/images/categories/routers.jpg',
-    productCount: 32,
-    parentId: null,
-    order: 2
+    id: '2', 
+    name: 'Switch', 
+    slug: 'switch', 
+    description: 'Thiết bị chuyển mạch',
+    image: '/images/categories/switch.png'
   },
   { 
-    id: 'cat-3', 
-    name: 'Firewalls & Security', 
-    nameVi: 'Tường Lửa & Bảo Mật',
-    slug: 'firewalls-security', 
-    description: 'Network security appliances and firewalls',
-    descriptionVi: 'Thiết bị bảo mật mạng và tường lửa',
-    icon: 'firewall-icon',
-    image: '/images/categories/firewalls.jpg',
-    productCount: 28,
-    parentId: null,
-    order: 3
+    id: '3', 
+    name: 'Access Point', 
+    slug: 'access-point', 
+    description: 'Điểm phát sóng WiFi',
+    image: '/images/categories/access-point.png'
   },
   { 
-    id: 'cat-4', 
-    name: 'Wireless Access Points', 
-    nameVi: 'Điểm Truy Cập Không Dây',
-    slug: 'wireless-access-points', 
-    description: 'Wi-Fi access points and controllers',
-    descriptionVi: 'Access Point Wi-Fi và bộ điều khiển',
-    icon: 'wifi-icon',
-    image: '/images/categories/access-points.jpg',
-    productCount: 38,
-    parentId: null,
-    order: 4
+    id: '4', 
+    name: 'Firewall', 
+    slug: 'firewall', 
+    description: 'Tường lửa bảo mật',
+    image: '/images/categories/firewall.png'
   },
   { 
-    id: 'cat-5', 
-    name: 'Network Cables & Accessories', 
-    nameVi: 'Cáp Mạng & Phụ Kiện',
-    slug: 'cables-accessories', 
-    description: 'Network cables, patch panels, and accessories',
-    descriptionVi: 'Cáp mạng, patch panel và phụ kiện',
-    icon: 'cable-icon',
-    image: '/images/categories/cables.jpg',
-    productCount: 156,
-    parentId: null,
-    order: 5
+    id: '5', 
+    name: 'Cable & Accessories', 
+    slug: 'cable-accessories', 
+    description: 'Cáp mạng và phụ kiện',
+    image: '/images/categories/accessories.png'
   },
-  { 
-    id: 'cat-6', 
-    name: 'Network Adapters', 
-    nameVi: 'Card Mạng',
-    slug: 'network-adapters', 
-    description: 'Network interface cards and USB adapters',
-    descriptionVi: 'Card mạng và adapter USB',
-    icon: 'adapter-icon',
-    image: '/images/categories/adapters.jpg',
-    productCount: 42,
-    parentId: null,
-    order: 6
-  },
-  { 
-    id: 'cat-7', 
-    name: 'PoE Devices', 
-    nameVi: 'Thiết Bị PoE',
-    slug: 'poe-devices', 
-    description: 'Power over Ethernet switches and injectors',
-    descriptionVi: 'Switch PoE và injector',
-    icon: 'poe-icon',
-    image: '/images/categories/poe.jpg',
-    productCount: 25,
-    parentId: null,
-    order: 7
-  },
-  { 
-    id: 'cat-8', 
-    name: 'Network Storage (NAS)', 
-    nameVi: 'Lưu Trữ Mạng (NAS)',
-    slug: 'network-storage', 
-    description: 'Network attached storage devices',
-    descriptionVi: 'Thiết bị lưu trữ gắn mạng',
-    icon: 'nas-icon',
-    image: '/images/categories/nas.jpg',
-    productCount: 18,
-    parentId: null,
-    order: 8
-  }
 ];
 
-// GET all categories
-router.get('/', (_req, res) => {
+// GET /api/v1/categories - Get all categories
+router.get('/', (_req: Request, res: Response) => {
   res.json({
-    categories,
-    total: categories.length
+    success: true,
+    data: sampleCategories,
+    message: 'Lấy danh sách danh mục thành công'
   });
 });
 
-// GET single category
-router.get('/:id', (req, res) => {
-  const category = categories.find(c => c.id === req.params.id || c.slug === req.params.id);
+// GET /api/v1/categories/:id - Get category by ID
+router.get('/:id', (req: Request, res: Response) => {
+  const category = sampleCategories.find(c => c.id === req.params.id);
   if (category) {
-    res.json(category);
+    res.json({
+      success: true,
+      data: category,
+      message: 'Lấy thông tin danh mục thành công'
+    });
   } else {
-    res.status(404).json({ error: 'Category not found' });
-  }
-});
-
-// CREATE category (Admin only)
-router.post('/', (req, res) => {
-  const newCategory: Category = {
-    id: `cat-${Date.now()}`,
-    ...req.body,
-    productCount: 0
-  };
-  categories.push(newCategory);
-  res.status(201).json(newCategory);
-});
-
-// UPDATE category (Admin only)
-router.put('/:id', (req, res) => {
-  const index = categories.findIndex(c => c.id === req.params.id);
-  if (index !== -1) {
-    categories[index] = {
-      ...categories[index],
-      ...req.body
-    };
-    res.json(categories[index]);
-  } else {
-    res.status(404).json({ error: 'Category not found' });
-  }
-});
-
-// DELETE category (Admin only)
-router.delete('/:id', (req, res) => {
-  const index = categories.findIndex(c => c.id === req.params.id);
-  if (index !== -1) {
-    const deleted = categories.splice(index, 1)[0];
-    res.json({ message: 'Category deleted', category: deleted });
-  } else {
-    res.status(404).json({ error: 'Category not found' });
+    res.status(404).json({ 
+      success: false,
+      message: 'Không tìm thấy danh mục' 
+    });
   }
 });
 

@@ -1,12 +1,12 @@
 /**
  * API Service cho Client
- * Kết nối với backend API tại http://localhost:3000 (dev) hoặc https://api.nettechpro.me (production)
+ * Kết nối với backend API tại http://localhost:5000 (dev) hoặc https://api.nettechpro.me (production)
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 // API Base URL - tự động lấy từ environment variable hoặc mặc định localhost
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 // Tạo axios instance với config mặc định
 const apiClient: AxiosInstance = axios.create({
@@ -150,8 +150,11 @@ export interface User {
 }
 
 export interface AuthResponse {
-  token: string;
-  user: User;
+  id: number;
+  email: string;
+  username: string;
+  accessToken: string;
+  refreshToken: string;
 }
 
 export interface PaginationParams {
@@ -338,64 +341,63 @@ export const ordersApi = {
 export const authApi = {
   // Đăng ký
   register: async (userData: {
+    username: string;
     email: string;
     password: string;
-    fullName: string;
     phone?: string;
   }): Promise<AuthResponse> => {
-    const response = await apiClient.post('/api/auth/register', userData);
-    // Lưu token và user info
-    localStorage.setItem('token', response.data.token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-    return response.data;
+    const response = await apiClient.post('/api/v1/auth/register', userData);
+    // Response từ backend: { success: true, data: { id, email, username, accessToken, refreshToken }, message }
+    const data = response.data.data || response.data;
+    return data;
   },
 
   // Đăng nhập
   login: async (email: string, password: string): Promise<AuthResponse> => {
-    const response = await apiClient.post('/api/auth/login', { email, password });
-    // Lưu token và user info
-    localStorage.setItem('token', response.data.token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-    return response.data;
+    const response = await apiClient.post('/api/v1/auth/login', { email, password });
+    // Response từ backend: { success: true, data: { id, email, username, accessToken, refreshToken }, message }
+    const data = response.data.data || response.data;
+    return data;
   },
 
   // Đăng xuất
   logout: async (): Promise<void> => {
-    await apiClient.post('/api/auth/logout');
+    await apiClient.post('/api/v1/auth/logout');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },
 
   // Lấy thông tin user hiện tại
   getMe: async (): Promise<User> => {
-    const response = await apiClient.get('/api/auth/me');
-    return response.data;
+    const response = await apiClient.get('/api/v1/users/profile');
+    return response.data.data || response.data;
   },
 
   // Cập nhật thông tin user
   updateProfile: async (userData: Partial<User>): Promise<User> => {
-    const response = await apiClient.put('/api/auth/profile', userData);
+    const response = await apiClient.put('/api/v1/users/profile', userData);
+    const data = response.data.data || response.data;
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    localStorage.setItem('user', JSON.stringify({ ...user, ...response.data }));
-    return response.data;
+    localStorage.setItem('user', JSON.stringify({ ...user, ...data }));
+    return data;
   },
 
   // Đổi mật khẩu
   changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
-    await apiClient.post('/api/auth/change-password', { 
+    await apiClient.post('/api/v1/auth/change-password', { 
       oldPassword, 
-      newPassword 
+      password: newPassword 
     });
   },
 
-  // Quên mật khẩu
+  // Quên mật khẩu (chưa implement backend)
   forgotPassword: async (email: string): Promise<void> => {
-    await apiClient.post('/api/auth/forgot-password', { email });
+    await apiClient.post('/api/v1/auth/forgot-password', { email });
   },
 
-  // Reset mật khẩu
+  // Reset mật khẩu (chưa implement backend)
   resetPassword: async (token: string, newPassword: string): Promise<void> => {
-    await apiClient.post('/api/auth/reset-password', { token, newPassword });
+    await apiClient.post('/api/v1/auth/reset-password', { token, newPassword });
   },
 };
 

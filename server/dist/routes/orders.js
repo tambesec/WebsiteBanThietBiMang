@@ -1,59 +1,20 @@
-import { Router } from 'express';
-const router = Router();
-// Mock orders data
-const mockOrders = [];
-// Create order
-router.post('/', (req, res) => {
-    const { items, shippingAddress, paymentMethod, userId = 'user-1' } = req.body;
-    if (!items || !shippingAddress || !paymentMethod) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-    const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const newOrder = {
-        id: `order-${Date.now()}`,
-        userId,
-        items,
-        totalAmount,
-        status: 'pending',
-        shippingAddress,
-        paymentMethod,
-        createdAt: new Date().toISOString(),
-    };
-    mockOrders.push(newOrder);
-    res.json(newOrder);
-});
-// Get my orders
-router.get('/my', (_req, res) => {
-    res.json({
-        data: mockOrders,
-        pagination: {
-            page: 1,
-            limit: 10,
-            total: mockOrders.length,
-            totalPages: 1,
-        },
-    });
-});
-// Get order by ID
-router.get('/:id', (req, res) => {
-    const order = mockOrders.find(o => o.id === req.params.id);
-    if (order) {
-        res.json(order);
-    }
-    else {
-        res.status(404).json({ error: 'Order not found' });
-    }
-});
-// Cancel order
-router.post('/:id/cancel', (req, res) => {
-    const order = mockOrders.find(o => o.id === req.params.id);
-    if (order) {
-        order.status = 'cancelled';
-        res.json(order);
-    }
-    else {
-        res.status(404).json({ error: 'Order not found' });
-    }
-});
-export default router;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const orderController_1 = require("../controllers/orderController");
+const auth_1 = require("../middleware/auth");
+const order_1 = require("../validators/order");
+const router = (0, express_1.Router)();
+// All order endpoints require authentication
+router.use(auth_1.authMiddleware);
+// Public order endpoints
+router.post('/', order_1.createOrderValidator, orderController_1.orderController.createOrder);
+router.get('/', orderController_1.orderController.getOrders);
+router.get('/:id', orderController_1.orderController.getOrderById);
+router.get('/:id/items', orderController_1.orderController.getOrderItems);
+router.get('/:id/status-history', orderController_1.orderController.getOrderStatusHistory);
+router.put('/:id/cancel', orderController_1.orderController.cancelOrder);
+// Admin only endpoints
+router.put('/:id/status', (0, auth_1.authorizeRoles)('admin'), order_1.updateOrderStatusValidator, orderController_1.orderController.updateOrderStatus);
+exports.default = router;
 //# sourceMappingURL=orders.js.map

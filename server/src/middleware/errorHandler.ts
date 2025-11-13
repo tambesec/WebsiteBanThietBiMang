@@ -1,32 +1,28 @@
-import type { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import { sendError } from '../utils/response';
+import { HTTP_STATUS } from '../config/constants';
 
-/**
- * Simplified Error Handler Middleware
- */
+export interface AppError extends Error {
+    statusCode?: number;
+    isOperational?: boolean;
+}
+
 export const errorHandler = (
-  err: Error,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  console.error('❌ ERROR:', err);
-  
-  const statusCode = (err as any).statusCode || 500;
-  const message = err.message || 'Lỗi server nội bộ';
-  
-  res.status(statusCode).json({
-    success: false,
-    message,
-    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
-  });
+    err: AppError,
+    _req: Request,
+    res: Response,
+    _next: NextFunction
+): void => {
+    const statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+    const message = err.message || 'Lỗi nội bộ server';
+
+    sendError(res, message, statusCode, err.stack);
 };
 
-/**
- * 404 Not Found Handler
- */
-export const notFoundHandler = (req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    message: `Route ${req.method} ${req.originalUrl} không tồn tại`
-  });
+export const asyncHandler = (
+    fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
+) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        void Promise.resolve(fn(req, res, next)).catch(next);
+    };
 };

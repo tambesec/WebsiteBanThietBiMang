@@ -1,117 +1,78 @@
-import express from 'express';
-import type { Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import YAML from 'yamljs';
 import swaggerUi from 'swagger-ui-express';
-import dotenv from 'dotenv';
+import { env } from './config/env';
+import { errorHandler } from './middleware/errorHandler';
+import { paginationMiddleware } from './middleware/pagination';
+import apiRoutes from './routes/index';
 
-// Fix __dirname for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const app: Express = express();
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+// ====== MIDDLEWARE ======
 
-const app = express();
+// Security
+app.use(helmet());
 
-// CORS - Support multiple origins
-const webOrigin = process.env.WEB_ORIGIN || 'http://localhost:5173,http://localhost:3001';
-const allowedOrigins = webOrigin.split(',').map(origin => origin.trim());
+// CORS
+app.use(
+    cors({
+        origin: env.CORS_ORIGIN,
+        credentials: true,
+    })
+);
 
-app.use(cors({ 
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+// Body Parser
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// JSON parsing
-app.use(express.json());
+// Logging
+if (env.NODE_ENV !== 'test') {
+    app.use(morgan('combined'));
+}
 
-// Routes
-import healthRouter from './routes/health.js';
-import productsRouter from './routes/products.js';
-import categoriesRouter from './routes/categories.js';
-import brandsRouter from './routes/brands.js';
-import cartRouter from './routes/cart.js';
-import ordersRouter from './routes/orders.js';
-import authRouter from './routes/auth.js';
+// Pagination Middleware
+app.use(paginationMiddleware);
 
-app.use('/api/health', healthRouter);
-app.use('/api/products', productsRouter);
-app.use('/api/categories', categoriesRouter);
-app.use('/api/brands', brandsRouter);
-app.use('/api/cart', cartRouter);
-app.use('/api/orders', ordersRouter);
-app.use('/api/auth', authRouter);
+// ====== ROUTES ======
 
-// Swagger UI (serves server/openapi.yaml)
+app.use(`/api/${env.API_VERSION}`, apiRoutes);
+
+// ====== SWAGGER UI ======
+
+// Load OpenAPI specification
 const specPath = path.resolve(__dirname, '../openapi.yaml');
-
-// Check if file exists
-if (!fs.existsSync(specPath)) {
-  console.error('❌ openapi.yaml not found at:', specPath);
-} else {
-  console.log('✅ openapi.yaml found at:', specPath);
+if (fs.existsSync(specPath)) {
+    const swaggerDocument = YAML.load(specPath);
+    app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+    app.get('/openapi.yaml', (_req: Request, res: Response) => {
+        res.setHeader('Content-Type', 'application/yaml');
+        res.send(fs.readFileSync(specPath, 'utf8'));
+    });
 }
 
-// Load OpenAPI spec
-const swaggerDocument = fs.existsSync(specPath) ? YAML.load(specPath) : null;
-
-if (!swaggerDocument) {
-  console.error('❌ Failed to load OpenAPI specification');
-} else {
-  console.log('✅ OpenAPI specification loaded successfully');
-  console.log('   Title:', swaggerDocument.info?.title);
-  console.log('   Version:', swaggerDocument.info?.version);
-  console.log('   Paths:', Object.keys(swaggerDocument.paths || {}).length);
+// Load Admin OpenAPI specification
+const adminSpecPath = path.resolve(__dirname, '../openapi-admin.yaml');
+if (fs.existsSync(adminSpecPath)) {
+    const adminSwaggerDocument = YAML.load(adminSpecPath);
+    app.use('/docs/admin', swaggerUi.serve, swaggerUi.setup(adminSwaggerDocument));
 }
 
-// Swagger UI options
-const swaggerOptions = {
-  explorer: true,
-  swaggerOptions: {
-    persistAuthorization: true,
-    displayRequestDuration: true,
-    docExpansion: 'list', // 'list' | 'full' | 'none'
-    defaultModelsExpandDepth: 3,
-    defaultModelExpandDepth: 3,
-    filter: true,
-    showExtensions: true,
-    showCommonExtensions: true,
-    tryItOutEnabled: true,
-  },
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'NetTechPro API Documentation',
-};
-
-// Setup Swagger UI
-app.use('/docs', swaggerUi.serve);
-app.get('/docs', swaggerUi.setup(swaggerDocument, swaggerOptions));
-
-// Serve raw OpenAPI YAML
-app.get('/openapi.yaml', (_req: Request, res: Response) => {
-  if (fs.existsSync(specPath)) {
-    res.setHeader('Content-Type', 'application/yaml');
-    res.send(fs.readFileSync(specPath, 'utf8'));
-  } else {
-    res.status(404).json({ error: 'OpenAPI spec not found' });
-  }
+// 404 Handler
+app.use((req: Request, res: Response) => {
+    res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy endpoint',
+        timestamp: new Date().toISOString(),
+    });
 });
 
-// Basic error handler
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
-  res.status(500).json({ error: 'Internal Server Error' });
-});
+// ====== ERROR HANDLING ======
+
+app.use(errorHandler);
 
 export default app;
-

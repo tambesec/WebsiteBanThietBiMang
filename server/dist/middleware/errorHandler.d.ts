@@ -1,10 +1,8 @@
-import type { Request, Response, NextFunction } from 'express';
-/**
- * Simplified Error Handler Middleware
- */
-export declare const errorHandler: (err: Error, req: Request, res: Response, next: NextFunction) => void;
-/**
- * 404 Not Found Handler
- */
-export declare const notFoundHandler: (req: Request, res: Response) => void;
+import { Request, Response, NextFunction } from 'express';
+export interface AppError extends Error {
+    statusCode?: number;
+    isOperational?: boolean;
+}
+export declare const errorHandler: (err: AppError, _req: Request, res: Response, _next: NextFunction) => void;
+export declare const asyncHandler: (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) => (req: Request, res: Response, next: NextFunction) => void;
 //# sourceMappingURL=errorHandler.d.ts.map

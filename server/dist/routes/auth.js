@@ -1,64 +1,16 @@
-import { Router } from 'express';
-const router = Router();
-// Mock user data
-const mockUsers = [
-    { id: '1', email: 'user@example.com', fullName: 'Nguyễn Văn A', role: 'customer' },
-    { id: '2', email: 'admin@example.com', fullName: 'Admin User', role: 'admin' },
-];
-// Register
-router.post('/register', (req, res) => {
-    const { email, password, fullName } = req.body;
-    if (!email || !password || !fullName) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-    const newUser = {
-        id: `user-${Date.now()}`,
-        email,
-        fullName,
-        role: 'customer',
-    };
-    mockUsers.push(newUser);
-    res.json({
-        token: `mock-token-${newUser.id}`,
-        user: newUser,
-    });
-});
-// Login
-router.post('/login', (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Missing email or password' });
-    }
-    const user = mockUsers.find(u => u.email === email);
-    if (user) {
-        res.json({
-            token: `mock-token-${user.id}`,
-            user,
-        });
-    }
-    else {
-        res.status(401).json({ error: 'Invalid credentials' });
-    }
-});
-// Logout
-router.post('/logout', (_req, res) => {
-    res.json({ message: 'Logged out successfully' });
-});
-// Get current user
-router.get('/me', (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        return res.status(401).json({ error: 'No authorization header' });
-    }
-    // Mock: extract user id from token
-    const userId = authHeader.replace('Bearer mock-token-', '');
-    const user = mockUsers.find(u => u.id === userId);
-    if (user) {
-        res.json(user);
-    }
-    else {
-        res.status(401).json({ error: 'Invalid token' });
-    }
-});
-export default router;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const authController_1 = require("../controllers/authController");
+const auth_1 = require("../middleware/auth");
+const auth_2 = require("../validators/auth");
+const router = (0, express_1.Router)();
+// Public endpoints
+router.post('/register', auth_2.registerValidator, authController_1.authController.register);
+router.post('/login', auth_2.loginValidator, authController_1.authController.login);
+router.post('/refresh-token', authController_1.authController.refreshToken);
+// Protected endpoints
+router.post('/logout', auth_1.authMiddleware, authController_1.authController.logout);
+router.post('/change-password', auth_1.authMiddleware, auth_2.resetPasswordValidator, authController_1.authController.changePassword);
+exports.default = router;
 //# sourceMappingURL=auth.js.map

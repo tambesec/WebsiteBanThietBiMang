@@ -1,12 +1,12 @@
 /**
  * API Service cho Admin Dashboard
- * Kết nối với backend API tại http://localhost:3000 (dev) hoặc https://api.nettechpro.me (production)
+ * Kết nối với backend API tại http://localhost:5000 (dev) hoặc https://api.nettechpro.me (production)
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 // API Base URL - tự động lấy từ environment variable hoặc mặc định localhost
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 // Tạo axios instance với config mặc định
 const apiClient: AxiosInstance = axios.create({

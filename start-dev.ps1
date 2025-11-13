@@ -14,6 +14,39 @@ if (-Not (Test-Path ".\server")) {
 Write-Host "📂 Project directory: $(Get-Location)" -ForegroundColor Cyan
 Write-Host ""
 
+# Function to check if dependencies are installed
+function Test-Dependencies {
+    param($Path)
+    return Test-Path "$Path\node_modules"
+}
+
+# Check and install dependencies if needed
+Write-Host "📦 Checking dependencies..." -ForegroundColor Yellow
+
+$projects = @{
+    "server" = "Backend Server"
+    "admin" = "Admin Dashboard"
+    "client" = "Client Website"
+}
+
+foreach ($project in $projects.Keys) {
+    $projectPath = ".\$project"
+    if (Test-Path $projectPath) {
+        $hasDeps = Test-Dependencies $projectPath
+        if (-not $hasDeps) {
+            Write-Host "   📥 Installing dependencies for $($projects[$project])..." -ForegroundColor Yellow
+            Push-Location $projectPath
+            npm install
+            Pop-Location
+            Write-Host "   ✅ $($projects[$project]) dependencies installed" -ForegroundColor Green
+        } else {
+            Write-Host "   ✅ $($projects[$project]) dependencies already installed" -ForegroundColor Green
+        }
+    }
+}
+
+Write-Host ""
+
 # Function to check if port is available
 function Test-Port {
     param($Port)
