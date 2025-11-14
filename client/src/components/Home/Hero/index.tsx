@@ -29,19 +29,19 @@ const Hero = () => {
                 <div className="flex items-center gap-14">
                   <div>
                     <h2 className="max-w-[153px] font-semibold text-dark text-xl mb-20">
-                      <a href="#"> iPhone 14 Plus & 14 Pro Max </a>
+                      <a href="#"> Router WiFi 6 TP-Link AX3000 </a>
                     </h2>
 
                     <div>
                       <p className="font-medium text-dark-4 text-custom-sm mb-1.5">
-                        limited time offer
+                        Ưu đãi có hạn
                       </p>
                       <span className="flex items-center gap-3">
                         <span className="font-medium text-heading-5 text-red">
-                          $699
+                          2.490.000₫
                         </span>
                         <span className="font-medium text-2xl text-dark-4 line-through">
-                          $999
+                          3.290.000₫
                         </span>
                       </span>
                     </div>
@@ -61,19 +61,19 @@ const Hero = () => {
                 <div className="flex items-center gap-14">
                   <div>
                     <h2 className="max-w-[153px] font-semibold text-dark text-xl mb-20">
-                      <a href="#"> Wireless Headphone </a>
+                      <a href="#"> Access Point WiFi Ubiquiti U6 Lite </a>
                     </h2>
 
                     <div>
                       <p className="font-medium text-dark-4 text-custom-sm mb-1.5">
-                        limited time offer
+                        Ưu đãi có hạn
                       </p>
                       <span className="flex items-center gap-3">
                         <span className="font-medium text-heading-5 text-red">
-                          $699
+                          1.790.000₫
                         </span>
                         <span className="font-medium text-2xl text-dark-4 line-through">
-                          $999
+                          2.390.000₫
                         </span>
                       </span>
                     </div>

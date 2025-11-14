@@ -5,10 +5,76 @@ import Label from "@/components/form/Label";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export default function SignUpForm() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Mật khẩu không khớp!");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự!");
+      return;
+    }
+
+    if (!isChecked) {
+      setError("Vui lòng đồng ý với điều khoản!");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/v1/auth/register`, {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      const data = response.data.data || response.data;
+      
+      localStorage.setItem('admin_token', data.accessToken);
+      localStorage.setItem('admin_user', JSON.stringify({
+        id: data.id,
+        email: data.email,
+        username: data.username,
+      }));
+
+      router.push('/');
+    } catch (err: any) {
+      console.error('Lỗi đăng ký:', err);
+      const errorMessage = err.response?.data?.message || 'Đăng ký thất bại!';
+      
+      if (Array.isArray(errorMessage)) {
+        setError(errorMessage.join(', '));
+      } else {
+        setError(typeof errorMessage === 'string' ? errorMessage : 'Đăng ký thất bại!');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full overflow-y-auto no-scrollbar">
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
@@ -24,7 +90,7 @@ export default function SignUpForm() {
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Đăng Ký
+              Đăng Ký Admin
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Nhập thông tin để tạo tài khoản!
@@ -83,47 +149,37 @@ export default function SignUpForm() {
                 </span>
               </div>
             </div>
-            <form>
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  {/* <!-- First Name --> */}
-                  <div className="sm:col-span-1">
-                    <Label>
-                      Tên<span className="text-error-500">*</span>
-                    </Label>
-                    <Input
-                      type="text"
-                      id="fname"
-                      name="fname"
-                      placeholder="Nhập tên của bạn"
-                    />
-                  </div>
-                  {/* <!-- Last Name --> */}
-                  <div className="sm:col-span-1">
-                    <Label>
-                      Họ<span className="text-error-500">*</span>
-                    </Label>
-                    <Input
-                      type="text"
-                      id="lname"
-                      name="lname"
-                      placeholder="Nhập họ của bạn"
-                    />
-                  </div>
+            <form onSubmit={handleSubmit}>
+              {error && (
+                <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-800">
+                  <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
                 </div>
-                {/* <!-- Email --> */}
+              )}
+              <div className="space-y-5">
+                <div>
+                  <Label>
+                    Tên đăng nhập<span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder="Nhập tên đăng nhập"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    required
+                  />
+                </div>
                 <div>
                   <Label>
                     Email<span className="text-error-500">*</span>
                   </Label>
                   <Input
                     type="email"
-                    id="email"
-                    name="email"
                     placeholder="Nhập email của bạn"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
                   />
                 </div>
-                {/* <!-- Password --> */}
                 <div>
                   <Label>
                     Mật khẩu<span className="text-error-500">*</span>
@@ -132,6 +188,9 @@ export default function SignUpForm() {
                     <Input
                       placeholder="Nhập mật khẩu của bạn"
                       type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
@@ -145,7 +204,18 @@ export default function SignUpForm() {
                     </span>
                   </div>
                 </div>
-                {/* <!-- Checkbox --> */}
+                <div>
+                  <Label>
+                    Xác nhận mật khẩu<span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="password"
+                    placeholder="Nhập lại mật khẩu"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    required
+                  />
+                </div>
                 <div className="flex items-center gap-3">
                   <Checkbox
                     className="w-5 h-5"
@@ -157,17 +227,15 @@ export default function SignUpForm() {
                     <span className="text-gray-800 dark:text-white/90">
                       Điều khoản và Điều kiện
                     </span>{" "}
-                    và{" "}
-                    <span className="text-gray-800 dark:text-white">
-                      Chính sách bảo mật
-                    </span>{" "}
-                    của chúng tôi
                   </p>
                 </div>
-                {/* <!-- Button --> */}
                 <div>
-                  <button className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600">
-                    Đăng ký
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Đang đăng ký...' : 'Đăng ký'}
                   </button>
                 </div>
               </div>

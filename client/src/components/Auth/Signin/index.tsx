@@ -4,60 +4,193 @@ import Breadcrumb from "@/components/Common/Breadcrumb";
 import Link from "next/link";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
+import { authApi } from "@/services/api";
 
 const Signin = () => {
   const router = useRouter();
+  const { login, loginWithGoogle } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState({
+    email: "",
+    password: "",
+    general: "",
+  });
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({
+    email: false,
+    password: false,
+  });
+
+  const validateEmail = (email: string): string => {
+    if (!email.trim()) return "Email không được để trống";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Email không hợp lệ";
+    return "";
+  };
+
+  const validatePassword = (password: string): string => {
+    if (!password) return "Mật khẩu không được để trống";
+    return "";
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
-    setError(""); // Clear error when user types
+
+    // Clear errors when user types
+    if (touched[name as keyof typeof touched]) {
+      setErrors({
+        ...errors,
+        [name]: name === 'email' ? validateEmail(value) : validatePassword(value),
+        general: "",
+      });
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setTouched({
+      ...touched,
+      [name]: true,
+    });
+    setErrors({
+      ...errors,
+      [name]: name === 'email' ? validateEmail(value) : validatePassword(value),
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    
+    // Validate all fields
+    const emailError = validateEmail(formData.email);
+    const passwordError = validatePassword(formData.password);
+
+    if (emailError || passwordError) {
+      setErrors({
+        email: emailError,
+        password: passwordError,
+        general: "",
+      });
+      setTouched({ email: true, password: true });
+      return;
+    }
+
     setLoading(true);
+    setErrors({ email: "", password: "", general: "" });
 
     try {
-      const response = await api.auth.login(formData.email, formData.password);
-      
-      // Lưu thông tin user vào localStorage
-      localStorage.setItem('token', response.accessToken);
-      localStorage.setItem('user', JSON.stringify({
-        id: response.id,
-        email: response.email,
-        username: response.username,
-      }));
-
-      // Redirect về trang chủ
-      router.push('/');
+      await login(formData.email, formData.password);
+      // Redirect after successful login
+      setTimeout(() => {
+        router.push('/');
+      }, 100);
     } catch (err: any) {
-      console.error('Lỗi đăng nhập:', err);
-      const errorMessage = err.response?.data?.message || err.response?.data?.error || 'Đăng nhập thất bại. Vui lòng kiểm tra lại.';
+      console.error('Đăng nhập thất bại:', err);
       
-      // Chuyển đổi một số lỗi phổ biến sang tiếng Việt
-      if (errorMessage.includes('not found') || errorMessage.includes('không tồn tại')) {
-        setError('Email không tồn tại trong hệ thống!');
-      } else if (errorMessage.includes('password') || errorMessage.includes('mật khẩu')) {
-        setError('Mật khẩu không đúng!');
-      } else if (errorMessage.includes('invalid credentials')) {
-        setError('Email hoặc mật khẩu không đúng!');
+      let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
+      
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (data.message) {
+          errorMessage = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+        } else if (data.error) {
+          errorMessage = data.error;
+        }
+      }
+
+      // Categorize errors
+      if (errorMessage.toLowerCase().includes('email') && 
+          (errorMessage.includes('không tồn tại') || errorMessage.includes('not found'))) {
+        setErrors({
+          email: "Email này chưa được đăng ký",
+          password: "",
+          general: "",
+        });
+      } else if (errorMessage.toLowerCase().includes('password') || 
+                 errorMessage.toLowerCase().includes('mật khẩu') ||
+                 errorMessage.toLowerCase().includes('invalid')) {
+        setErrors({
+          email: "",
+          password: "Mật khẩu không chính xác",
+          general: "",
+        });
+      } else if (errorMessage.includes('khóa') || errorMessage.includes('locked')) {
+        setErrors({
+          email: "",
+          password: "",
+          general: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.",
+        });
       } else {
-        setError(errorMessage);
+        setErrors({
+          email: "",
+          password: "",
+          general: errorMessage,
+        });
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) {
+      setErrors({
+        email: "",
+        password: "",
+        general: "Không nhận được token từ Google",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setErrors({ email: "", password: "", general: "" });
+      
+      console.log('Sending Google credential to backend...');
+      
+      // Use loginWithGoogle from AuthContext
+      await loginWithGoogle(credentialResponse.credential);
+      
+      console.log('Google login successful, redirecting...');
+      
+      // Redirect to home
+      router.push('/');
+    } catch (error: any) {
+      console.error('Google login failed:', error);
+      console.error('Error details:', error.response?.data);
+      
+      const errorMsg = error.message || 
+                      error.response?.data?.message || 
+                      "Đăng nhập Google thất bại. Vui lòng thử lại.";
+      
+      setErrors({
+        email: "",
+        password: "",
+        general: errorMsg,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setErrors({
+      email: "",
+      password: "",
+      general: "Đăng nhập Google thất bại. Vui lòng thử lại.",
+    });
   };
 
   return (
@@ -75,15 +208,20 @@ const Signin = () => {
 
             <div>
               <form onSubmit={handleSubmit}>
-                {error && (
-                  <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-600 text-sm">{error}</p>
+                {errors.general && (
+                  <div className="mb-5 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-red-700 font-medium flex-1">{errors.general}</p>
+                    </div>
                   </div>
                 )}
 
                 <div className="mb-5">
-                  <label htmlFor="email" className="block mb-2.5">
-                    Email
+                  <label htmlFor="email" className="block mb-2.5 font-medium">
+                    Email <span className="text-red-500">*</span>
                   </label>
 
                   <input
@@ -92,15 +230,28 @@ const Signin = () => {
                     id="email"
                     value={formData.email}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Nhập địa chỉ email của bạn"
-                    className="rounded-lg border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-3 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
+                    className={`rounded-lg border ${
+                      errors.email && touched.email
+                        ? 'border-red-500 focus:ring-red-500/20'
+                        : 'border-gray-3 focus:ring-blue/20'
+                    } bg-gray-1 placeholder:text-dark-5 w-full py-3 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2`}
                     required
                   />
+                  {errors.email && touched.email && (
+                    <div className="flex items-start gap-2 mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded-r-md">
+                      <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-red-700 text-sm font-medium">{errors.email}</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mb-5">
-                  <label htmlFor="password" className="block mb-2.5">
-                    Mật khẩu
+                  <label htmlFor="password" className="block mb-2.5 font-medium">
+                    Mật khẩu <span className="text-red-500">*</span>
                   </label>
 
                   <input
@@ -109,11 +260,24 @@ const Signin = () => {
                     id="password"
                     value={formData.password}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Nhập mật khẩu của bạn"
-                    autoComplete="on"
-                    className="rounded-lg border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-3 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
+                    autoComplete="current-password"
+                    className={`rounded-lg border ${
+                      errors.password && touched.password
+                        ? 'border-red-500 focus:ring-red-500/20'
+                        : 'border-gray-3 focus:ring-blue/20'
+                    } bg-gray-1 placeholder:text-dark-5 w-full py-3 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2`}
                     required
                   />
+                  {errors.password && touched.password && (
+                    <div className="flex items-start gap-2 mt-2 p-3 bg-red-50 border-l-4 border-red-500 rounded-r-md">
+                      <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-red-700 text-sm font-medium">{errors.password}</p>
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -131,62 +295,29 @@ const Signin = () => {
                   Quên mật khẩu?
                 </a>
 
-                <span className="relative z-1 block font-medium text-center mt-4.5">
-                  <span className="block absolute -z-1 left-0 top-1/2 h-px w-full bg-gray-3"></span>
-                  <span className="inline-block px-3 bg-white">Hoặc</span>
-                </span>
+                <div className="relative mt-6 mb-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-3"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-body-color font-medium">Hoặc đăng nhập với</span>
+                  </div>
+                </div>
 
-                <div className="flex flex-col gap-4.5 mt-4.5">
-                  <button 
-                    type="button" 
-                    onClick={() => alert('Chức năng đăng nhập Google đang được phát triển')}
-                    className="flex justify-center items-center gap-3.5 rounded-lg border border-gray-3 bg-gray-1 p-3 ease-out duration-200 hover:bg-gray-2"
-                  >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 20 20"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <g clipPath="url(#clip0_98_7461)">
-                        <mask
-                          id="mask0_98_7461"
-                          maskUnits="userSpaceOnUse"
-                          x="0"
-                          y="0"
-                          width="20"
-                          height="20"
-                        >
-                          <path d="M20 0H0V20H20V0Z" fill="white" />
-                        </mask>
-                        <g mask="url(#mask0_98_7461)">
-                          <path
-                            d="M19.999 10.2218C20.0111 9.53429 19.9387 8.84791 19.7834 8.17737H10.2031V11.8884H15.8267C15.7201 12.5391 15.4804 13.162 15.1219 13.7195C14.7634 14.2771 14.2935 14.7578 13.7405 15.1328L13.7209 15.2571L16.7502 17.5568L16.96 17.5774C18.8873 15.8329 19.999 13.2661 19.999 10.2218Z"
-                            fill="#4285F4"
-                          />
-                          <path
-                            d="M10.2036 20C12.9586 20 15.2715 19.1111 16.9609 17.5777L13.7409 15.1332C12.8793 15.7223 11.7229 16.1333 10.2036 16.1333C8.91317 16.126 7.65795 15.7206 6.61596 14.9746C5.57397 14.2287 4.79811 13.1802 4.39848 11.9777L4.2789 11.9877L1.12906 14.3766L1.08789 14.4888C1.93622 16.1457 3.23812 17.5386 4.84801 18.512C6.45791 19.4852 8.31194 20.0005 10.2036 20Z"
-                            fill="#34A853"
-                          />
-                          <path
-                            d="M4.39899 11.9776C4.1758 11.3411 4.06063 10.673 4.05807 9.9999C4.06218 9.3279 4.1731 8.66067 4.38684 8.02221L4.38115 7.88959L1.1927 5.46234L1.0884 5.51095C0.372762 6.90337 0 8.44075 0 9.99983C0 11.5589 0.372762 13.0962 1.0884 14.4887L4.39899 11.9776Z"
-                            fill="#FBBC05"
-                          />
-                          <path
-                            d="M10.2039 3.86663C11.6661 3.84438 13.0802 4.37803 14.1495 5.35558L17.0294 2.59997C15.1823 0.90185 12.7364 -0.0298855 10.2039 -3.67839e-05C8.31239 -0.000477835 6.45795 0.514733 4.84805 1.48799C3.23816 2.46123 1.93624 3.85417 1.08789 5.51101L4.38751 8.02225C4.79107 6.82005 5.5695 5.77231 6.61303 5.02675C7.65655 4.28119 8.91254 3.87541 10.2039 3.86663Z"
-                            fill="#EB4335"
-                          />
-                        </g>
-                      </g>
-                      <defs>
-                        <clipPath id="clip0_98_7461">
-                          <rect width="20" height="20" fill="white" />
-                        </clipPath>
-                      </defs>
-                    </svg>
-                    Đăng nhập với Google
-                  </button>
+                <div className="flex flex-col gap-4.5">
+                  <div className="w-full flex justify-center">
+                    <GoogleLogin
+                      onSuccess={handleGoogleLogin}
+                      onError={handleGoogleError}
+                      theme="outline"
+                      size="large"
+                      text="signin_with"
+                      width="100%"
+                      useOneTap={false}
+                      shape="rectangular"
+                      logo_alignment="left"
+                    />
+                  </div>
 
                   <button 
                     type="button" 

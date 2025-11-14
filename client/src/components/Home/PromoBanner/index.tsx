@@ -9,23 +9,22 @@ const PromoBanner = () => {
         <div className="relative z-1 overflow-hidden rounded-lg bg-[#F5F5F7] py-12.5 lg:py-17.5 xl:py-22.5 px-4 sm:px-7.5 lg:px-14 xl:px-19 mb-7.5">
           <div className="max-w-[550px] w-full">
             <span className="block font-medium text-xl text-dark mb-3">
-              Apple iPhone 14 Plus
+              Switch Cisco Catalyst 9300 Series
             </span>
 
             <h2 className="font-bold text-xl lg:text-heading-4 xl:text-heading-3 text-dark mb-5">
-              UP TO 30% OFF
+              GIẢM ĐẾN 30%
             </h2>
 
             <p>
-              iPhone 14 has the same superspeedy chip that’s in iPhone 13 Pro,
-              A15 Bionic, with a 5‑core GPU, powers all the latest features.
+              Switch cấp doanh nghiệp hiệu suất cao, hỗ trợ StackWise Virtual, tốc độ chuyển mạch lên đến 960 Gbps. Giải pháp mạng hoàn hảo cho doanh nghiệp.
             </p>
 
             <a
               href="#"
               className="inline-flex font-medium text-custom-sm text-white bg-blue py-[11px] px-9.5 rounded-md ease-out duration-200 hover:bg-blue-dark mt-7.5"
             >
-              Buy Now
+              Mua ngay
             </a>
           </div>
 
@@ -51,22 +50,22 @@ const PromoBanner = () => {
 
             <div className="text-right">
               <span className="block text-lg text-dark mb-1.5">
-                Foldable Motorised Treadmill
+                Fortinet FortiGate Firewall
               </span>
 
               <h2 className="font-bold text-xl lg:text-heading-4 text-dark mb-2.5">
-                Workout At Home
+                Bảo mật mạng toàn diện
               </h2>
 
               <p className="font-semibold text-custom-1 text-teal">
-                Flat 20% off
+                Giảm 20%
               </p>
 
               <a
                 href="#"
                 className="inline-flex font-medium text-custom-sm text-white bg-teal py-2.5 px-8.5 rounded-md ease-out duration-200 hover:bg-teal-dark mt-9"
               >
-                Grab Now
+                Xem ngay
               </a>
             </div>
           </div>
@@ -83,23 +82,22 @@ const PromoBanner = () => {
 
             <div>
               <span className="block text-lg text-dark mb-1.5">
-                Apple Watch Ultra
+                Ubiquiti UniFi 6 Long-Range
               </span>
 
               <h2 className="font-bold text-xl lg:text-heading-4 text-dark mb-2.5">
-                Up to <span className="text-orange">40%</span> off
+                Giảm đến <span className="text-orange">40%</span>
               </h2>
 
               <p className="max-w-[285px] text-custom-sm">
-                The aerospace-grade titanium case strikes the perfect balance of
-                everything.
+                Access Point WiFi 6 tầm xa 183m, công suất cao. Tốc độ 3.0 Gbps, hoàn hảo cho không gian rộng lớn.
               </p>
 
               <a
                 href="#"
                 className="inline-flex font-medium text-custom-sm text-white bg-orange py-2.5 px-8.5 rounded-md ease-out duration-200 hover:bg-orange-dark mt-7.5"
               >
-                Buy Now
+                Mua ngay
               </a>
             </div>
           </div>

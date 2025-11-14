@@ -6,10 +6,45 @@ import Button from "@/components/ui/button/Button";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
 
 export default function SignInForm() {
+  const router = useRouter();
+  const { login } = useAdminAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      await login(formData.email, formData.password);
+      router.push('/');
+    } catch (err: any) {
+      console.error('Lỗi đăng nhập:', err);
+      const errorMessage = err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại.';
+      
+      if (Array.isArray(errorMessage)) {
+        setError(errorMessage.join(', '));
+      } else if (errorMessage.includes('not found') || errorMessage.includes('Invalid')) {
+        setError('Email hoặc mật khẩu không đúng!');
+      } else {
+        setError(typeof errorMessage === 'string' ? errorMessage : 'Đăng nhập thất bại!');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full">
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
@@ -25,7 +60,7 @@ export default function SignInForm() {
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Đăng Nhập
+              Đăng Nhập Admin
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Nhập email và mật khẩu để đăng nhập!
@@ -84,13 +119,24 @@ export default function SignInForm() {
                 </span>
               </div>
             </div>
-            <form>
+            <form onSubmit={handleSubmit}>
+              {error && (
+                <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-800">
+                  <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+                </div>
+              )}
               <div className="space-y-6">
                 <div>
                   <Label>
                     Email <span className="text-error-500">*</span>{" "}
                   </Label>
-                  <Input placeholder="info@gmail.com" type="email" />
+                  <Input 
+                    placeholder="admin@nettechpro.com" 
+                    type="email" 
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
                 </div>
                 <div>
                   <Label>
@@ -100,6 +146,9 @@ export default function SignInForm() {
                     <Input
                       type={showPassword ? "text" : "password"}
                       placeholder="Nhập mật khẩu của bạn"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
@@ -128,8 +177,13 @@ export default function SignInForm() {
                   </Link>
                 </div>
                 <div>
-                  <Button className="w-full" size="sm">
-                    Đăng nhập
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    size="sm"
+                    disabled={loading}
+                  >
+                    {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
                   </Button>
                 </div>
               </div>
