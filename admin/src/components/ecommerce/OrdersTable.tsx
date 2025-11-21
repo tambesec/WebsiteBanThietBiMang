@@ -222,7 +222,7 @@ const OrdersTable = () => {
               />
               <path d="M8 11.5L11.5 8L10.09 6.59L9 7.67V0.5H7V7.67L5.91 6.59L4.5 8L8 11.5Z" fill="" />
             </svg>
-            Export
+            Xuất
           </button>
         </div>
       </div>

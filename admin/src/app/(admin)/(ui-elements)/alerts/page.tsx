@@ -5,16 +5,16 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Alerts | TailAdmin - Next.js Dashboard Template",
+  title: "Thông Báo | NetTechPro Admin",
   description:
-    "This is Next.js Alerts page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
+    "Trang Thông Báo cho NetTechPro - Bảng Điều Khiển Quản Trị",
   // other metadata
 };
 
 export default function Alerts() {
   return (
     <div>
-      <PageBreadcrumb pageTitle="Alerts" />
+      <PageBreadcrumb pageTitle="Thông Báo" />
       <div className="space-y-5 sm:space-y-6">
         <ComponentCard title="Success Alert">
           <Alert

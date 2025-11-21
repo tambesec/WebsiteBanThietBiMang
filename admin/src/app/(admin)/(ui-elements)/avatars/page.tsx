@@ -5,15 +5,15 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Avatars | TailAdmin - Next.js Dashboard Template",
+  title: "Ảnh Đại Diện | NetTechPro Admin",
   description:
-    "This is Next.js Avatars page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
+    "Trang Ảnh Đại Diện cho NetTechPro - Bảng Điều Khiển Quản Trị",
 };
 
 export default function AvatarPage() {
   return (
     <div>
-      <PageBreadcrumb pageTitle="Avatar" />
+      <PageBreadcrumb pageTitle="Ảnh Đại Diện" />
       <div className="space-y-5 sm:space-y-6">
         <ComponentCard title="Default Avatar">
           {/* Default Avatar (No Status) */}

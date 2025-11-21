@@ -165,6 +165,70 @@ export class ProductsService {
   }
 
   /**
+   * Get product by slug with full details
+   * Security: Returns 404 if not found
+   */
+  async findBySlug(slug: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { slug },
+      include: {
+        category: {
+          select: { id: true, name: true, slug: true, parentId: true },
+        },
+        items: {
+          where: { isActive: true },
+          include: {
+            configurations: {
+              include: {
+                variationOption: {
+                  include: {
+                    variation: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        images: {
+          orderBy: { displayOrder: 'asc' },
+        },
+        attributeValues: {
+          include: {
+            attribute: true,
+          },
+        },
+        reviews: {
+          where: { isApproved: true },
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            user: {
+              select: { id: true, username: true },
+            },
+          },
+        },
+        _count: {
+          select: {
+            reviews: { where: { isApproved: true } },
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with slug '${slug}' not found`);
+    }
+
+    // Calculate average rating
+    const avgRating = await this.calculateAverageRating(product.id);
+
+    return {
+      ...product,
+      averageRating: avgRating,
+    };
+  }
+
+  /**
    * Create new product
    * Security: Admin only (enforced by guard), input validation via DTOs
    */

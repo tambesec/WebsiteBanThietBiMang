@@ -18,7 +18,7 @@ const ChartTab: React.FC = () => {
           "optionOne"
         )}`}
       >
-        Monthly
+        Hàng tháng
       </button>
 
       <button
@@ -27,7 +27,7 @@ const ChartTab: React.FC = () => {
           "optionTwo"
         )}`}
       >
-        Quarterly
+        Theo quý
       </button>
 
       <button
@@ -36,7 +36,7 @@ const ChartTab: React.FC = () => {
           "optionThree"
         )}`}
       >
-        Annually
+        Hàng năm
       </button>
     </div>
   );

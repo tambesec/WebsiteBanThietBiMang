@@ -194,25 +194,25 @@ export interface DashboardStats {
 // ==================== ADMIN AUTH API ====================
 export const adminAuthApi = {
   login: async (email: string, password: string): Promise<AuthResponse> => {
-    const response = await apiClient.post('/api/admin/auth/login', { email, password });
+    const response = await apiClient.post('/api/v1/admin/auth/login', { email, password });
     localStorage.setItem('admin_token', response.data.token);
     localStorage.setItem('admin_user', JSON.stringify(response.data.user));
     return response.data;
   },
 
   logout: async (): Promise<void> => {
-    await apiClient.post('/api/admin/auth/logout');
+    await apiClient.post('/api/v1/admin/auth/logout');
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_user');
   },
 
   getMe: async (): Promise<AdminUser> => {
-    const response = await apiClient.get('/api/admin/auth/me');
+    const response = await apiClient.get('/api/v1/admin/auth/me');
     return response.data;
   },
 
   changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
-    await apiClient.post('/api/admin/auth/change-password', { 
+    await apiClient.post('/api/v1/admin/auth/change-password', { 
       oldPassword, 
       newPassword 
     });
@@ -227,7 +227,7 @@ export const adminProductsApi = {
     isActive?: boolean;
     isFeatured?: boolean;
   }): Promise<PaginatedResponse<Product>> => {
-    const response = await apiClient.get('/api/admin/products', { params });
+    const response = await apiClient.get('/api/v1/admin/products', { params });
     return response.data;
   },
 
@@ -237,7 +237,7 @@ export const adminProductsApi = {
   },
 
   create: async (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'slug' | 'rating' | 'reviews'>): Promise<Product> => {
-    const response = await apiClient.post('/api/admin/products', productData);
+    const response = await apiClient.post('/api/v1/admin/products', productData);
     return response.data;
   },
 
@@ -251,7 +251,7 @@ export const adminProductsApi = {
   },
 
   bulkDelete: async (ids: string[]): Promise<void> => {
-    await apiClient.post('/api/admin/products/bulk-delete', { ids });
+    await apiClient.post('/api/v1/admin/products/bulk-delete', { ids });
   },
 
   updateStock: async (id: string, stock: number): Promise<Product> => {
@@ -284,7 +284,7 @@ export const adminProductsApi = {
 // ==================== ADMIN CATEGORIES API ====================
 export const adminCategoriesApi = {
   getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Category>> => {
-    const response = await apiClient.get('/api/admin/categories', { params });
+    const response = await apiClient.get('/api/v1/admin/categories', { params });
     return response.data;
   },
 
@@ -294,7 +294,7 @@ export const adminCategoriesApi = {
   },
 
   create: async (categoryData: Omit<Category, 'id' | 'createdAt' | 'updatedAt' | 'slug' | 'productsCount'>): Promise<Category> => {
-    const response = await apiClient.post('/api/admin/categories', categoryData);
+    const response = await apiClient.post('/api/v1/admin/categories', categoryData);
     return response.data;
   },
 
@@ -308,7 +308,7 @@ export const adminCategoriesApi = {
   },
 
   reorder: async (categories: { id: string; order: number }[]): Promise<void> => {
-    await apiClient.post('/api/admin/categories/reorder', { categories });
+    await apiClient.post('/api/v1/admin/categories/reorder', { categories });
   },
 
   toggleActive: async (id: string): Promise<Category> => {
@@ -320,7 +320,7 @@ export const adminCategoriesApi = {
 // ==================== ADMIN BRANDS API ====================
 export const adminBrandsApi = {
   getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Brand>> => {
-    const response = await apiClient.get('/api/admin/brands', { params });
+    const response = await apiClient.get('/api/v1/admin/brands', { params });
     return response.data;
   },
 
@@ -330,7 +330,7 @@ export const adminBrandsApi = {
   },
 
   create: async (brandData: Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'slug' | 'productsCount'>): Promise<Brand> => {
-    const response = await apiClient.post('/api/admin/brands', brandData);
+    const response = await apiClient.post('/api/v1/admin/brands', brandData);
     return response.data;
   },
 
@@ -357,7 +357,7 @@ export const adminOrdersApi = {
     paymentMethod?: string;
     userId?: string;
   }): Promise<PaginatedResponse<Order>> => {
-    const response = await apiClient.get('/api/admin/orders', { params });
+    const response = await apiClient.get('/api/v1/admin/orders', { params });
     return response.data;
   },
 
@@ -398,7 +398,7 @@ export const adminUsersApi = {
     role?: string;
     isActive?: boolean;
   }): Promise<PaginatedResponse<User>> => {
-    const response = await apiClient.get('/api/admin/users', { params });
+    const response = await apiClient.get('/api/v1/admin/users', { params });
     return response.data;
   },
 
@@ -408,7 +408,7 @@ export const adminUsersApi = {
   },
 
   create: async (userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'> & { password: string }): Promise<User> => {
-    const response = await apiClient.post('/api/admin/users', userData);
+    const response = await apiClient.post('/api/v1/admin/users', userData);
     return response.data;
   },
 
@@ -434,7 +434,7 @@ export const adminUsersApi = {
 // ==================== ADMIN DASHBOARD API ====================
 export const adminDashboardApi = {
   getStats: async (period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<DashboardStats> => {
-    const response = await apiClient.get('/api/admin/dashboard/stats', { 
+    const response = await apiClient.get('/api/v1/admin/dashboard/stats', { 
       params: { period } 
     });
     return response.data;
@@ -444,7 +444,7 @@ export const adminDashboardApi = {
     labels: string[];
     data: number[];
   }> => {
-    const response = await apiClient.get('/api/admin/dashboard/revenue-chart', { 
+    const response = await apiClient.get('/api/v1/admin/dashboard/revenue-chart', { 
       params: { period } 
     });
     return response.data;
@@ -454,7 +454,7 @@ export const adminDashboardApi = {
     labels: string[];
     data: number[];
   }> => {
-    const response = await apiClient.get('/api/admin/dashboard/orders-chart', { 
+    const response = await apiClient.get('/api/v1/admin/dashboard/orders-chart', { 
       params: { period } 
     });
     return response.data;
@@ -467,7 +467,7 @@ export const adminUploadApi = {
     const formData = new FormData();
     formData.append('image', file);
     formData.append('type', type);
-    const response = await apiClient.post('/api/admin/upload/image', formData, {
+    const response = await apiClient.post('/api/v1/admin/upload/image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data.url;
@@ -479,7 +479,7 @@ export const adminUploadApi = {
       formData.append('images', file);
     });
     formData.append('type', type);
-    const response = await apiClient.post('/api/admin/upload/images', formData, {
+    const response = await apiClient.post('/api/v1/admin/upload/images', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data.urls;

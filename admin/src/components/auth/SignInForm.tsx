@@ -68,7 +68,7 @@ export default function SignInForm() {
           </div>
           <div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
-              <button className="inline-flex items-center justify-center gap-3 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg px-7 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10">
+              <button className="inline-flex items-center justify-center gap-2.5 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10">
                 <svg
                   width="20"
                   height="20"
@@ -93,20 +93,21 @@ export default function SignInForm() {
                     fill="#EB4335"
                   />
                 </svg>
-                Đăng nhập với Google
+                Google
               </button>
-              <button className="inline-flex items-center justify-center gap-3 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg px-7 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10">
+              <button className="inline-flex items-center justify-center gap-2.5 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10">
                 <svg
-                  width="21"
-                  className="fill-current"
+                  width="20"
                   height="20"
-                  viewBox="0 0 21 20"
+                  viewBox="0 0 512 512"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path d="M15.6705 1.875H18.4272L12.4047 8.75833L19.4897 18.125H13.9422L9.59717 12.4442L4.62554 18.125H1.86721L8.30887 10.7625L1.51221 1.875H7.20054L11.128 7.0675L15.6705 1.875ZM14.703 16.475H16.2305L6.37054 3.43833H4.73137L14.703 16.475Z" />
+                  <rect width="512" height="512" rx="100" fill="#0068FF"/>
+                  <path d="M375.84 256C375.84 324.32 322.08 380 256 380C189.92 380 136.16 324.32 136.16 256C136.16 187.68 189.92 132 256 132C322.08 132 375.84 187.68 375.84 256Z" fill="white"/>
+                  <path d="M256 140C194.88 140 144 187.68 144 248C144 286.88 166.4 321.12 199.68 340L189.44 372L224 358.08C234.24 360.96 244.96 362.4 256 362.4C317.12 362.4 368 314.72 368 253.6C368 192.48 317.12 140 256 140ZM306.56 284.48L282.88 260.8L256 287.68L229.12 260.8L205.44 284.48L229.12 308.16L256 335.04L282.88 308.16L306.56 284.48ZM306.56 227.52L282.88 203.84L256 230.72L229.12 203.84L205.44 227.52L229.12 251.2L256 278.08L282.88 251.2L306.56 227.52Z" fill="#0068FF"/>
                 </svg>
-                Đăng nhập với X
+                Zalo
               </button>
             </div>
             <div className="relative py-3 sm:py-5">

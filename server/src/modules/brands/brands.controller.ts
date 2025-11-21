@@ -4,7 +4,7 @@ import { BrandsService } from './brands.service';
 import { Public } from '../../common/decorators';
 
 @ApiTags('Brands')
-@Controller('api/brands')
+@Controller('api/v1/brands')
 export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}
 

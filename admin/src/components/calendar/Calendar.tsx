@@ -156,8 +156,7 @@ const Calendar: React.FC = () => {
               {selectedEvent ? "Edit Event" : "Add Event"}
             </h5>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Plan your next big moment: schedule or edit an event to stay on
-              track
+              Kế hoạch cho khoảnh khắc lớn tiếp theo của bạn: lên lịch hoặc chỉnh sửa một sự kiện để luôn theo dõi
             </p>
           </div>
           <div className="mt-8">

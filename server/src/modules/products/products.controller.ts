@@ -31,7 +31,7 @@ import { Roles } from '../../common/decorators';
 import { Public } from '../../common/decorators';
 
 @ApiTags('Products')
-@Controller('api/products')
+@Controller('api/v1/products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
@@ -46,6 +46,20 @@ export class ProductsController {
   @ApiQuery({ type: ProductQueryDto })
   async findAll(@Query() query: ProductQueryDto) {
     return this.productsService.findAll(query);
+  }
+
+  /**
+   * PUBLIC: Get product by slug
+   * No authentication required
+   */
+  @Get('slug/:slug')
+  @Public()
+  @ApiOperation({ summary: 'Get product by slug (public)' })
+  @ApiParam({ name: 'slug', description: 'Product slug', type: String })
+  @ApiResponse({ status: 200, description: 'Returns product details' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
+  async findBySlug(@Param('slug') slug: string) {
+    return this.productsService.findBySlug(slug);
   }
 
   /**

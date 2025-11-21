@@ -12,6 +12,7 @@ import { CartModule } from './modules/cart/cart.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { UsersModule } from './modules/users/users.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AdminModule } from './modules/admin/admin.module';
     OrdersModule,
     UsersModule,
     AdminModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

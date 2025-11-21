@@ -189,7 +189,7 @@ export const productsApi = {
     maxPrice?: number;
     search?: string;
   }): Promise<PaginatedResponse<Product>> => {
-    const response = await apiClient.get('/api/products', { params });
+    const response = await apiClient.get('/api/v1/products', { params });
     // Backend returns: { success: true, data: { data: [...], meta: {...} } }
     const result = response.data.data || response.data;
     return {
@@ -206,7 +206,7 @@ export const productsApi = {
 
   // Lấy sản phẩm theo slug (backend không hỗ trợ, dùng search thay thế)
   getBySlug: async (slug: string): Promise<Product> => {
-    const response = await apiClient.get('/api/products', { 
+    const response = await apiClient.get('/api/v1/products', { 
       params: { search: slug, limit: 1 } 
     });
     const result = response.data.data || response.data;
@@ -221,7 +221,7 @@ export const productsApi = {
   getRelated: async (id: string, limit: number = 4): Promise<Product[]> => {
     // Lấy product detail để biết category
     const product = await productsApi.getById(id);
-    const response = await apiClient.get('/api/products', { 
+    const response = await apiClient.get('/api/v1/products', { 
       params: { category: product.category, limit, page: 1 } 
     });
     const result = response.data.data || response.data;
@@ -232,7 +232,7 @@ export const productsApi = {
 
   // Tìm kiếm sản phẩm
   search: async (query: string, params?: PaginationParams): Promise<PaginatedResponse<Product>> => {
-    const response = await apiClient.get('/api/products', { 
+    const response = await apiClient.get('/api/v1/products', { 
       params: { ...params, search: query } 
     });
     const result = response.data.data || response.data;
@@ -247,7 +247,7 @@ export const productsApi = {
 export const categoriesApi = {
   // Lấy tất cả danh mục
   getAll: async (): Promise<Category[]> => {
-    const response = await apiClient.get('/api/categories');
+    const response = await apiClient.get('/api/v1/categories');
     return response.data.data || response.data;
   },
 
@@ -259,7 +259,7 @@ export const categoriesApi = {
 
   // Lấy danh mục theo slug (backend không hỗ trợ, search by name)
   getBySlug: async (slug: string): Promise<Category> => {
-    const response = await apiClient.get('/api/categories');
+    const response = await apiClient.get('/api/v1/categories');
     const categories = response.data.data || response.data;
     const category = categories.find((c: Category) => c.slug === slug);
     if (!category) {
@@ -270,7 +270,7 @@ export const categoriesApi = {
 
   // Lấy sản phẩm theo danh mục
   getProducts: async (id: string, params?: PaginationParams): Promise<PaginatedResponse<Product>> => {
-    const response = await apiClient.get('/api/products', { 
+    const response = await apiClient.get('/api/v1/products', { 
       params: { ...params, categoryId: id } 
     });
     const result = response.data.data || response.data;
@@ -285,7 +285,7 @@ export const categoriesApi = {
 export const brandsApi = {
   // Lấy tất cả thương hiệu
   getAll: async (): Promise<Brand[]> => {
-    const response = await apiClient.get('/api/brands');
+    const response = await apiClient.get('/api/v1/brands');
     return response.data.data || response.data;
   },
 
@@ -297,7 +297,7 @@ export const brandsApi = {
 
   // Lấy sản phẩm theo thương hiệu
   getProducts: async (name: string, params?: PaginationParams): Promise<PaginatedResponse<Product>> => {
-    const response = await apiClient.get('/api/products', { 
+    const response = await apiClient.get('/api/v1/products', { 
       params: { ...params, brand: name } 
     });
     const result = response.data.data || response.data;
@@ -312,13 +312,13 @@ export const brandsApi = {
 export const cartApi = {
   // Lấy giỏ hàng hiện tại
   get: async (): Promise<Cart> => {
-    const response = await apiClient.get('/api/cart');
+    const response = await apiClient.get('/api/v1/cart');
     return response.data.data || response.data;
   },
 
   // Thêm sản phẩm vào giỏ (backend sử dụng productItemId)
   addItem: async (productItemId: number, quantity: number = 1): Promise<Cart> => {
-    const response = await apiClient.post('/api/cart/items', { 
+    const response = await apiClient.post('/api/v1/cart/items', { 
       productItemId, 
       quantity 
     });
@@ -327,7 +327,7 @@ export const cartApi = {
 
   // Cập nhật số lượng
   updateItem: async (itemId: string, quantity: number): Promise<Cart> => {
-    const response = await apiClient.put(`/api/cart/items/${itemId}`, { 
+    const response = await apiClient.put(`/api/v1/cart/items/${itemId}`, { 
       quantity 
     });
     return response.data.data || response.data;
@@ -335,13 +335,13 @@ export const cartApi = {
 
   // Xóa sản phẩm khỏi giỏ
   removeItem: async (itemId: string): Promise<Cart> => {
-    const response = await apiClient.delete(`/api/cart/items/${itemId}`);
+    const response = await apiClient.delete(`/api/v1/cart/items/${itemId}`);
     return response.data.data || response.data;
   },
 
   // Xóa toàn bộ giỏ hàng
   clear: async (): Promise<void> => {
-    await apiClient.delete('/api/cart');
+    await apiClient.delete('/api/v1/cart');
   },
 };
 
@@ -355,13 +355,13 @@ export const ordersApi = {
     discountId?: number;
     notes?: string;
   }): Promise<Order> => {
-    const response = await apiClient.post('/api/orders', orderData);
+    const response = await apiClient.post('/api/v1/orders', orderData);
     return response.data.data || response.data;
   },
 
   // Lấy danh sách đơn hàng của user
   getMyOrders: async (params?: PaginationParams): Promise<PaginatedResponse<Order>> => {
-    const response = await apiClient.get('/api/orders/my-orders', { params });
+    const response = await apiClient.get('/api/v1/orders/my-orders', { params });
     const result = response.data.data || response.data;
     return {
       data: result.data || result,
@@ -371,13 +371,13 @@ export const ordersApi = {
 
   // Lấy chi tiết đơn hàng
   getById: async (id: string): Promise<Order> => {
-    const response = await apiClient.get(`/api/orders/${id}`);
+    const response = await apiClient.get(`/api/v1/orders/${id}`);
     return response.data.data || response.data;
   },
 
   // Hủy đơn hàng (backend chưa có endpoint này, có thể thêm sau)
   cancel: async (id: string, reason?: string): Promise<Order> => {
-    const response = await apiClient.post(`/api/orders/${id}/cancel`, { reason });
+    const response = await apiClient.post(`/api/v1/orders/${id}/cancel`, { reason });
     return response.data.data || response.data;
   },
 };

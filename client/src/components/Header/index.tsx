@@ -59,7 +59,7 @@ const Header = () => {
       <div className="max-w-[1170px] mx-auto px-4 sm:px-7.5 xl:px-0">
         {/* <!-- header top start --> */}
         <div
-          className={`flex flex-col lg:flex-row gap-4 lg:gap-5 items-end lg:items-center justify-between ease-out duration-200 ${
+          className={`flex flex-col lg:flex-row gap-4 lg:gap-5 items-end lg:items-center justify-between ease-out duration-200 min-w-0 ${
             stickyMenu ? "py-4" : "py-6"
           }`}
         >
@@ -82,12 +82,12 @@ const Header = () => {
               />
             </Link>
 
-            <div className="max-w-[450px] w-full">
+            <div className="max-w-[450px] w-full min-w-0">
               <form>
-                <div className="flex items-center">
+                <div className="flex items-center min-w-0">
                   <CustomSelect options={options} />
 
-                  <div className="relative max-w-[300px] sm:min-w-[280px] w-full">
+                  <div className="relative flex-1 min-w-[150px]">
                     {/* <!-- divider --> */}
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 inline-block w-px h-5.5 bg-gray-4"></span>
                     <input
@@ -127,7 +127,7 @@ const Header = () => {
           </div>
 
           {/* <!-- header top right --> */}
-          <div className="flex w-full lg:w-auto items-center gap-3 xl:gap-7.5 flex-shrink-0">
+          <div className="flex w-full lg:w-auto items-center gap-3 xl:gap-7.5 flex-shrink-0 justify-end lg:justify-normal">
             <div className="hidden lg:flex items-center gap-2 xl:gap-3.5">
               <svg
                 className="flex-shrink-0"
@@ -171,10 +171,11 @@ const Header = () => {
             <div className="flex w-full lg:w-auto justify-between items-center gap-3 xl:gap-5">
               <div className="flex items-center gap-3 xl:gap-5">
                 {isAuthenticated && user ? (
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     <button 
                       onClick={() => setShowUserMenu(!showUserMenu)}
-                      className="flex items-center gap-1.5 xl:gap-2.5 hover:opacity-80"
+                      className="hidden sm:flex items-center gap-1.5 xl:gap-2.5 hover:opacity-80 min-w-0"
+                      title={user.username}
                     >
                       <svg
                         className="flex-shrink-0"
@@ -198,11 +199,11 @@ const Header = () => {
                         />
                       </svg>
 
-                      <div className="min-w-0">
+                      <div className="min-w-0 max-w-[80px]">
                         <span className="block text-2xs text-dark-4 uppercase whitespace-nowrap">
                           Xin chào
                         </span>
-                        <p className="font-medium text-custom-sm text-dark whitespace-nowrap">
+                        <p className="font-medium text-custom-sm text-dark truncate">
                           {user.username}
                         </p>
                       </div>

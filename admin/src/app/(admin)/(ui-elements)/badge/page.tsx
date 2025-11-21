@@ -5,16 +5,16 @@ import { Metadata } from "next";
 import React from "react";
 
 export const metadata: Metadata = {
-  title: "Next.js Badge | TailAdmin - Next.js Dashboard Template",
+  title: "Huy Hiệu | NetTechPro Admin",
   description:
-    "This is Next.js Badge page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
+    "Trang Huy Hiệu cho NetTechPro - Bảng Điều Khiển Quản Trị",
   // other metadata
 };
 
 export default function BadgePage() {
   return (
     <div>
-      <PageBreadcrumb pageTitle="Badges" />
+      <PageBreadcrumb pageTitle="Huy Hiệu" />
       <div className="space-y-5 sm:space-y-6">
         <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
           <div className="px-6 py-5">

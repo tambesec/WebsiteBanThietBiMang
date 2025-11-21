@@ -16,7 +16,7 @@ import { AddToCartDto, UpdateCartItemDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Cart')
-@Controller('api/cart')
+@Controller('api/v1/cart')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class CartController {

@@ -23,7 +23,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators';
 
 @ApiTags('Admin')
-@Controller('api/admin')
+@Controller('api/v1/admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin', 'super_admin')
 @ApiBearerAuth()
