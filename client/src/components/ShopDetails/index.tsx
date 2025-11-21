@@ -86,6 +86,33 @@ const ShopDetails = () => {
     localStorage.setItem("productDetails", JSON.stringify(product));
   }, [product]);
 
+  // Track recently viewed products
+  useEffect(() => {
+    if (product && product.id && product.title) {
+      try {
+        const recentlyViewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+        
+        const productData = {
+          id: product.id,
+          name: product.title,
+          price: product.price || 0,
+          image: product.imgs?.previews?.[0] || product.imgs?.thumbnails?.[0] || '/images/products/product-01.png',
+          category: 'Sản phẩm',
+          slug: `shop-details-${product.id}`,
+          viewedAt: Date.now()
+        };
+        
+        // Remove if already exists and add to front
+        const filtered = recentlyViewed.filter((p: any) => p.id !== product.id);
+        const updated = [productData, ...filtered].slice(0, 20); // Keep last 20 products
+        
+        localStorage.setItem('recentlyViewed', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Error saving to recently viewed:', error);
+      }
+    }
+  }, [product.id]);
+
   // pass the product here when you get the real data.
   const handlePreviewSlider = () => {
     openPreviewModal();

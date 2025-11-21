@@ -345,6 +345,8 @@ const Signup = () => {
     });
   };
 
+  // (Đã loại bỏ Facebook OAuth - chỉ giữ Google)
+
   return (
     <>
       <Breadcrumb title={"Đăng Ký"} pages={["Đăng Ký"]} />

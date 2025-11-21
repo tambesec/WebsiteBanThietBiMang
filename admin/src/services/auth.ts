@@ -41,6 +41,35 @@ export const adminAuthApi = {
       newPassword 
     });
   },
+
+  /**
+   * Cập nhật thông tin profile admin
+   */
+  updateProfile: async (profileData: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    avatar?: string;
+  }): Promise<User> => {
+    const response = await apiClient.put('/api/v1/admin/auth/profile', profileData);
+    const data = unwrapResponse<User>(response);
+    // Cập nhật localStorage
+    const adminUser = JSON.parse(localStorage.getItem('admin_user') || '{}');
+    localStorage.setItem('admin_user', JSON.stringify({ ...adminUser, ...data }));
+    return data;
+  },
+
+  /**
+   * Refresh access token
+   */
+  refreshToken: async (refreshToken: string): Promise<AdminAuthResponse> => {
+    const response = await apiClient.post('/api/v1/admin/auth/refresh', { refreshToken });
+    const data = unwrapResponse<AdminAuthResponse>(response);
+    if (data.accessToken) {
+      localStorage.setItem('admin_token', data.accessToken);
+    }
+    return data;
+  },
 };
 
 export default adminAuthApi;

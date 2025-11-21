@@ -193,6 +193,8 @@ const Signin = () => {
     });
   };
 
+  // (Đã loại bỏ Facebook OAuth - chỉ giữ Google)
+
   return (
     <>
       <Breadcrumb title={"Đăng Nhập"} pages={["Đăng Nhập"]} />
@@ -318,26 +320,6 @@ const Signin = () => {
                       logo_alignment="left"
                     />
                   </div>
-
-                  <button 
-                    type="button" 
-                    onClick={() => alert('Chức năng đăng nhập Zalo đang được phát triển')}
-                    className="flex justify-center items-center gap-3.5 rounded-lg border border-gray-3 bg-gray-1 p-3 ease-out duration-200 hover:bg-gray-2"
-                  >
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 22 22"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M11 0C4.925 0 0 4.925 0 11C0 17.075 4.925 22 11 22C17.075 22 22 17.075 22 11C22 4.925 17.075 0 11 0ZM16.5 8.8L15.4 14.3C15.4 14.3 15.125 15.125 14.3 14.85L10.45 12.1L8.8 11.275L6.05 10.45C6.05 10.45 5.5 10.175 5.5 9.625C5.5 9.075 6.05 8.8 6.05 8.8L15.95 5.5C15.95 5.5 16.5 5.225 16.5 5.775V8.8Z"
-                        fill="#0088CC"
-                      />
-                    </svg>
-                    Đăng nhập với Zalo
-                  </button>
                 </div>
 
                 <p className="text-center mt-6">

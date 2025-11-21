@@ -50,6 +50,12 @@ export const menuData: Menu[] = [
         path: "/wishlist",
       },
       {
+        id: 71,
+        title: "Đã xem",
+        newTab: false,
+        path: "/recent-view",
+      },
+      {
         id: 67,
         title: "Đăng nhập",
         newTab: false,
@@ -91,20 +97,6 @@ export const menuData: Menu[] = [
     id: 7,
     title: "Tin tức",
     newTab: false,
-    path: "/",
-    submenu: [
-      {
-        id: 71,
-        title: "Blog lưới",
-        newTab: false,
-        path: "/blogs/blog-grid",
-      },
-      {
-        id: 73,
-        title: "Chi tiết blog",
-        newTab: false,
-        path: "/blogs/blog-details",
-      },
-    ],
+    path: "/blogs/blog-grid",
   },
 ];

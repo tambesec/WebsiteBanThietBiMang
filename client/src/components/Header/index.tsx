@@ -417,8 +417,8 @@ const Header = () => {
             <div className="hidden xl:block">
               <ul className="flex items-center gap-5.5">
                 <li className="py-4">
-                  <a
-                    href="#"
+                  <Link
+                    href="/recent-view"
                     className="flex items-center gap-1.5 font-medium text-custom-sm text-dark hover:text-blue"
                   >
                     <svg
@@ -439,7 +439,7 @@ const Header = () => {
                       />
                     </svg>
                     Đã xem
-                  </a>
+                  </Link>
                 </li>
 
                 <li className="py-4">

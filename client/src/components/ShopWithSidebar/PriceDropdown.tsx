@@ -7,7 +7,7 @@ const PriceDropdown = () => {
 
   const [selectedPrice, setSelectedPrice] = useState({
     from: 0,
-    to: 100,
+    to: 100000000,
   });
 
   return (
@@ -51,6 +51,8 @@ const PriceDropdown = () => {
               id="range-slider-gradient"
               className="margin-lg"
               step={'any'}
+              min={0}
+              max={100000000}
               onInput={(e) =>
                 setSelectedPrice({
                   from: Math.floor(e[0]),
@@ -62,19 +64,19 @@ const PriceDropdown = () => {
             <div className="price-amount flex items-center justify-between pt-4">
               <div className="text-custom-xs text-dark-4 flex rounded border border-gray-3/80">
                 <span className="block border-r border-gray-3/80 px-2.5 py-1.5">
-                  $
+                  đ
                 </span>
                 <span id="minAmount" className="block px-3 py-1.5">
-                  {selectedPrice.from}
+                  {selectedPrice.from.toLocaleString('vi-VN')}
                 </span>
               </div>
 
               <div className="text-custom-xs text-dark-4 flex rounded border border-gray-3/80">
                 <span className="block border-r border-gray-3/80 px-2.5 py-1.5">
-                  $
+                  đ
                 </span>
                 <span id="maxAmount" className="block px-3 py-1.5">
-                  {selectedPrice.to}
+                  {selectedPrice.to.toLocaleString('vi-VN')}
                 </span>
               </div>
             </div>

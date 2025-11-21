@@ -153,6 +153,33 @@ export interface User {
   updatedAt: string;
 }
 
+export interface Address {
+  id: number;
+  userId: number;
+  recipientName: string;
+  phone: string;
+  address: string;
+  city: string;
+  district: string;
+  ward: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Review {
+  id: number;
+  userId: number;
+  productItemId: number;
+  rating: number;
+  comment?: string;
+  isApproved: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user?: User;
+  product?: Product;
+}
+
 export interface AuthResponse {
   id: number;
   email: string;
@@ -425,6 +452,16 @@ export const authApi = {
     return response.data.data || response.data;
   },
 
+  // Refresh access token
+  refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
+    const response = await apiClient.post('/api/v1/auth/refresh', { refreshToken });
+    const data = response.data.data || response.data;
+    if (data.accessToken) {
+      localStorage.setItem('token', data.accessToken);
+    }
+    return data;
+  },
+
   // Cập nhật thông tin user
   updateProfile: async (userData: Partial<User>): Promise<User> => {
     const response = await apiClient.put('/api/v1/users/profile', userData);
@@ -453,6 +490,92 @@ export const authApi = {
   },
 };
 
+// ==================== ADDRESSES API ====================
+export const addressesApi = {
+  // Lấy danh sách địa chỉ của user
+  getAll: async (): Promise<Address[]> => {
+    const response = await apiClient.get('/api/v1/users/addresses');
+    return response.data.data || response.data;
+  },
+
+  // Lấy chi tiết địa chỉ
+  getById: async (id: number): Promise<Address> => {
+    const response = await apiClient.get(`/api/v1/users/addresses/${id}`);
+    return response.data.data || response.data;
+  },
+
+  // Tạo địa chỉ mới
+  create: async (addressData: {
+    recipientName: string;
+    phone: string;
+    address: string;
+    city: string;
+    district: string;
+    ward: string;
+    isDefault?: boolean;
+  }): Promise<Address> => {
+    const response = await apiClient.post('/api/v1/users/addresses', addressData);
+    return response.data.data || response.data;
+  },
+
+  // Cập nhật địa chỉ
+  update: async (id: number, addressData: Partial<Address>): Promise<Address> => {
+    const response = await apiClient.put(`/api/v1/users/addresses/${id}`, addressData);
+    return response.data.data || response.data;
+  },
+
+  // Xóa địa chỉ
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/v1/users/addresses/${id}`);
+  },
+
+  // Đặt địa chỉ mặc định
+  setDefault: async (id: number): Promise<Address> => {
+    const response = await apiClient.put(`/api/v1/users/addresses/${id}`, { isDefault: true });
+    return response.data.data || response.data;
+  },
+};
+
+// ==================== REVIEWS API ====================
+export const reviewsApi = {
+  // Lấy danh sách review của user
+  getMyReviews: async (): Promise<Review[]> => {
+    const response = await apiClient.get('/api/v1/users/reviews');
+    return response.data.data || response.data;
+  },
+
+  // Lấy reviews của một sản phẩm
+  getByProduct: async (productId: string, params?: PaginationParams): Promise<PaginatedResponse<Review>> => {
+    const response = await apiClient.get(`/api/v1/products/${productId}/reviews`, { params });
+    const result = response.data.data || response.data;
+    return {
+      data: result.data || result,
+      pagination: result.meta || { total: 0, page: 1, limit: 10, totalPages: 1 }
+    };
+  },
+
+  // Tạo review cho sản phẩm
+  create: async (reviewData: {
+    productItemId: number;
+    rating: number;
+    comment?: string;
+  }): Promise<Review> => {
+    const response = await apiClient.post('/api/v1/users/reviews', reviewData);
+    return response.data.data || response.data;
+  },
+
+  // Cập nhật review
+  update: async (id: number, reviewData: { rating: number; comment?: string }): Promise<Review> => {
+    const response = await apiClient.put(`/api/v1/users/reviews/${id}`, reviewData);
+    return response.data.data || response.data;
+  },
+
+  // Xóa review
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/v1/users/reviews/${id}`);
+  },
+};
+
 // Export default object chứa tất cả API
 const api = {
   products: productsApi,
@@ -461,6 +584,8 @@ const api = {
   cart: cartApi,
   orders: ordersApi,
   auth: authApi,
+  addresses: addressesApi,
+  reviews: reviewsApi,
   client: apiClient, // Export axios instance để sử dụng trực tiếp nếu cần
 };
 

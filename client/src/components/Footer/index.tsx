@@ -89,7 +89,9 @@ const Footer = () => {
             {/* <!-- Social Links start --> */}
             <div className="flex items-center gap-4 mt-7.5">
               <a
-                href="#"
+                href="https://facebook.com/nettechpro"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="Facebook Social Link"
                 className="flex ease-out duration-200 hover:text-blue"
               >
@@ -114,7 +116,9 @@ const Footer = () => {
               </a>
 
               <a
-                href="#"
+                href="https://twitter.com/nettechpro"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="Twitter Social Link"
                 className="flex ease-out duration-200 hover:text-blue"
               >
@@ -134,7 +138,9 @@ const Footer = () => {
               </a>
 
               <a
-                href="#"
+                href="https://instagram.com/nettechpro"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="Instagram Social Link"
                 className="flex ease-out duration-200 hover:text-blue"
               >
@@ -169,7 +175,9 @@ const Footer = () => {
               </a>
 
               <a
-                href="#"
+                href="https://linkedin.com/company/nettechpro"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="Linkedin Social Link"
                 className="flex ease-out duration-200 hover:text-blue"
               >
@@ -203,32 +211,32 @@ const Footer = () => {
 
             <ul className="flex flex-col gap-3.5">
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/category/network-card">
+                <a className="ease-out duration-200 hover:text-blue" href="/shop">
                   Card Mạng
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/category/hub-switch">
+                <a className="ease-out duration-200 hover:text-blue" href="/shop">
                   Hub Switch
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/category/router">
+                <a className="ease-out duration-200 hover:text-blue" href="/shop">
                   Router
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/category/access-point">
+                <a className="ease-out duration-200 hover:text-blue" href="/shop">
                   Bộ Phát Sóng
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/category/usb-wifi">
+                <a className="ease-out duration-200 hover:text-blue" href="/shop">
                   USB Wifi
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/category/accessories">
+                <a className="ease-out duration-200 hover:text-blue" href="/shop">
                   Phụ Kiện Khác
                 </a>
               </li>
@@ -242,27 +250,27 @@ const Footer = () => {
 
             <ul className="flex flex-col gap-3.5">
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
+                <a className="ease-out duration-200 hover:text-blue" href="/profile">
                   Tài khoản của tôi
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
+                <a className="ease-out duration-200 hover:text-blue" href="/signin">
                   Đăng nhập / Đăng ký
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
+                <a className="ease-out duration-200 hover:text-blue" href="/cart">
                   Giỏ hàng
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
+                <a className="ease-out duration-200 hover:text-blue" href="/wishlist">
                   Danh sách yêu thích
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
+                <a className="ease-out duration-200 hover:text-blue" href="/shop">
                   Cửa hàng
                 </a>
               </li>
@@ -276,27 +284,27 @@ const Footer = () => {
 
             <ul className="flex flex-col gap-3">
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
+                <a className="ease-out duration-200 hover:text-blue" href="/privacy-policy">
                   Chính sách bảo mật
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
+                <a className="ease-out duration-200 hover:text-blue" href="/refund-policy">
                   Chính sách hoàn tiền
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
+                <a className="ease-out duration-200 hover:text-blue" href="/terms-of-service">
                   Điều khoản sử dụng
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
-                  FAQ’s
+                <a className="ease-out duration-200 hover:text-blue" href="/faq">
+                  FAQ's
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="#">
+                <a className="ease-out duration-200 hover:text-blue" href="/contact">
                   Liên hệ
                 </a>
               </li>

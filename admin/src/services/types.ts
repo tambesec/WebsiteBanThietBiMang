@@ -68,6 +68,20 @@ export interface User {
   updatedAt: string;
 }
 
+export interface Address {
+  id: number;
+  userId: number;
+  recipientName: string;
+  phone: string;
+  address: string;
+  city: string;
+  district: string;
+  ward: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Order {
   id: string;
   userId: string;
