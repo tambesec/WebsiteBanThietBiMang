@@ -11,7 +11,7 @@ import Billing from "./Billing";
 const Checkout = () => {
   return (
     <>
-      <Breadcrumb title={"Thanh toán"} pages={["thanh toán"]} />
+      <Breadcrumb title={"Thanh Toán"} pages={["Thanh Toán"]} />
       <section className="overflow-hidden py-20 bg-gray-2">
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
           <form>

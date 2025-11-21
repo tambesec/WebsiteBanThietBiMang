@@ -3,7 +3,7 @@ import Breadcrumb from "../Common/Breadcrumb";
 import SearchForm from "../Blog/SearchForm";
 import LatestPosts from "../Blog/LatestPosts";
 import LatestProducts from "../Blog/LatestProducts";
-import blogData from "../BlogGrid/blogData";
+import blogData from "../Blog/blogData";
 import Image from "next/image";
 import shopData from "../Shop/shopData"; 
 
@@ -11,8 +11,8 @@ const BlogDetailsWithSidebar = () => {
   return (
     <>
       <Breadcrumb
-        title={"Blog Details With Sidebar"}
-        pages={["blog details sidebar"]}
+        title={"Chi Tiết Blog"}
+        pages={["Chi Tiết Blog"]}
       />
       <section className="overflow-hidden py-20 bg-gray-2">
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
@@ -32,19 +32,19 @@ const BlogDetailsWithSidebar = () => {
               <div>
                 <span className="flex items-center gap-3 mb-4">
                   <a href="#" className="ease-out duration-200 hover:text-blue">
-                    Mar 27, 2022
+                    27 Tháng 3, 2022
                   </a>
 
                   {/* <!-- divider -`-> */}
                   <span className="block w-px h-4 bg-gray-4"></span>
 
                   <a href="#" className="ease-out duration-200 hover:text-blue">
-                    300k Views
+                    300k Lượt Xem
                   </a>
                 </span>
 
                 <h2 className="font-medium text-dark text-xl lg:text-2xl xl:text-custom-4xl mb-4">
-                  What information is needed for shipping?
+                  Thông tin nào cần thiết để vận chuyển?
                 </h2>
 
                 <p className="mb-6">
@@ -145,7 +145,7 @@ const BlogDetailsWithSidebar = () => {
 
                 <div className="flex flex-wrap items-center justify-between gap-10 mt-10">
                   <div className="flex flex-wrap items-center gap-5">
-                    <p>Popular Tags :</p>
+                    <p>Thẻ Phổ Biến :</p>
 
                     <ul className="flex flex-wrap items-center gap-3.5">
                       <li>
@@ -278,7 +278,7 @@ const BlogDetailsWithSidebar = () => {
               <div className="shadow-1 bg-white rounded-xl mt-7.5">
                 <div className="px-4 sm:px-6 py-4.5 border-b border-gray-3">
                   <h2 className="font-medium text-lg text-dark">
-                    Popular Category
+                    Danh Mục Phổ Biến
                   </h2>
                 </div>
 
@@ -346,7 +346,7 @@ const BlogDetailsWithSidebar = () => {
               {/* <!-- Tags box --> */}
               <div className="shadow-1 bg-white rounded-xl mt-7.5">
                 <div className="px-4 sm:px-6 py-4.5 border-b border-gray-3">
-                  <h2 className="font-medium text-lg text-dark">Tags</h2>
+                  <h2 className="font-medium text-lg text-dark">Thẻ</h2>
                 </div>
 
                 <div className="p-4 sm:p-6">

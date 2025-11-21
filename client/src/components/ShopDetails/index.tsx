@@ -95,7 +95,7 @@ const ShopDetails = () => {
 
   return (
     <>
-      <Breadcrumb title={"Shop Details"} pages={["shop details"]} />
+      <Breadcrumb title={"Chi Tiết Sản Phẩm"} pages={["Chi Tiết Sản Phẩm"]} />
 
       {product.title === "" ? (
         "Please add product"
@@ -1384,7 +1384,7 @@ const ShopDetails = () => {
                             name="comments"
                             id="comments"
                             rows={5}
-                            placeholder="Your comments"
+                            placeholder="Nhập bình luận của bạn"
                             className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full p-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                           ></textarea>
 
@@ -1408,7 +1408,7 @@ const ShopDetails = () => {
                               type="text"
                               name="name"
                               id="name"
-                              placeholder="Your name"
+                              placeholder="Nhập tên của bạn"
                               className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                             />
                           </div>
@@ -1422,7 +1422,7 @@ const ShopDetails = () => {
                               type="email"
                               name="email"
                               id="email"
-                              placeholder="Your email"
+                              placeholder="Nhập email của bạn"
                               className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                             />
                           </div>

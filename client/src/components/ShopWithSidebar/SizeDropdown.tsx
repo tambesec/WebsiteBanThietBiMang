@@ -3,6 +3,8 @@ import React, { useState } from "react";
 
 const SizeDropdown = () => {
   const [toggleDropdown, setToggleDropdown] = useState(true);
+  const [selectedSpeed, setSelectedSpeed] = useState("gigabit");
+  
   return (
     <div className="bg-white shadow-1 rounded-lg">
       <div
@@ -11,10 +13,10 @@ const SizeDropdown = () => {
           toggleDropdown && "shadow-filter"
         }`}
       >
-        <p className="text-dark">Kích thước</p>
+        <p className="text-dark">Tốc Độ</p>
         <button
           onClick={() => setToggleDropdown(!toggleDropdown)}
-          aria-label="button for size dropdown"
+          aria-label="button for speed dropdown"
           className={`text-dark ease-out duration-200 ${
             toggleDropdown && "rotate-180"
           }`}
@@ -44,49 +46,49 @@ const SizeDropdown = () => {
         }`}
       >
         <label
-          htmlFor="sizeM"
-          className="cursor-pointer select-none flex items-center rounded-md bg-blue text-white hover:bg-blue hover:text-white"
+          htmlFor="speed100"
+          className={`cursor-pointer select-none flex items-center rounded-md ${selectedSpeed === "100mbps" ? "bg-blue text-white" : ""} hover:bg-blue hover:text-white`}
         >
           <div className="relative">
-            <input type="radio" name="size" id="sizeM" className="sr-only" />
+            <input type="radio" name="speed" id="speed100" className="sr-only" onChange={() => setSelectedSpeed("100mbps")} />
             <div className="text-custom-sm py-[5px] px-3.5 rounded-[5px]">
-              M
+              100 Mbps
             </div>
           </div>
         </label>
 
         <label
-          htmlFor="sizeL"
-          className="cursor-pointer select-none flex items-center rounded-md hover:bg-blue hover:text-white"
+          htmlFor="speedGigabit"
+          className={`cursor-pointer select-none flex items-center rounded-md ${selectedSpeed === "gigabit" ? "bg-blue text-white" : ""} hover:bg-blue hover:text-white`}
         >
           <div className="relative">
-            <input type="radio" name="size" id="sizeL" className="sr-only" />
+            <input type="radio" name="speed" id="speedGigabit" className="sr-only" onChange={() => setSelectedSpeed("gigabit")} />
             <div className="text-custom-sm py-[5px] px-3.5 rounded-[5px]">
-              L
+              Gigabit
             </div>
           </div>
         </label>
 
         <label
-          htmlFor="sizeXL"
-          className="cursor-pointer select-none flex items-center rounded-md hover:bg-blue hover:text-white"
+          htmlFor="speed2_5G"
+          className={`cursor-pointer select-none flex items-center rounded-md ${selectedSpeed === "2.5g" ? "bg-blue text-white" : ""} hover:bg-blue hover:text-white`}
         >
           <div className="relative">
-            <input type="radio" name="size" id="sizeXL" className="sr-only" />
+            <input type="radio" name="speed" id="speed2_5G" className="sr-only" onChange={() => setSelectedSpeed("2.5g")} />
             <div className="text-custom-sm py-[5px] px-3.5 rounded-[5px]">
-              XL
+              2.5G
             </div>
           </div>
         </label>
 
         <label
-          htmlFor="sizeXXL"
-          className="cursor-pointer select-none flex items-center rounded-md hover:bg-blue hover:text-white"
+          htmlFor="speed10G"
+          className={`cursor-pointer select-none flex items-center rounded-md ${selectedSpeed === "10g" ? "bg-blue text-white" : ""} hover:bg-blue hover:text-white`}
         >
           <div className="relative">
-            <input type="radio" name="size" id="sizeXXL" className="sr-only" />
+            <input type="radio" name="speed" id="speed10G" className="sr-only" onChange={() => setSelectedSpeed("10g")} />
             <div className="text-custom-sm py-[5px] px-3.5 rounded-[5px]">
-              XXL
+              10G
             </div>
           </div>
         </label>

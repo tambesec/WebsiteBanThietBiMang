@@ -59,12 +59,12 @@ const Header = () => {
       <div className="max-w-[1170px] mx-auto px-4 sm:px-7.5 xl:px-0">
         {/* <!-- header top start --> */}
         <div
-          className={`flex flex-col lg:flex-row gap-5 items-end lg:items-center xl:justify-between ease-out duration-200 ${
+          className={`flex flex-col lg:flex-row gap-4 lg:gap-5 items-end lg:items-center justify-between ease-out duration-200 ${
             stickyMenu ? "py-4" : "py-6"
           }`}
         >
           {/* <!-- header top left --> */}
-          <div className="xl:w-auto flex-col sm:flex-row w-full flex sm:justify-between sm:items-center gap-5 sm:gap-10">
+          <div className="xl:w-auto flex-col sm:flex-row w-full flex sm:justify-between sm:items-center gap-4 sm:gap-6 lg:gap-10 flex-1 min-w-0">
             <Link 
               className="flex-shrink-0" 
               href="/"
@@ -82,12 +82,12 @@ const Header = () => {
               />
             </Link>
 
-            <div className="max-w-[475px] w-full">
+            <div className="max-w-[450px] w-full">
               <form>
                 <div className="flex items-center">
                   <CustomSelect options={options} />
 
-                  <div className="relative max-w-[333px] sm:min-w-[333px] w-full">
+                  <div className="relative max-w-[300px] sm:min-w-[280px] w-full">
                     {/* <!-- divider --> */}
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 inline-block w-px h-5.5 bg-gray-4"></span>
                     <input
@@ -127,7 +127,7 @@ const Header = () => {
           </div>
 
           {/* <!-- header top right --> */}
-          <div className="flex w-full lg:w-auto items-center gap-3 xl:gap-7.5">
+          <div className="flex w-full lg:w-auto items-center gap-3 xl:gap-7.5 flex-shrink-0">
             <div className="hidden lg:flex items-center gap-2 xl:gap-3.5">
               <svg
                 className="flex-shrink-0"
@@ -273,7 +273,7 @@ const Header = () => {
 
                 <button
                   onClick={handleOpenCartModal}
-                  className="flex items-center gap-1.5 xl:gap-2.5"
+                  className="flex items-center gap-1.5 xl:gap-2.5 flex-shrink-0"
                 >
                   <span className="inline-block relative flex-shrink-0">
                     <svg
@@ -312,11 +312,11 @@ const Header = () => {
                     </span>
                   </span>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 max-w-[120px]">
                     <span className="block text-2xs text-dark-4 uppercase whitespace-nowrap">
                       Giỏ hàng
                     </span>
-                    <p className="font-medium text-custom-sm text-dark whitespace-nowrap">
+                    <p className="font-medium text-custom-sm text-dark truncate" title={`${totalPrice.toLocaleString('vi-VN')}đ`}>
                       {totalPrice.toLocaleString('vi-VN')}đ
                     </p>
                   </div>

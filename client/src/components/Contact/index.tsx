@@ -4,7 +4,7 @@ import Breadcrumb from "../Common/Breadcrumb";
 const Contact = () => {
   return (
     <>
-      <Breadcrumb title={"Contact"} pages={["contact"]} />
+      <Breadcrumb title={"Liên Hệ"} pages={["Liên Hệ"]} />
 
       <section className="overflow-hidden py-20 bg-gray-2">
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
@@ -98,7 +98,7 @@ const Contact = () => {
                       type="text"
                       name="firstName"
                       id="firstName"
-                      placeholder="Jhon"
+                      placeholder="Tên"
                       className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                     />
                   </div>
@@ -112,7 +112,7 @@ const Contact = () => {
                       type="text"
                       name="lastName"
                       id="lastName"
-                      placeholder="Deo"
+                      placeholder="Họ"
                       className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                     />
                   </div>

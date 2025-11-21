@@ -14,7 +14,7 @@ const Cart = () => {
     <>
       {/* <!-- ===== Breadcrumb Section Start ===== --> */}
       <section>
-        <Breadcrumb title={"Cart"} pages={["Cart"]} />
+        <Breadcrumb title={"Giỏ Hàng"} pages={["Giỏ Hàng"]} />
       </section>
       {/* <!-- ===== Breadcrumb Section End ===== --> */}
       {cartItems.length > 0 ? (
@@ -103,7 +103,7 @@ const Cart = () => {
             <p className="pb-6">Giỏ hàng của bạn đang trống!</p>
 
             <Link
-              href="/shop-with-sidebar"
+              href="/shop"
               className="w-96 mx-auto flex justify-center font-medium text-white bg-dark py-[13px] px-6 rounded-md ease-out duration-200 hover:bg-opacity-95"
             >
               Tiếp tục mua sắm

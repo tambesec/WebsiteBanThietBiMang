@@ -11,7 +11,7 @@ export const menuData: Menu[] = [
     id: 2,
     title: "Cửa hàng",
     newTab: false,
-    path: "/shop-with-sidebar",
+    path: "/shop",
   },
   {
     id: 3,
@@ -27,15 +27,9 @@ export const menuData: Menu[] = [
     submenu: [
       {
         id: 61,
-        title: "Cửa hàng có Sidebar",
+        title: "Cửa hàng",
         newTab: false,
-        path: "/shop-with-sidebar",
-      },
-      {
-        id: 62,
-        title: "Cửa hàng không Sidebar",
-        newTab: false,
-        path: "/shop-without-sidebar",
+        path: "/shop",
       },
       {
         id: 64,
@@ -101,24 +95,12 @@ export const menuData: Menu[] = [
     submenu: [
       {
         id: 71,
-        title: "Blog lưới có sidebar",
-        newTab: false,
-        path: "/blogs/blog-grid-with-sidebar",
-      },
-      {
-        id: 72,
         title: "Blog lưới",
         newTab: false,
         path: "/blogs/blog-grid",
       },
       {
         id: 73,
-        title: "Chi tiết blog có sidebar",
-        newTab: false,
-        path: "/blogs/blog-details-with-sidebar",
-      },
-      {
-        id: 74,
         title: "Chi tiết blog",
         newTab: false,
         path: "/blogs/blog-details",

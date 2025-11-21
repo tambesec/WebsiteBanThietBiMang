@@ -25,56 +25,64 @@ const ShopWithSidebar = () => {
   };
 
   const options = [
-    { label: "Latest Products", value: "0" },
-    { label: "Best Selling", value: "1" },
-    { label: "Old Products", value: "2" },
+    { label: "Sản Phẩm Mới Nhất", value: "0" },
+    { label: "Bán Chạy Nhất", value: "1" },
+    { label: "Sản Phẩm Cũ", value: "2" },
   ];
 
   const categories = [
     {
-      name: "Desktop",
-      products: 10,
+      name: "Router WiFi",
+      products: 25,
       isRefined: true,
     },
     {
-      name: "Laptop",
+      name: "Switch Mạng",
+      products: 18,
+      isRefined: false,
+    },
+    {
+      name: "Access Point",
+      products: 15,
+      isRefined: false,
+    },
+    {
+      name: "Modem",
       products: 12,
       isRefined: false,
     },
     {
-      name: "Monitor",
+      name: "Card Mạng",
+      products: 20,
+      isRefined: false,
+    },
+    {
+      name: "Dây Cáp Mạng",
       products: 30,
-      isRefined: false,
-    },
-    {
-      name: "UPS",
-      products: 23,
-      isRefined: false,
-    },
-    {
-      name: "Phone",
-      products: 10,
-      isRefined: false,
-    },
-    {
-      name: "Watch",
-      products: 13,
       isRefined: false,
     },
   ];
 
-  const genders = [
+  const brands = [
     {
-      name: "Men",
-      products: 10,
+      name: "TP-Link",
+      products: 35,
     },
     {
-      name: "Women",
-      products: 23,
+      name: "Cisco",
+      products: 28,
     },
     {
-      name: "Unisex",
-      products: 8,
+      name: "D-Link",
+      products: 22,
+    },
+    {
+      name: "Ubiquiti",
+      products: 18,
+    },
+    {
+      name: "Tenda",
+      products: 15,
     },
   ];
 
@@ -100,8 +108,8 @@ const ShopWithSidebar = () => {
   return (
     <>
       <Breadcrumb
-        title={"Explore All Products"}
-        pages={["shop", "/", "shop with sidebar"]}
+        title={"Cửa Hàng"}
+        pages={["Cửa Hàng"]}
       />
       <section className="overflow-hidden relative pb-20 pt-5 lg:pt-20 xl:pt-28 bg-[#f3f4f6]">
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
@@ -159,14 +167,8 @@ const ShopWithSidebar = () => {
                   {/* <!-- category box --> */}
                   <CategoryDropdown categories={categories} />
 
-                  {/* <!-- gender box --> */}
-                  <GenderDropdown genders={genders} />
-
-                  {/* // <!-- size box --> */}
-                  <SizeDropdown />
-
-                  {/* // <!-- color box --> */}
-                  <ColorsDropdwon />
+                  {/* <!-- brand box --> */}
+                  <GenderDropdown genders={brands} />
 
                   {/* // <!-- price range box --> */}
                   <PriceDropdown />

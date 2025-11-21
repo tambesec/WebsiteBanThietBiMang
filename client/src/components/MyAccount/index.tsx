@@ -107,7 +107,7 @@ const MyAccount = () => {
 
   return (
     <>
-      <Breadcrumb title={"Tài Khoản Của Tôi"} pages={["tài khoản"]} />
+      <Breadcrumb title={"Tài Khoản Của Tôi"} pages={["Tài Khoản"]} />
 
       <section className="overflow-hidden py-20 bg-gradient-to-br from-gray-50 to-blue-50">
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">

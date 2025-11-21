@@ -268,8 +268,8 @@ const QuickViewModal = () => {
                   </div>
 
                   <span>
-                    <span className="font-medium text-dark"> 4.7 Rating </span>
-                    <span className="text-dark-2"> (5 reviews) </span>
+                    <span className="font-medium text-dark"> 4.7 Đánh Giá </span>
+                    <span className="text-dark-2"> (5 đánh giá) </span>
                   </span>
                 </div>
 
@@ -298,7 +298,7 @@ const QuickViewModal = () => {
                     </defs>
                   </svg>
 
-                  <span className="font-medium text-dark"> In Stock </span>
+                  <span className="font-medium text-dark"> Còn Hàng </span>
                 </div>
               </div>
 
@@ -310,7 +310,7 @@ const QuickViewModal = () => {
               <div className="flex flex-wrap justify-between gap-5 mt-6 mb-7.5">
                 <div>
                   <h4 className="font-semibold text-lg text-dark mb-3.5">
-                    Price
+                    Giá
                   </h4>
 
                   <span className="flex items-center gap-2">
@@ -325,7 +325,7 @@ const QuickViewModal = () => {
 
                 <div>
                   <h4 className="font-semibold text-lg text-dark mb-3.5">
-                    Quantity
+                    Số Lượng
                   </h4>
 
                   <div className="flex items-center gap-3">
@@ -397,7 +397,7 @@ const QuickViewModal = () => {
                   className={`inline-flex font-medium text-white bg-blue py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue-dark
                   `}
                 >
-                  Add to Cart
+                  Thêm Vào Giỏ
                 </button>
 
                 <button
@@ -418,7 +418,7 @@ const QuickViewModal = () => {
                       fill=""
                     />
                   </svg>
-                  Add to Wishlist
+                  Thêm Vào Yêu Thích
                 </button>
               </div>
             </div>

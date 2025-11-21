@@ -1,5 +1,5 @@
-import BlogDetails from "@/components/BlogDetails";
 import React from "react";
+import BlogDetailsWithSidebar from "@/components/BlogDetailsWithSidebar";
 
 import { Metadata } from "next";
 export const metadata: Metadata = {
@@ -8,12 +8,12 @@ export const metadata: Metadata = {
   // other metadata
 };
 
-const BlogDetailsPage = () => {
+const BlogDetailsWithSidebarPage = () => {
   return (
     <main>
-      <BlogDetails />
+      <BlogDetailsWithSidebar />
     </main>
   );
 };
 
-export default BlogDetailsPage;
+export default BlogDetailsWithSidebarPage;

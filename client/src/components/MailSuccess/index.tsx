@@ -5,22 +5,22 @@ import Link from "next/link";
 const MailSuccess = () => {
   return (
     <>
-      <Breadcrumb title={"MailSuccess"} pages={["MailSuccess"]} />
+      <Breadcrumb title={"Thành Công"} pages={["Thành Công"]} />
       <section className="overflow-hidden py-20 bg-gray-2">
         <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
           <div className="bg-white rounded-xl shadow-1 px-4 py-10 sm:py-15 lg:py-20 xl:py-25">
             <div className="text-center">
               <h2 className="font-bold text-blue text-4xl lg:text-[45px] lg:leading-[57px] mb-5">
-                Successful!
+                Thành Công!
               </h2>
 
               <h3 className="font-medium text-dark text-xl sm:text-2xl mb-3">
-                Your message sent successfully
+                Tin nhắn của bạn đã được gửi thành công
               </h3>
 
               <p className="max-w-[491px] w-full mx-auto mb-7.5">
-                Thank you so much for your message. We check e-mail frequently
-                and will try our best to respond to your inquiry.
+                Cảm ơn bạn rất nhiều vì tin nhắn của bạn. Chúng tôi kiểm tra email thường xuyên
+                và sẽ cố gắng hết sức để phản hồi yêu cầu của bạn.
               </p>
 
               <Link
@@ -40,7 +40,7 @@ const MailSuccess = () => {
                     fill=""
                   />
                 </svg>
-                Back to Home
+                Về Trang Chủ
               </Link>
             </div>
           </div>
