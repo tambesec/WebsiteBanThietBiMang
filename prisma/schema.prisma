@@ -1,0 +1,419 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model addresses {
+  id                                           Int                    @id @default(autoincrement())
+  user_id                                      Int
+  recipient_name                               String                 @db.VarChar(150)
+  phone                                        String                 @db.VarChar(20)
+  address_line                                 String                 @db.VarChar(500)
+  city                                         String                 @db.VarChar(100)
+  district                                     String?                @db.VarChar(100)
+  ward                                         String?                @db.VarChar(100)
+  postal_code                                  String?                @db.VarChar(20)
+  address_type                                 addresses_address_type @default(home)
+  is_default                                   Int                    @default(0) @db.TinyInt
+  created_at                                   DateTime               @default(now()) @db.DateTime(0)
+  updated_at                                   DateTime               @default(now()) @db.DateTime(0)
+  users                                        users                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_address_user")
+  orders_orders_billing_address_idToaddresses  orders[]               @relation("orders_billing_address_idToaddresses")
+  orders_orders_shipping_address_idToaddresses orders[]               @relation("orders_shipping_address_idToaddresses")
+
+  @@index([user_id], map: "idx_user")
+  @@index([user_id, is_default], map: "idx_user_default")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model cart_items {
+  id             Int            @id @default(autoincrement())
+  cart_id        Int
+  product_id     Int
+  quantity       Int            @default(1)
+  added_at       DateTime       @default(now()) @db.DateTime(0)
+  shopping_carts shopping_carts @relation(fields: [cart_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cart_item_cart")
+  products       products       @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cart_item_product")
+
+  @@unique([cart_id, product_id], map: "unique_cart_product")
+  @@index([cart_id], map: "idx_cart")
+  @@index([product_id], map: "idx_product")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model categories {
+  id               Int          @id @default(autoincrement())
+  parent_id        Int?
+  name             String       @db.VarChar(100)
+  slug             String       @unique(map: "slug") @db.VarChar(150)
+  description      String?      @db.Text
+  image_url        String?      @db.VarChar(500)
+  display_order    Int          @default(0)
+  is_active        Int          @default(1) @db.TinyInt
+  categories       categories?  @relation("categoriesTocategories", fields: [parent_id], references: [id], onUpdate: NoAction, map: "fk_category_parent")
+  other_categories categories[] @relation("categoriesTocategories")
+  products         products[]
+
+  @@index([is_active, display_order], map: "idx_active_order")
+  @@index([parent_id], map: "idx_parent")
+  @@index([slug], map: "idx_slug")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model discount_codes {
+  id                  Int                          @id @default(autoincrement())
+  code                String                       @unique(map: "code") @db.VarChar(50)
+  description         String?                      @db.VarChar(300)
+  discount_type       discount_codes_discount_type
+  discount_value      Decimal                      @db.Decimal(10, 2)
+  min_order_amount    Decimal?                     @db.Decimal(10, 2)
+  max_discount_amount Decimal?                     @db.Decimal(10, 2)
+  max_uses            Int?
+  max_uses_per_user   Int?                         @default(1)
+  used_count          Int                          @default(0)
+  starts_at           DateTime                     @db.DateTime(0)
+  ends_at             DateTime                     @db.DateTime(0)
+  is_active           Int                          @default(1) @db.TinyInt
+  created_at          DateTime                     @default(now()) @db.DateTime(0)
+  updated_at          DateTime                     @default(now()) @db.DateTime(0)
+  discount_usage      discount_usage[]
+
+  @@index([code, is_active], map: "idx_code_active")
+  @@index([starts_at, ends_at], map: "idx_dates")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model discount_usage {
+  id              Int            @id @default(autoincrement())
+  discount_id     Int
+  user_id         Int
+  order_id        Int
+  discount_amount Decimal        @db.Decimal(10, 2)
+  used_at         DateTime       @default(now()) @db.DateTime(0)
+  discount_codes  discount_codes @relation(fields: [discount_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_usage_discount")
+  orders          orders         @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_usage_order")
+  users           users          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_usage_user")
+
+  @@index([discount_id], map: "idx_discount")
+  @@index([order_id], map: "idx_order")
+  @@index([user_id], map: "idx_user")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model order_history {
+  id             Int            @id @default(autoincrement())
+  order_id       Int
+  status_id      Int
+  note           String?        @db.Text
+  changed_by     Int
+  created_at     DateTime       @default(now()) @db.DateTime(0)
+  orders         orders         @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_history_order")
+  order_statuses order_statuses @relation(fields: [status_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_history_status")
+  users          users          @relation(fields: [changed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_history_user")
+
+  @@index([changed_by], map: "fk_history_user")
+  @@index([order_id], map: "idx_order")
+  @@index([status_id], map: "idx_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model order_items {
+  id            Int      @id @default(autoincrement())
+  order_id      Int
+  product_id    Int
+  product_name  String   @db.VarChar(300)
+  product_sku   String   @db.VarChar(100)
+  product_image String?  @db.VarChar(500)
+  quantity      Int
+  unit_price    Decimal  @db.Decimal(12, 2)
+  subtotal      Decimal  @db.Decimal(12, 2)
+  orders        orders   @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_order_item_order")
+  products      products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_order_item_product")
+
+  @@index([order_id], map: "idx_order")
+  @@index([product_id], map: "idx_product")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model order_statuses {
+  id            Int             @id @default(autoincrement())
+  name          String          @unique(map: "name") @db.VarChar(50)
+  description   String?         @db.VarChar(200)
+  display_order Int
+  color         String?         @db.VarChar(20)
+  order_history order_history[]
+  orders        orders[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model orders {
+  id                                              Int                   @id @default(autoincrement())
+  order_number                                    String                @unique(map: "order_number") @db.VarChar(50)
+  user_id                                         Int
+  status_id                                       Int                   @default(1)
+  customer_name                                   String                @db.VarChar(150)
+  customer_email                                  String                @db.VarChar(320)
+  customer_phone                                  String                @db.VarChar(20)
+  shipping_address_id                             Int?
+  billing_address_id                              Int?
+  shipping_recipient                              String                @db.VarChar(150)
+  shipping_phone                                  String                @db.VarChar(20)
+  shipping_address                                String                @db.VarChar(500)
+  shipping_city                                   String                @db.VarChar(100)
+  shipping_district                               String?               @db.VarChar(100)
+  shipping_ward                                   String?               @db.VarChar(100)
+  shipping_postal_code                            String?               @db.VarChar(20)
+  billing_recipient                               String                @db.VarChar(150)
+  billing_phone                                   String                @db.VarChar(20)
+  billing_address                                 String                @db.VarChar(500)
+  billing_city                                    String                @db.VarChar(100)
+  billing_district                                String?               @db.VarChar(100)
+  billing_ward                                    String?               @db.VarChar(100)
+  billing_postal_code                             String?               @db.VarChar(20)
+  payment_method                                  String                @db.VarChar(50)
+  payment_status                                  orders_payment_status @default(unpaid)
+  paid_at                                         DateTime?             @db.DateTime(0)
+  shipping_method                                 String                @db.VarChar(50)
+  tracking_number                                 String?               @db.VarChar(100)
+  shipped_at                                      DateTime?             @db.DateTime(0)
+  delivered_at                                    DateTime?             @db.DateTime(0)
+  subtotal                                        Decimal               @db.Decimal(12, 2)
+  shipping_fee                                    Decimal               @default(0.00) @db.Decimal(10, 2)
+  discount_amount                                 Decimal               @default(0.00) @db.Decimal(10, 2)
+  discount_code                                   String?               @db.VarChar(50)
+  tax_amount                                      Decimal               @default(0.00) @db.Decimal(10, 2)
+  total_amount                                    Decimal               @db.Decimal(12, 2)
+  customer_note                                   String?               @db.Text
+  admin_note                                      String?               @db.Text
+  created_at                                      DateTime              @default(now()) @db.DateTime(0)
+  updated_at                                      DateTime              @default(now()) @db.DateTime(0)
+  discount_usage                                  discount_usage[]
+  order_history                                   order_history[]
+  order_items                                     order_items[]
+  addresses_orders_billing_address_idToaddresses  addresses?            @relation("orders_billing_address_idToaddresses", fields: [billing_address_id], references: [id], onUpdate: NoAction, map: "fk_order_billing_address")
+  addresses_orders_shipping_address_idToaddresses addresses?            @relation("orders_shipping_address_idToaddresses", fields: [shipping_address_id], references: [id], onUpdate: NoAction, map: "fk_order_shipping_address")
+  order_statuses                                  order_statuses        @relation(fields: [status_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_order_status")
+  users                                           users                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_order_user")
+  product_reviews                                 product_reviews[]
+
+  @@index([billing_address_id], map: "idx_billing_address")
+  @@index([order_number], map: "idx_order_number")
+  @@index([payment_status], map: "idx_payment_status")
+  @@index([shipping_address_id], map: "idx_shipping_address")
+  @@index([status_id], map: "idx_status")
+  @@index([user_id, created_at], map: "idx_user_created")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model password_history {
+  id            Int      @id @default(autoincrement())
+  user_id       Int
+  password_hash String   @db.VarChar(255)
+  created_at    DateTime @default(now()) @db.DateTime(0)
+  users         users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_password_history_user")
+
+  @@index([user_id, created_at], map: "idx_user_date")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model product_images {
+  id            Int      @id @default(autoincrement())
+  product_id    Int
+  image_url     String   @db.VarChar(500)
+  alt_text      String?  @db.VarChar(255)
+  display_order Int      @default(0)
+  products      products @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_image_product")
+
+  @@index([product_id, display_order], map: "idx_product_order")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model product_reviews {
+  id                   Int      @id @default(autoincrement())
+  product_id           Int
+  user_id              Int
+  order_id             Int?
+  rating               Int      @db.TinyInt
+  title                String?  @db.VarChar(200)
+  comment              String?  @db.Text
+  is_verified_purchase Int      @default(0) @db.TinyInt
+  is_approved          Int      @default(0) @db.TinyInt
+  admin_reply          String?  @db.Text
+  created_at           DateTime @default(now()) @db.DateTime(0)
+  updated_at           DateTime @default(now()) @db.DateTime(0)
+  orders               orders?  @relation(fields: [order_id], references: [id], onUpdate: NoAction, map: "fk_review_order")
+  products             products @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_review_product")
+  users                users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_review_user")
+
+  @@index([order_id], map: "idx_order")
+  @@index([product_id, is_approved], map: "idx_product_approved")
+  @@index([user_id], map: "idx_user")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model products {
+  id               Int               @id @default(autoincrement())
+  category_id      Int
+  name             String            @db.VarChar(300)
+  slug             String            @unique(map: "slug") @db.VarChar(350)
+  brand            String?           @db.VarChar(100)
+  model            String?           @db.VarChar(100)
+  description      String?           @db.Text
+  price            Decimal           @db.Decimal(12, 2)
+  compare_at_price Decimal?          @db.Decimal(12, 2)
+  sku              String            @unique(map: "sku") @db.VarChar(100)
+  stock_quantity   Int               @default(0)
+  specifications   String?           @db.Text
+  primary_image    String?           @db.VarChar(500)
+  is_active        Int               @default(1) @db.TinyInt
+  is_featured      Int               @default(0) @db.TinyInt
+  warranty_months  Int               @default(12)
+  meta_title       String?           @db.VarChar(200)
+  meta_description String?           @db.VarChar(500)
+  created_at       DateTime          @default(now()) @db.DateTime(0)
+  updated_at       DateTime          @default(now()) @db.DateTime(0)
+  cart_items       cart_items[]
+  order_items      order_items[]
+  product_images   product_images[]
+  product_reviews  product_reviews[]
+  categories       categories        @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_product_category")
+
+  @@index([brand], map: "idx_brand")
+  @@index([category_id, is_active], map: "idx_category_active")
+  @@index([is_featured, is_active], map: "idx_featured")
+  @@index([sku], map: "idx_sku")
+  @@index([slug], map: "idx_slug")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model security_logs {
+  id         Int      @id @default(autoincrement())
+  user_id    Int?
+  event_type String   @db.VarChar(50)
+  ip_address String?  @db.VarChar(45)
+  details    String?  @db.Text
+  created_at DateTime @default(now()) @db.DateTime(0)
+  users      users?   @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "fk_security_log_user")
+
+  @@index([event_type, created_at], map: "idx_event_date")
+  @@index([user_id, created_at], map: "idx_user_date")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model shopping_carts {
+  id         Int          @id @default(autoincrement())
+  user_id    Int?
+  session_id String?      @db.VarChar(255)
+  created_at DateTime     @default(now()) @db.DateTime(0)
+  updated_at DateTime     @default(now()) @db.DateTime(0)
+  cart_items cart_items[]
+  users      users?       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_cart_user")
+
+  @@index([session_id], map: "idx_session")
+  @@index([user_id], map: "idx_user")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model site_settings {
+  id            Int      @id @default(autoincrement())
+  setting_key   String   @unique(map: "setting_key") @db.VarChar(100)
+  setting_value String?  @db.Text
+  setting_type  String   @default("string") @db.VarChar(20)
+  description   String?  @db.VarChar(300)
+  updated_at    DateTime @default(now()) @db.DateTime(0)
+
+  @@index([setting_key], map: "idx_key")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model user_sessions {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  token_hash String   @unique(map: "token_hash") @db.VarChar(64)
+  ip_address String?  @db.VarChar(45)
+  user_agent String?  @db.VarChar(255)
+  expires_at DateTime @db.DateTime(0)
+  created_at DateTime @default(now()) @db.DateTime(0)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_session_user")
+
+  @@index([token_hash], map: "idx_token")
+  @@index([user_id, expires_at], map: "idx_user_expires")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model users {
+  id                    Int                   @id @default(autoincrement())
+  full_name             String                @db.VarChar(150)
+  email                 String                @unique(map: "email") @db.VarChar(320)
+  phone                 String                @db.VarChar(20)
+  password_hash         String                @db.VarChar(255)
+  role                  users_role            @default(customer)
+  is_active             Int                   @default(1) @db.TinyInt
+  is_email_verified     Int                   @default(0) @db.TinyInt
+  failed_login_attempts Int                   @default(0)
+  locked_until          DateTime?             @db.DateTime(0)
+  last_login            DateTime?             @db.DateTime(0)
+  created_at            DateTime              @default(now()) @db.DateTime(0)
+  updated_at            DateTime              @default(now()) @db.DateTime(0)
+  addresses             addresses[]
+  discount_usage        discount_usage[]
+  order_history         order_history[]
+  orders                orders[]
+  password_history      password_history[]
+  product_reviews       product_reviews[]
+  security_logs         security_logs[]
+  shopping_carts        shopping_carts[]
+  user_sessions         user_sessions[]
+  verification_tokens   verification_tokens[]
+
+  @@index([email], map: "idx_email")
+  @@index([role], map: "idx_role")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model verification_tokens {
+  id         Int                            @id @default(autoincrement())
+  user_id    Int
+  token_hash String                         @db.VarChar(64)
+  token_type verification_tokens_token_type
+  expires_at DateTime                       @db.DateTime(0)
+  created_at DateTime                       @default(now()) @db.DateTime(0)
+  users      users                          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_token_user")
+
+  @@index([token_hash], map: "idx_token")
+  @@index([user_id, token_type, expires_at], map: "idx_user_type")
+}
+
+enum discount_codes_discount_type {
+  percentage
+  fixed_amount
+}
+
+enum verification_tokens_token_type {
+  email_verification
+  password_reset
+}
+
+enum users_role {
+  customer
+  admin
+}
+
+enum addresses_address_type {
+  home
+  office
+  other
+}
+
+enum orders_payment_status {
+  unpaid
+  paid
+  refunded
+}
