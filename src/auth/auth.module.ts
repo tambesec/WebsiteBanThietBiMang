@@ -5,12 +5,18 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 
 /**
  * Auth Module
  * Handles all authentication and authorization functionality
+ * Supports:
+ * - Email/Password authentication
+ * - Google OAuth2 authentication
+ * - JWT-based authorization
+ * - Role-based access control
  */
 @Module({
   imports: [
@@ -27,7 +33,13 @@ import { RolesGuard } from './guards/roles.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard],
+  providers: [
+    AuthService, 
+    JwtStrategy, 
+    GoogleStrategy, // Google OAuth2 Strategy
+    JwtAuthGuard, 
+    RolesGuard
+  ],
   exports: [JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

@@ -124,6 +124,11 @@ export class AuthService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
+    // Check if user has password (not OAuth-only account)
+    if (!user.password_hash) {
+      throw new UnauthorizedException('This account uses OAuth login. Please login with Google.');
+    }
+
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
@@ -280,6 +285,11 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    // Check if user has password set
+    if (!user.password_hash) {
+      throw new BadRequestException('Cannot change password for OAuth-only accounts. Please set a password first.');
     }
 
     // Verify current password
@@ -479,5 +489,281 @@ export class AuthService {
         details: details ? JSON.stringify(details) : null,
       },
     });
+  }
+
+  /**
+   * Validate and process OAuth user (Google, Facebook, etc.)
+   * Security features:
+   * - Token encryption
+   * - Email verification required
+   * - Automatic account linking
+   * - Security logging
+   */
+  async validateOAuthUser(oauthData: {
+    provider: string;
+    providerId: string;
+    email: string;
+    full_name: string;
+    profile_picture?: string;
+    email_verified: boolean;
+    accessToken?: string;
+    refreshToken?: string;
+  }) {
+    const { provider, providerId, email, full_name, email_verified, accessToken, refreshToken, profile_picture } = oauthData;
+
+    // Security: Require verified email from OAuth provider
+    if (!email_verified) {
+      throw new UnauthorizedException('Email not verified by OAuth provider');
+    }
+
+    // Check if OAuth account already exists
+    // Note: Using raw query temporarily until Prisma client is regenerated
+    const oauthAccounts = await this.prisma.$queryRaw<any[]>`
+      SELECT * FROM oauth_accounts 
+      WHERE provider = ${provider} AND provider_id = ${providerId}
+      LIMIT 1
+    `;
+    
+    let oauthAccount = oauthAccounts.length > 0 ? oauthAccounts[0] : null;
+
+    let user: users;
+
+    if (oauthAccount) {
+      // Get user from existing OAuth account
+      const existingUser = await this.prisma.users.findUnique({
+        where: { id: oauthAccount.user_id },
+      });
+
+      if (!existingUser) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      user = existingUser;
+
+      // Security: Check if account is active
+      if (!user.is_active) {
+        throw new UnauthorizedException('Account is deactivated');
+      }
+
+      // Update OAuth tokens using raw query
+      await this.prisma.$executeRaw`
+        UPDATE oauth_accounts 
+        SET 
+          access_token = ${accessToken ? await this.encryptToken(accessToken) : null},
+          refresh_token = ${refreshToken ? await this.encryptToken(refreshToken) : null},
+          token_expires = ${this.calculateTokenExpiry()},
+          provider_email = ${email},
+          profile_data = ${JSON.stringify({ picture: profile_picture, last_login: new Date() })},
+          updated_at = NOW()
+        WHERE id = ${oauthAccount.id}
+      `;
+
+      this.logger.log(`OAuth account updated: ${provider} - ${email}`);
+    } else {
+      // Check if user with this email already exists
+      const existingUser = await this.prisma.users.findUnique({
+        where: { email },
+      });
+
+      if (existingUser) {
+        // Link OAuth account to existing user
+        user = existingUser;
+
+        await this.prisma.$executeRaw`
+          INSERT INTO oauth_accounts 
+            (user_id, provider, provider_id, provider_email, access_token, refresh_token, token_expires, profile_data, created_at, updated_at)
+          VALUES 
+            (${user.id}, ${provider}, ${providerId}, ${email}, 
+             ${accessToken ? await this.encryptToken(accessToken) : null}, 
+             ${refreshToken ? await this.encryptToken(refreshToken) : null}, 
+             ${this.calculateTokenExpiry()}, 
+             ${JSON.stringify({ picture: profile_picture })},
+             NOW(), NOW())
+        `;
+
+        this.logger.log(`OAuth account linked to existing user: ${provider} - ${email}`);
+      } else {
+        // Create new user with OAuth account using raw query to handle nullable fields
+        const result = await this.prisma.$queryRaw<any[]>`
+          INSERT INTO users 
+            (email, full_name, phone, password_hash, role, is_active, is_email_verified, created_at, updated_at)
+          VALUES 
+            (${email}, ${full_name || 'OAuth User'}, NULL, NULL, 'customer', 1, 1, NOW(), NOW())
+        `;
+        
+        // Get the newly created user
+        const newUsers = await this.prisma.$queryRaw<any[]>`
+          SELECT * FROM users WHERE email = ${email} LIMIT 1
+        `;
+        
+        if (newUsers.length === 0) {
+          throw new Error('Failed to create user');
+        }
+        
+        user = newUsers[0] as users;
+
+        await this.prisma.$executeRaw`
+          INSERT INTO oauth_accounts 
+            (user_id, provider, provider_id, provider_email, access_token, refresh_token, token_expires, profile_data, created_at, updated_at)
+          VALUES 
+            (${user.id}, ${provider}, ${providerId}, ${email}, 
+             ${accessToken ? await this.encryptToken(accessToken) : null}, 
+             ${refreshToken ? await this.encryptToken(refreshToken) : null}, 
+             ${this.calculateTokenExpiry()}, 
+             ${JSON.stringify({ picture: profile_picture })},
+             NOW(), NOW())
+        `;
+
+        this.logger.log(`New user created via OAuth: ${provider} - ${email}`);
+      }
+    }
+
+    // Update last login
+    await this.prisma.users.update({
+      where: { id: user.id },
+      data: {
+        last_login: new Date(),
+        failed_login_attempts: 0, // Reset failed attempts on successful OAuth login
+        locked_until: null,
+      },
+    });
+
+    // Log security event
+    await this.logSecurityEvent(user.id, 'oauth_login', undefined, {
+      provider: provider,
+      email: email,
+    });
+
+    return user;
+  }
+
+  /**
+   * Generate JWT tokens for OAuth user
+   */
+  async generateOAuthTokens(user: users) {
+    return this.generateTokens(user);
+  }
+
+  /**
+   * Encrypt OAuth tokens for secure storage
+   * Security: Use crypto library for encryption
+   */
+  private async encryptToken(token: string): Promise<string> {
+    const crypto = require('crypto');
+    const algorithm = 'aes-256-gcm';
+    const secret = this.configService.get<string>('security.encryptionKey') || 
+                   this.configService.get<string>('jwt.access.secret');
+    
+    // Create encryption key from secret
+    const key = crypto.scryptSync(secret, 'salt', 32);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv(algorithm, key, iv);
+    
+    let encrypted = cipher.update(token, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    
+    const authTag = cipher.getAuthTag();
+    
+    // Return format: iv:authTag:encrypted
+    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+  }
+
+  /**
+   * Decrypt OAuth tokens
+   */
+  private async decryptToken(encryptedToken: string): Promise<string> {
+    const crypto = require('crypto');
+    const algorithm = 'aes-256-gcm';
+    const secret = this.configService.get<string>('security.encryptionKey') || 
+                   this.configService.get<string>('jwt.access.secret');
+    
+    const [ivHex, authTagHex, encrypted] = encryptedToken.split(':');
+    const key = crypto.scryptSync(secret, 'salt', 32);
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
+    
+    const decipher = crypto.createDecipheriv(algorithm, key, iv);
+    decipher.setAuthTag(authTag);
+    
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    
+    return decrypted;
+  }
+
+  /**
+   * Calculate token expiry (1 hour from now)
+   */
+  private calculateTokenExpiry(): Date {
+    const expiry = new Date();
+    expiry.setHours(expiry.getHours() + 1);
+    return expiry;
+  }
+
+  /**
+   * Unlink OAuth provider from user account
+   * Security: Ensure user has another login method
+   */
+  async unlinkOAuthProvider(userId: number, provider: string) {
+    // Note: This will work after Prisma client is regenerated
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Count OAuth accounts (will be implemented after Prisma generation)
+    // For now, we'll use raw query as fallback
+    const oauthCount = await this.prisma.$queryRaw<any[]>`
+      SELECT COUNT(*) as count FROM oauth_accounts WHERE user_id = ${userId}
+    `;
+
+    // Security: Ensure user has password or another OAuth provider
+    if (!user.password_hash && oauthCount[0]?.count === 1) {
+      throw new BadRequestException(
+        'Cannot unlink the only login method. Please set a password first.',
+      );
+    }
+
+    const deleted = await this.prisma.$executeRaw`
+      DELETE FROM oauth_accounts WHERE user_id = ${userId} AND provider = ${provider}
+    `;
+
+    if (deleted === 0) {
+      throw new BadRequestException('OAuth provider not linked to this account');
+    }
+
+    await this.logSecurityEvent(userId, 'oauth_unlinked', undefined, { provider });
+
+    return { message: `${provider} account unlinked successfully` };
+  }
+
+  /**
+   * Get linked OAuth accounts for a user
+   */
+  async getOAuthAccounts(userId: number) {
+    // Use raw query until Prisma client is regenerated
+    const accounts = await this.prisma.$queryRaw<any[]>`
+      SELECT 
+        id,
+        provider,
+        provider_email,
+        created_at,
+        updated_at
+      FROM oauth_accounts 
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+    `;
+
+    return {
+      accounts: accounts.map(account => ({
+        id: account.id,
+        provider: account.provider,
+        email: account.provider_email,
+        linked_at: account.created_at,
+      })),
+    };
   }
 }
