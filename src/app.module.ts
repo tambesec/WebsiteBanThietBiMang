@@ -1,10 +1,47 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './auth/auth.module';
+import configuration from './config/configuration';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
+/**
+ * Root Application Module
+ * Imports all feature modules and sets up global configuration
+ */
 @Module({
-  imports: [],
+  imports: [
+    // Configuration Module
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [configuration],
+      envFilePath: '.env',
+    }),
+
+    // Rate Limiting (10 requests per 60 seconds per IP)
+    ThrottlerModule.forRoot([{
+      ttl: 60000, // Time to live in milliseconds
+      limit: 10,  // Max requests per TTL
+    }]),
+
+    // Database
+    PrismaModule,
+
+    // Feature Modules
+    AuthModule,
+  ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Apply JWT Guard globally (can be overridden by @Public() decorator)
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}
