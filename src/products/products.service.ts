@@ -165,9 +165,10 @@ export class ProductsService {
               slug: true,
             },
           },
-          _count: {
+          product_reviews: {
+            where: { is_approved: 1 },
             select: {
-              product_reviews: true,
+              rating: true,
             },
           },
         },
@@ -178,26 +179,21 @@ export class ProductsService {
       this.prisma.products.count({ where }),
     ]);
 
-    // Calculate average rating for each product
-    const productsWithRating = await Promise.all(
-      products.map(async (product) => {
-        const avgRating = await this.prisma.product_reviews.aggregate({
-          where: {
-            product_id: product.id,
-            is_approved: 1,
-          },
-          _avg: {
-            rating: true,
-          },
-        });
+    // Calculate average rating for each product (no extra queries)
+    const productsWithRating = products.map((product) => {
+      const reviews = product.product_reviews;
+      const avgRating = reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+        : 0;
 
-        return {
-          ...product,
-          average_rating: avgRating._avg.rating || 0,
-          reviews_count: product._count.product_reviews,
-        };
-      }),
-    );
+      const { product_reviews, ...productData } = product;
+
+      return {
+        ...productData,
+        average_rating: Math.round(avgRating * 10) / 10, // Round to 1 decimal
+        reviews_count: reviews.length,
+      };
+    });
 
     const totalPages = Math.ceil(total / limit);
     const hasNextPage = page < totalPages;
@@ -255,17 +251,11 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    // Calculate average rating
-    const avgRating = await this.prisma.product_reviews.aggregate({
-      where: {
-        product_id: id,
-        is_approved: 1,
-      },
-      _avg: {
-        rating: true,
-      },
-      _count: true,
-    });
+    // Calculate average rating from loaded reviews (no extra query)
+    const reviews = product.product_reviews;
+    const avgRating = reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
 
     // Get related products (same category)
     const relatedProducts = await this.prisma.products.findMany({
@@ -288,8 +278,8 @@ export class ProductsService {
 
     return {
       ...product,
-      average_rating: avgRating._avg.rating || 0,
-      reviews_count: avgRating._count,
+      average_rating: Math.round(avgRating * 10) / 10,
+      reviews_count: reviews.length,
       related_products: relatedProducts,
     };
   }
@@ -325,22 +315,16 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    // Calculate average rating
-    const avgRating = await this.prisma.product_reviews.aggregate({
-      where: {
-        product_id: product.id,
-        is_approved: 1,
-      },
-      _avg: {
-        rating: true,
-      },
-      _count: true,
-    });
+    // Calculate average rating from loaded reviews (no extra query)
+    const reviews = product.product_reviews;
+    const avgRating = reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
 
     return {
       ...product,
-      average_rating: avgRating._avg.rating || 0,
-      reviews_count: avgRating._count,
+      average_rating: Math.round(avgRating * 10) / 10,
+      reviews_count: reviews.length,
     };
   }
 
@@ -357,26 +341,40 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    // Run validation queries in parallel if needed
+    const validationPromises: Promise<any>[] = [];
+
     // If category is being updated, check if it exists
     if (updateProductDto.category_id) {
-      const category = await this.prisma.categories.findUnique({
-        where: { id: updateProductDto.category_id },
-      });
-
-      if (!category) {
-        throw new BadRequestException('Category not found');
-      }
+      validationPromises.push(
+        this.prisma.categories.findUnique({
+          where: { id: updateProductDto.category_id },
+        }).then(category => {
+          if (!category) {
+            throw new BadRequestException('Category not found');
+          }
+          return category;
+        })
+      );
     }
 
     // If SKU is being updated, check for conflicts
     if (updateProductDto.sku && updateProductDto.sku !== existingProduct.sku) {
-      const existingSku = await this.prisma.products.findUnique({
-        where: { sku: updateProductDto.sku },
-      });
+      validationPromises.push(
+        this.prisma.products.findUnique({
+          where: { sku: updateProductDto.sku },
+        }).then(existingSku => {
+          if (existingSku) {
+            throw new ConflictException('SKU already exists');
+          }
+          return null;
+        })
+      );
+    }
 
-      if (existingSku) {
-        throw new ConflictException('SKU already exists');
-      }
+    // Wait for all validations to complete
+    if (validationPromises.length > 0) {
+      await Promise.all(validationPromises);
     }
 
     // If name is being updated, regenerate slug

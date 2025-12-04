@@ -53,33 +53,47 @@ export class AuthService {
     // Hash password
     const password_hash = await this.hashPassword(password);
 
-    // Create user
-    const user = await this.prisma.users.create({
-      data: {
-        email,
-        password_hash,
-        full_name,
-        phone,
-        role: users_role.customer,
-        is_active: 1,
-        is_email_verified: 0,
-      },
-      select: {
-        id: true,
-        email: true,
-        full_name: true,
-        phone: true,
-        role: true,
-        created_at: true,
-      },
-    });
+    // Use transaction to ensure data consistency
+    const user = await this.prisma.$transaction(async (prisma) => {
+      // Create user
+      const newUser = await prisma.users.create({
+        data: {
+          email,
+          password_hash,
+          full_name,
+          phone,
+          role: users_role.customer,
+          is_active: 1,
+          is_email_verified: 0,
+        },
+        select: {
+          id: true,
+          email: true,
+          full_name: true,
+          phone: true,
+          role: true,
+          created_at: true,
+        },
+      });
 
-    // Create password history entry
-    await this.addPasswordHistory(user.id, password_hash);
+      // Create password history entry
+      await prisma.password_history.create({
+        data: {
+          user_id: newUser.id,
+          password_hash,
+        },
+      });
 
-    // Log security event
-    await this.logSecurityEvent(user.id, 'user_registered', undefined, {
-      email: user.email,
+      // Log security event
+      await prisma.security_logs.create({
+        data: {
+          user_id: newUser.id,
+          event_type: 'user_registered',
+          details: JSON.stringify({ email: newUser.email }),
+        },
+      });
+
+      return newUser;
     });
 
     this.logger.log(`New user registered: ${user.email}`);
@@ -309,21 +323,50 @@ export class AuthService {
     // Hash new password
     const newPasswordHash = await this.hashPassword(newPassword);
 
-    // Update password
-    await this.prisma.users.update({
-      where: { id: userId },
-      data: { password_hash: newPasswordHash },
+    // Use transaction to ensure all operations succeed or fail together
+    await this.prisma.$transaction(async (prisma) => {
+      // Update password
+      await prisma.users.update({
+        where: { id: userId },
+        data: { password_hash: newPasswordHash },
+      });
+
+      // Add to password history
+      await prisma.password_history.create({
+        data: {
+          user_id: userId,
+          password_hash: newPasswordHash,
+        },
+      });
+
+      // Clean up old password history
+      const histories = await prisma.password_history.findMany({
+        where: { user_id: userId },
+        orderBy: { created_at: 'desc' },
+        skip: this.passwordHistoryCount,
+      });
+
+      if (histories.length > 0) {
+        await prisma.password_history.deleteMany({
+          where: {
+            id: { in: histories.map((h) => h.id) },
+          },
+        });
+      }
+
+      // Invalidate all sessions
+      await prisma.user_sessions.deleteMany({
+        where: { user_id: userId },
+      });
+
+      // Log security event
+      await prisma.security_logs.create({
+        data: {
+          user_id: userId,
+          event_type: 'password_changed',
+        },
+      });
     });
-
-    // Add to password history
-    await this.addPasswordHistory(userId, newPasswordHash);
-
-    // Invalidate all sessions
-    await this.prisma.user_sessions.deleteMany({
-      where: { user_id: userId },
-    });
-
-    await this.logSecurityEvent(userId, 'password_changed', undefined);
 
     return { message: 'Password changed successfully. Please login again.' };
   }
@@ -517,14 +560,12 @@ export class AuthService {
     }
 
     // Check if OAuth account already exists
-    // Note: Using raw query temporarily until Prisma client is regenerated
-    const oauthAccounts = await this.prisma.$queryRaw<any[]>`
-      SELECT * FROM oauth_accounts 
-      WHERE provider = ${provider} AND provider_id = ${providerId}
-      LIMIT 1
-    `;
-    
-    let oauthAccount = oauthAccounts.length > 0 ? oauthAccounts[0] : null;
+    const oauthAccount = await this.prisma.oauth_accounts.findFirst({
+      where: {
+        provider,
+        provider_id: providerId,
+      },
+    });
 
     let user: users;
 
@@ -545,18 +586,18 @@ export class AuthService {
         throw new UnauthorizedException('Account is deactivated');
       }
 
-      // Update OAuth tokens using raw query
-      await this.prisma.$executeRaw`
-        UPDATE oauth_accounts 
-        SET 
-          access_token = ${accessToken ? await this.encryptToken(accessToken) : null},
-          refresh_token = ${refreshToken ? await this.encryptToken(refreshToken) : null},
-          token_expires = ${this.calculateTokenExpiry()},
-          provider_email = ${email},
-          profile_data = ${JSON.stringify({ picture: profile_picture, last_login: new Date() })},
-          updated_at = NOW()
-        WHERE id = ${oauthAccount.id}
-      `;
+      // Update OAuth tokens
+      await this.prisma.oauth_accounts.update({
+        where: { id: oauthAccount.id },
+        data: {
+          access_token: accessToken ? await this.encryptToken(accessToken) : null,
+          refresh_token: refreshToken ? await this.encryptToken(refreshToken) : null,
+          token_expires: this.calculateTokenExpiry(),
+          provider_email: email,
+          profile_data: JSON.stringify({ picture: profile_picture, last_login: new Date() }),
+          updated_at: new Date(),
+        },
+      });
 
       this.logger.log(`OAuth account updated: ${provider} - ${email}`);
     } else {
@@ -569,50 +610,50 @@ export class AuthService {
         // Link OAuth account to existing user
         user = existingUser;
 
-        await this.prisma.$executeRaw`
-          INSERT INTO oauth_accounts 
-            (user_id, provider, provider_id, provider_email, access_token, refresh_token, token_expires, profile_data, created_at, updated_at)
-          VALUES 
-            (${user.id}, ${provider}, ${providerId}, ${email}, 
-             ${accessToken ? await this.encryptToken(accessToken) : null}, 
-             ${refreshToken ? await this.encryptToken(refreshToken) : null}, 
-             ${this.calculateTokenExpiry()}, 
-             ${JSON.stringify({ picture: profile_picture })},
-             NOW(), NOW())
-        `;
+        await this.prisma.oauth_accounts.create({
+          data: {
+            user_id: user.id,
+            provider,
+            provider_id: providerId,
+            provider_email: email,
+            access_token: accessToken ? await this.encryptToken(accessToken) : null,
+            refresh_token: refreshToken ? await this.encryptToken(refreshToken) : null,
+            token_expires: this.calculateTokenExpiry(),
+            profile_data: JSON.stringify({ picture: profile_picture }),
+          },
+        });
 
         this.logger.log(`OAuth account linked to existing user: ${provider} - ${email}`);
       } else {
-        // Create new user with OAuth account using raw query to handle nullable fields
-        const result = await this.prisma.$queryRaw<any[]>`
-          INSERT INTO users 
-            (email, full_name, phone, password_hash, role, is_active, is_email_verified, created_at, updated_at)
-          VALUES 
-            (${email}, ${full_name || 'OAuth User'}, NULL, NULL, 'customer', 1, 1, NOW(), NOW())
-        `;
-        
-        // Get the newly created user
-        const newUsers = await this.prisma.$queryRaw<any[]>`
-          SELECT * FROM users WHERE email = ${email} LIMIT 1
-        `;
-        
-        if (newUsers.length === 0) {
-          throw new Error('Failed to create user');
-        }
-        
-        user = newUsers[0] as users;
+        // Create new user with OAuth account using transaction
+        user = await this.prisma.$transaction(async (prisma) => {
+          const newUser = await prisma.users.create({
+            data: {
+              email,
+              full_name: full_name || 'OAuth User',
+              phone: null,
+              password_hash: null,
+              role: users_role.customer,
+              is_active: 1,
+              is_email_verified: 1,
+            },
+          });
 
-        await this.prisma.$executeRaw`
-          INSERT INTO oauth_accounts 
-            (user_id, provider, provider_id, provider_email, access_token, refresh_token, token_expires, profile_data, created_at, updated_at)
-          VALUES 
-            (${user.id}, ${provider}, ${providerId}, ${email}, 
-             ${accessToken ? await this.encryptToken(accessToken) : null}, 
-             ${refreshToken ? await this.encryptToken(refreshToken) : null}, 
-             ${this.calculateTokenExpiry()}, 
-             ${JSON.stringify({ picture: profile_picture })},
-             NOW(), NOW())
-        `;
+          await prisma.oauth_accounts.create({
+            data: {
+              user_id: newUser.id,
+              provider,
+              provider_id: providerId,
+              provider_email: email,
+              access_token: accessToken ? await this.encryptToken(accessToken) : null,
+              refresh_token: refreshToken ? await this.encryptToken(refreshToken) : null,
+              token_expires: this.calculateTokenExpiry(),
+              profile_data: JSON.stringify({ picture: profile_picture }),
+            },
+          });
+
+          return newUser;
+        });
 
         this.logger.log(`New user created via OAuth: ${provider} - ${email}`);
       }
@@ -714,24 +755,26 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    // Count OAuth accounts (will be implemented after Prisma generation)
-    // For now, we'll use raw query as fallback
-    const oauthCount = await this.prisma.$queryRaw<any[]>`
-      SELECT COUNT(*) as count FROM oauth_accounts WHERE user_id = ${userId}
-    `;
+    // Count OAuth accounts
+    const oauthCount = await this.prisma.oauth_accounts.count({
+      where: { user_id: userId },
+    });
 
     // Security: Ensure user has password or another OAuth provider
-    if (!user.password_hash && oauthCount[0]?.count === 1) {
+    if (!user.password_hash && oauthCount === 1) {
       throw new BadRequestException(
         'Cannot unlink the only login method. Please set a password first.',
       );
     }
 
-    const deleted = await this.prisma.$executeRaw`
-      DELETE FROM oauth_accounts WHERE user_id = ${userId} AND provider = ${provider}
-    `;
+    const result = await this.prisma.oauth_accounts.deleteMany({
+      where: {
+        user_id: userId,
+        provider,
+      },
+    });
 
-    if (deleted === 0) {
+    if (result.count === 0) {
       throw new BadRequestException('OAuth provider not linked to this account');
     }
 
@@ -744,18 +787,17 @@ export class AuthService {
    * Get linked OAuth accounts for a user
    */
   async getOAuthAccounts(userId: number) {
-    // Use raw query until Prisma client is regenerated
-    const accounts = await this.prisma.$queryRaw<any[]>`
-      SELECT 
-        id,
-        provider,
-        provider_email,
-        created_at,
-        updated_at
-      FROM oauth_accounts 
-      WHERE user_id = ${userId}
-      ORDER BY created_at DESC
-    `;
+    const accounts = await this.prisma.oauth_accounts.findMany({
+      where: { user_id: userId },
+      select: {
+        id: true,
+        provider: true,
+        provider_email: true,
+        created_at: true,
+        updated_at: true,
+      },
+      orderBy: { created_at: 'desc' },
+    });
 
     return {
       accounts: accounts.map(account => ({

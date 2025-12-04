@@ -1,98 +1,309 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🛒 NetworkStore API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+**E-commerce REST API** for network equipment store built with **NestJS**, **Prisma**, and **MySQL**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+[![NestJS](https://img.shields.io/badge/NestJS-v11-E0234E?logo=nestjs)](https://nestjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-5.22-2D3748?logo=prisma)](https://www.prisma.io/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql)](https://www.mysql.com/)
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🚀 Features
 
-## Project setup
+### 🔐 **Authentication & Authorization**
+- ✅ **Email/Password Authentication** - Traditional registration and login
+- ✅ **Google OAuth2** - One-click login with Google account
+- ✅ **JWT-based Authorization** - Secure access and refresh tokens
+- ✅ **Role-based Access Control** - Customer and Admin roles
+- ✅ **Account Security** - Lockout after failed attempts, password history
+- ✅ **Session Management** - Track and revoke active sessions
 
+### 🛡️ **Security Features**
+- ✅ **AES-256-GCM Encryption** - OAuth tokens encrypted at rest
+- ✅ **Bcrypt Password Hashing** - Industry standard with configurable rounds
+- ✅ **Rate Limiting** - Protection against brute force attacks
+- ✅ **CORS Protection** - Configurable cross-origin policies
+- ✅ **Helmet Security Headers** - XSS, clickjacking protection
+- ✅ **Input Validation** - All endpoints validated with class-validator
+- ✅ **Security Audit Logging** - Comprehensive event tracking
+
+### 📊 **Database Schema**
+13 tables covering complete e-commerce functionality:
+- Users & Authentication (users, oauth_accounts, user_sessions)
+- Products & Categories (products, categories, product_images, product_reviews)
+- Shopping Cart (shopping_carts, cart_items)
+- Orders & Payments (orders, order_items, order_statuses, order_history)
+- Addresses & Shipping (addresses)
+- Discounts (discount_codes, discount_usage)
+- Security (security_logs, password_history, verification_tokens)
+
+### 📖 **API Documentation**
+- ✅ **Swagger/OpenAPI** - Interactive API documentation
+- ✅ **JWT Bearer Auth** - Try endpoints directly in Swagger UI
+
+---
+
+## 📋 Description
+
+NetworkStore API provides a complete backend solution for e-commerce applications with enterprise-grade security and scalability.
+
+## ⚡ Quick Start
+
+### 1. Install Dependencies
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
-
+### 2. Configure Environment
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.example .env
+# Edit .env with your configuration
 ```
 
-## Run tests
-
+### 3. Setup Database
 ```bash
-# unit tests
-$ npm run test
+# Generate Prisma Client
+npx prisma generate
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# Push schema to database
+npx prisma db push
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+### 4. Start Development Server
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**API will be available at**: `http://localhost:3000/api/v1`  
+**Swagger Documentation**: `http://localhost:3000/api`
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## 🔐 OAuth2 Setup (Optional)
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+For Google OAuth authentication:
 
-## Support
+```bash
+# Run automated setup
+chmod +x setup-oauth.sh
+./setup-oauth.sh
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Or follow manual setup in [OAUTH_SETUP_GUIDE.md](./OAUTH_SETUP_GUIDE.md)
 
-## Stay in touch
+---
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## 🛠️ Available Scripts
 
-## License
+```bash
+# Development
+npm run start:dev      # Start with hot-reload
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+# Production
+npm run build          # Build for production
+npm run start:prod     # Start production server
+
+# Testing
+npm run test           # Run unit tests
+npm run test:e2e       # Run e2e tests
+npm run test:cov       # Generate coverage report
+
+# Database
+npx prisma generate    # Generate Prisma Client
+npx prisma db push     # Push schema changes
+npx prisma studio      # Open Prisma Studio GUI
+
+# Code Quality
+npm run lint           # Lint code
+npm run format         # Format code with Prettier
+npm audit              # Check for vulnerabilities
+```
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [QUICKSTART.md](./QUICKSTART.md) | Quick start guide (Vietnamese) |
+| [AUTH_DOCUMENTATION.md](./AUTH_DOCUMENTATION.md) | Authentication API endpoints |
+| [OAUTH_SETUP_GUIDE.md](./OAUTH_SETUP_GUIDE.md) | Google OAuth2 setup guide |
+| [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) | Security measures and audit |
+
+---
+
+## 🔒 Security
+
+### Implemented Security Measures
+
+- ✅ **JWT Authentication** - Access and refresh tokens
+- ✅ **OAuth2 Google** - Secure third-party authentication
+- ✅ **Password Security** - Bcrypt hashing, history tracking
+- ✅ **Account Lockout** - After 5 failed attempts
+- ✅ **Rate Limiting** - 10 requests per minute
+- ✅ **Token Encryption** - AES-256-GCM for OAuth tokens
+- ✅ **Security Logging** - All auth events tracked
+- ✅ **Input Validation** - All endpoints validated
+- ✅ **CORS Protection** - Configurable origins
+- ✅ **Helmet Headers** - XSS, clickjacking protection
+
+### Security Recommendations
+
+```bash
+# Generate secure secrets
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+# Run security audit
+npm audit
+
+# Check for vulnerabilities
+npm outdated
+```
+
+**Important**: Read [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) before deploying to production.
+
+---
+
+## 🏗️ Architecture
+
+```
+src/
+├── auth/                   # Authentication module
+│   ├── strategies/        # Passport strategies (JWT, Google)
+│   ├── guards/            # Auth guards (JWT, Roles)
+│   ├── decorators/        # Custom decorators
+│   └── dto/               # Data transfer objects
+├── common/                 # Shared resources
+│   ├── filters/           # Exception filters
+│   └── interceptors/      # Response interceptors
+├── config/                 # Configuration
+├── prisma/                 # Database service
+└── main.ts                 # Application entry point
+
+prisma/
+└── schema.prisma          # Database schema (13 tables)
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Coverage report
+npm run test:cov
+
+# Watch mode
+npm run test:watch
+```
+
+---
+
+## 🚀 Deployment
+
+### Pre-deployment Checklist
+
+- [ ] Update all secrets in `.env`
+- [ ] Enable HTTPS
+- [ ] Configure CORS for production domain
+- [ ] Setup database backup
+- [ ] Enable database encryption at rest
+- [ ] Configure monitoring and alerts
+- [ ] Review security audit report
+- [ ] Test OAuth flow in production environment
+
+### Environment Variables
+
+Required for production:
+```env
+DATABASE_URL=mysql://user:pass@host:3306/db
+JWT_ACCESS_SECRET=<generated-secret>
+JWT_REFRESH_SECRET=<generated-secret>
+ENCRYPTION_KEY=<generated-secret>
+GOOGLE_CLIENT_ID=<from-google-console>
+GOOGLE_CLIENT_SECRET=<from-google-console>
+GOOGLE_CALLBACK_URL=https://yourdomain.com/api/v1/auth/google/callback
+FRONTEND_URL=https://yourdomain.com
+NODE_ENV=production
+```
+
+---
+
+## 📊 API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/register` - Register new user
+- `POST /api/v1/auth/login` - Login with email/password
+- `GET /api/v1/auth/google` - Login with Google
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/logout` - Logout user
+- `GET /api/v1/auth/profile` - Get user profile
+- `POST /api/v1/auth/change-password` - Change password
+- `GET /api/v1/auth/oauth/accounts` - Get linked OAuth accounts
+- `DELETE /api/v1/auth/oauth/:provider` - Unlink OAuth provider
+
+**Full API documentation available at**: `http://localhost:3000/api`
+
+---
+
+## 🛣️ Roadmap
+
+- [x] Authentication system (Email/Password)
+- [x] OAuth2 Google integration
+- [x] Security features (encryption, rate limiting)
+- [ ] Products management module
+- [ ] Shopping cart module
+- [ ] Orders & checkout module
+- [ ] Payment integration (Stripe/PayPal)
+- [ ] Admin dashboard
+- [ ] Email notifications
+- [ ] Product reviews & ratings
+- [ ] Advanced search & filters
+- [ ] Image upload & CDN
+- [ ] Analytics & reporting
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our contributing guidelines first.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is [MIT licensed](LICENSE).
+
+---
+
+## 🙏 Acknowledgments
+
+- Built with [NestJS](https://nestjs.com/) - Progressive Node.js framework
+- [Prisma](https://www.prisma.io/) - Next-generation ORM
+- [Passport](http://www.passportjs.org/) - Authentication middleware
+- Security best practices from [OWASP](https://owasp.org/)
+
+---
+
+## 📞 Support
+
+For issues and questions:
+- 📧 Email: support@networkstore.com
+- 🔒 Security issues: security@networkstore.com
+- 📖 Documentation: See docs folder
+
+---
+
+**Made with ❤️ for secure e-commerce**
