@@ -127,3 +127,44 @@ export class ChangePasswordDto {
   })
   new_password: string;
 }
+
+/**
+ * DTO for forgot password request
+ */
+export class ForgotPasswordDto {
+  @ApiProperty({
+    description: 'User email address',
+    example: 'john.doe@example.com',
+  })
+  @IsNotEmpty({ message: 'Email is required' })
+  @IsEmail({}, { message: 'Invalid email format' })
+  email: string;
+}
+
+/**
+ * DTO for reset password
+ */
+export class ResetPasswordDto {
+  @ApiProperty({
+    description: 'Password reset token from email',
+    example: 'abc123def456...',
+  })
+  @IsNotEmpty({ message: 'Token is required' })
+  @IsString()
+  token: string;
+
+  @ApiProperty({
+    description: 'New password (min 8 chars, must contain uppercase, lowercase, number, and special character)',
+    example: 'NewStrongPass456!',
+    minLength: 8,
+    maxLength: 100,
+  })
+  @IsNotEmpty({ message: 'New password is required' })
+  @IsString()
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @MaxLength(100, { message: 'Password must not exceed 100 characters' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+  })
+  new_password: string;
+}

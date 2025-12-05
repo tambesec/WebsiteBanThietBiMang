@@ -534,6 +534,202 @@ export class AuthService {
     });
   }
 
+  /**
+   * Forgot password - Generate reset token and send email
+   */
+  async forgotPassword(email: string, ipAddress?: string) {
+    // Find user by email
+    const user = await this.prisma.users.findUnique({
+      where: { email },
+    });
+
+    // IMPORTANT: Don't reveal if email exists or not (security best practice)
+    // Always return same message to prevent email enumeration attacks
+    const response = {
+      message: 'If the email exists, a password reset link has been sent',
+    };
+
+    if (!user) {
+      // Log attempt for security monitoring
+      await this.logSecurityEvent(null, 'password_reset_failed', ipAddress, {
+        email,
+        reason: 'user_not_found',
+      });
+      return response;
+    }
+
+    // Check if account is active
+    if (!user.is_active) {
+      await this.logSecurityEvent(user.id, 'password_reset_failed', ipAddress, {
+        reason: 'account_inactive',
+      });
+      return response;
+    }
+
+    // Generate cryptographically secure random token
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = await this.hashToken(resetToken);
+
+    // Token expires in 30 minutes
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30);
+
+    await this.prisma.$transaction(async (prisma) => {
+      // Delete any existing password reset tokens for this user
+      await prisma.verification_tokens.deleteMany({
+        where: {
+          user_id: user.id,
+          token_type: 'password_reset',
+        },
+      });
+
+      // Create new reset token
+      await prisma.verification_tokens.create({
+        data: {
+          user_id: user.id,
+          token_hash: tokenHash,
+          token_type: 'password_reset',
+          expires_at: expiresAt,
+        },
+      });
+
+      // Log security event
+      await prisma.security_logs.create({
+        data: {
+          user_id: user.id,
+          event_type: 'password_reset_requested',
+          ip_address: ipAddress?.substring(0, 45),
+        },
+      });
+    });
+
+    // TODO: Send email with reset link
+    // const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+    // await this.emailService.sendPasswordResetEmail(user.email, resetUrl);
+    
+    this.logger.log(`Password reset requested for: ${user.email}`);
+
+    // For development, log the token (REMOVE IN PRODUCTION)
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.debug(`Reset token for ${email}: ${resetToken}`);
+    }
+
+    return response;
+  }
+
+  /**
+   * Reset password using token
+   */
+  async resetPassword(token: string, newPassword: string, ipAddress?: string) {
+    // Hash the token to find in database
+    const tokenHash = await this.hashToken(token);
+
+    // Find valid token
+    const tokenRecord = await this.prisma.verification_tokens.findFirst({
+      where: {
+        token_hash: tokenHash,
+        token_type: 'password_reset',
+        expires_at: { gt: new Date() },
+      },
+      include: {
+        users: true,
+      },
+    });
+
+    if (!tokenRecord) {
+      await this.logSecurityEvent(null, 'password_reset_invalid_token', ipAddress);
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const user = tokenRecord.users;
+
+    // Check if account is active
+    if (!user.is_active) {
+      throw new BadRequestException('Account is deactivated');
+    }
+
+    // Check if new password was used before
+    const isPasswordReused = await this.isPasswordReused(user.id, newPassword);
+    if (isPasswordReused) {
+      throw new BadRequestException(
+        `Cannot reuse any of your last ${this.passwordHistoryCount} passwords`,
+      );
+    }
+
+    // Hash new password
+    const newPasswordHash = await this.hashPassword(newPassword);
+
+    // Use transaction to ensure all operations succeed or fail together
+    await this.prisma.$transaction(async (prisma) => {
+      // Update password
+      await prisma.users.update({
+        where: { id: user.id },
+        data: {
+          password_hash: newPasswordHash,
+          failed_login_attempts: 0,
+          locked_until: null,
+        },
+      });
+
+      // Add to password history
+      await prisma.password_history.create({
+        data: {
+          user_id: user.id,
+          password_hash: newPasswordHash,
+        },
+      });
+
+      // Clean up old password history
+      const histories = await prisma.password_history.findMany({
+        where: { user_id: user.id },
+        orderBy: { created_at: 'desc' },
+        skip: this.passwordHistoryCount,
+      });
+
+      if (histories.length > 0) {
+        await prisma.password_history.deleteMany({
+          where: {
+            id: { in: histories.map((h) => h.id) },
+          },
+        });
+      }
+
+      // Delete the used token (one-time use)
+      await prisma.verification_tokens.delete({
+        where: { id: tokenRecord.id },
+      });
+
+      // Delete all other password reset tokens for this user
+      await prisma.verification_tokens.deleteMany({
+        where: {
+          user_id: user.id,
+          token_type: 'password_reset',
+        },
+      });
+
+      // Invalidate all existing sessions (force re-login)
+      await prisma.user_sessions.deleteMany({
+        where: { user_id: user.id },
+      });
+
+      // Log security event
+      await prisma.security_logs.create({
+        data: {
+          user_id: user.id,
+          event_type: 'password_reset_success',
+          ip_address: ipAddress?.substring(0, 45),
+        },
+      });
+    });
+
+    this.logger.log(`Password reset successful for user ID: ${user.id}`);
+
+    return {
+      message: 'Password reset successfully. Please login with your new password.',
+    };
+  }
+
   // ==================== OAuth Methods Removed ====================
   // OAuth functionality requires oauth_accounts table in schema.prisma
   // To enable OAuth: Add oauth_accounts model to schema.prisma and regenerate Prisma client

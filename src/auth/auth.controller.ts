@@ -22,6 +22,8 @@ import {
   RefreshTokenDto,
   LogoutDto,
   ChangePasswordDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
@@ -143,6 +145,49 @@ export class AuthController {
       req.user.sub,
       changePasswordDto.current_password,
       changePasswordDto.new_password,
+    );
+  }
+
+  /**
+   * POST /auth/forgot-password
+   * Request password reset token
+   */
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset link' })
+  @ApiResponse({
+    status: 200,
+    description: 'If email exists, reset link sent (same response for security)',
+  })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  async forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto,
+    @Req() req: Request,
+  ) {
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    return this.authService.forgotPassword(forgotPasswordDto.email, ipAddress);
+  }
+
+  /**
+   * POST /auth/reset-password
+   * Reset password using token from email
+   */
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password with token' })
+  @ApiResponse({ status: 200, description: 'Password reset successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @Req() req: Request,
+  ) {
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    return this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.new_password,
+      ipAddress,
     );
   }
 }

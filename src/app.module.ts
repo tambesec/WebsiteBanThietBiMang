@@ -12,6 +12,8 @@ import { CartModule } from './cart/cart.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { OrdersModule } from './orders/orders.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { DiscountsModule } from './discounts/discounts.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import configuration from './config/configuration';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -45,6 +47,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     AddressesModule,
     OrdersModule,
     ReviewsModule,
+    DiscountsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

@@ -515,6 +515,229 @@ export class ProductsService {
   }
 
   /**
+   * Advanced search with highlighting and relevance scoring
+   */
+  async advancedSearch(query: string, fields?: string[], mode: string = 'fuzzy') {
+    const searchFields = fields || ['name', 'description', 'brand', 'model'];
+    const searchTerm = mode === 'exact' ? query : `%${query}%`;
+
+    // Build OR conditions for all search fields
+    const orConditions = searchFields.map((field) => {
+      if (field === 'name') return { name: { contains: query } };
+      if (field === 'description') return { description: { contains: query } };
+      if (field === 'brand') return { brand: { contains: query } };
+      if (field === 'model') return { model: { contains: query } };
+      if (field === 'sku') return { sku: { contains: query } };
+      return {};
+    });
+
+    const products = await this.prisma.products.findMany({
+      where: {
+        is_active: 1,
+        OR: orConditions,
+      },
+      include: {
+        categories: {
+          select: { id: true, name: true, slug: true },
+        },
+      },
+      take: 20,
+    });
+
+    // Calculate relevance score (simple: exact match in name > brand > model > description)
+    const scored = products.map((p) => {
+      let score = 0;
+      const lowerQuery = query.toLowerCase();
+
+      if (p.name.toLowerCase().includes(lowerQuery)) score += 10;
+      if (p.name.toLowerCase() === lowerQuery) score += 20;
+      if (p.brand?.toLowerCase().includes(lowerQuery)) score += 5;
+      if (p.model?.toLowerCase().includes(lowerQuery)) score += 3;
+      if (p.description?.toLowerCase().includes(lowerQuery)) score += 1;
+
+      return { ...p, relevance_score: score };
+    });
+
+    // Sort by relevance
+    return scored.sort((a, b) => b.relevance_score - a.relevance_score);
+  }
+
+  /**
+   * Get filter options (brands, price range, categories)
+   */
+  async getFilterOptions() {
+    const [brands, priceRange, categories, stats] = await Promise.all([
+      // Get unique brands
+      this.prisma.products.findMany({
+        where: { is_active: 1, brand: { not: null } },
+        select: { brand: true },
+        distinct: ['brand'],
+        orderBy: { brand: 'asc' },
+      }),
+
+      // Get price range
+      this.prisma.products.aggregate({
+        where: { is_active: 1 },
+        _min: { price: true },
+        _max: { price: true },
+      }),
+
+      // Get categories with product count
+      this.prisma.categories.findMany({
+        where: { is_active: 1 },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          _count: {
+            select: { products: true },
+          },
+        },
+        orderBy: { name: 'asc' },
+      }),
+
+      // Get product statistics
+      this.prisma.products.aggregate({
+        where: { is_active: 1 },
+        _count: true,
+        _avg: { price: true },
+      }),
+    ]);
+
+    return {
+      brands: brands.map((b) => b.brand).filter(Boolean),
+      price_range: {
+        min: Number(priceRange._min.price || 0),
+        max: Number(priceRange._max.price || 0),
+      },
+      categories: categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        products_count: c._count.products,
+      })),
+      statistics: {
+        total_products: stats._count,
+        average_price: Math.round(Number(stats._avg.price || 0)),
+      },
+    };
+  }
+
+  /**
+   * Get related products by category
+   */
+  async getRelatedProducts(productId: number, limit: number = 4) {
+    const product = await this.prisma.products.findUnique({
+      where: { id: productId },
+      select: { category_id: true, id: true },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const related = await this.prisma.products.findMany({
+      where: {
+        category_id: product.category_id,
+        is_active: 1,
+        id: { not: productId },
+      },
+      include: {
+        categories: {
+          select: { id: true, name: true, slug: true },
+        },
+      },
+      take: limit,
+      orderBy: { created_at: 'desc' },
+    });
+
+    return related;
+  }
+
+  /**
+   * Get product suggestions (autocomplete)
+   */
+  async getSuggestions(query: string, limit: number = 10) {
+    if (!query || query.length < 2) {
+      return [];
+    }
+
+    const products = await this.prisma.products.findMany({
+      where: {
+        is_active: 1,
+        OR: [
+          { name: { contains: query } },
+          { brand: { contains: query } },
+          { model: { contains: query } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        brand: true,
+        model: true,
+        primary_image: true,
+        price: true,
+      },
+      take: limit,
+      orderBy: { name: 'asc' },
+    });
+
+    return products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      display: `${p.brand || ''} ${p.name} ${p.model || ''}`.trim(),
+      image: p.primary_image,
+      price: Number(p.price),
+    }));
+  }
+
+  /**
+   * Compare multiple products
+   */
+  async compareProducts(productIds: number[]) {
+    if (productIds.length < 2 || productIds.length > 4) {
+      throw new BadRequestException('Compare 2-4 products only');
+    }
+
+    const products = await this.prisma.products.findMany({
+      where: {
+        id: { in: productIds },
+        is_active: 1,
+      },
+      include: {
+        categories: {
+          select: { id: true, name: true },
+        },
+        product_reviews: {
+          where: { is_approved: 1 },
+          select: { rating: true },
+        },
+      },
+    });
+
+    if (products.length !== productIds.length) {
+      throw new NotFoundException('Some products not found');
+    }
+
+    return products.map((p) => {
+      const avgRating = p.product_reviews.length > 0
+        ? p.product_reviews.reduce((sum, r) => sum + r.rating, 0) / p.product_reviews.length
+        : 0;
+
+      const { product_reviews, ...productData } = p;
+
+      return {
+        ...productData,
+        average_rating: Math.round(avgRating * 10) / 10,
+        reviews_count: p.product_reviews.length,
+      };
+    });
+  }
+
+  /**
    * Generate SEO-friendly slug from name
    */
   private generateSlug(name: string): string {

@@ -16,6 +16,7 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductDto } from './dto/query-product.dto';
+import { SearchProductDto } from './dto/search-product.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -284,5 +285,92 @@ export class ProductsController {
     @Body('quantity', ParseIntPipe) quantity: number,
   ) {
     return this.productsService.updateStock(id, quantity);
+  }
+
+  /**
+   * Advanced search with relevance scoring (Public)
+   */
+  @Post('search')
+  @Public()
+  @ApiOperation({ summary: 'Advanced product search with relevance scoring' })
+  @ApiResponse({
+    status: 200,
+    description: 'Search results with relevance scores',
+  })
+  advancedSearch(@Body() searchDto: SearchProductDto) {
+    return this.productsService.advancedSearch(
+      searchDto.query,
+      searchDto.fields,
+      searchDto.mode,
+    );
+  }
+
+  /**
+   * Get filter options (Public)
+   */
+  @Get('filters/options')
+  @Public()
+  @ApiOperation({ summary: 'Get available filter options (brands, price range, categories)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Filter options retrieved successfully',
+  })
+  getFilterOptions() {
+    return this.productsService.getFilterOptions();
+  }
+
+  /**
+   * Get related products (Public)
+   */
+  @Get(':id/related')
+  @Public()
+  @ApiOperation({ summary: 'Get related products by category' })
+  @ApiResponse({
+    status: 200,
+    description: 'Related products retrieved successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
+  @ApiParam({ name: 'id', type: Number })
+  getRelatedProducts(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.getRelatedProducts(id, 4);
+  }
+
+  /**
+   * Get product suggestions for autocomplete (Public)
+   */
+  @Get('suggestions/:query')
+  @Public()
+  @ApiOperation({ summary: 'Get product suggestions for autocomplete' })
+  @ApiResponse({
+    status: 200,
+    description: 'Suggestions retrieved successfully',
+  })
+  getSuggestions(@Param('query') query: string) {
+    return this.productsService.getSuggestions(query, 10);
+  }
+
+  /**
+   * Compare multiple products (Public)
+   */
+  @Post('compare')
+  @Public()
+  @ApiOperation({ summary: 'Compare 2-4 products side by side' })
+  @ApiResponse({
+    status: 200,
+    description: 'Product comparison retrieved successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Must compare 2-4 products',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Some products not found',
+  })
+  compareProducts(@Body('product_ids') productIds: number[]) {
+    return this.productsService.compareProducts(productIds);
   }
 }
