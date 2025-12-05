@@ -351,8 +351,8 @@ model users {
   id                    Int                   @id @default(autoincrement())
   full_name             String                @db.VarChar(150)
   email                 String                @unique(map: "email") @db.VarChar(320)
-  phone                 String?               @db.VarChar(20)
-  password_hash         String?               @db.VarChar(255)
+  phone                 String                @db.VarChar(20)
+  password_hash         String                @db.VarChar(255)
   role                  users_role            @default(customer)
   is_active             Int                   @default(1) @db.TinyInt
   is_email_verified     Int                   @default(0) @db.TinyInt
@@ -371,7 +371,6 @@ model users {
   shopping_carts        shopping_carts[]
   user_sessions         user_sessions[]
   verification_tokens   verification_tokens[]
-  oauth_accounts        oauth_accounts[]
 
   @@index([email], map: "idx_email")
   @@index([role], map: "idx_role")
@@ -416,25 +415,4 @@ enum orders_payment_status {
   unpaid
   paid
   refunded
-}
-
-/// OAuth Accounts - Store OAuth provider information
-/// Supports multiple OAuth providers per user (Google, Facebook, etc.)
-model oauth_accounts {
-  id              Int      @id @default(autoincrement())
-  user_id         Int
-  provider        String   @db.VarChar(50)  // 'google', 'facebook', 'github', etc.
-  provider_id     String   @db.VarChar(255) // User ID from OAuth provider
-  provider_email  String?  @db.VarChar(320) // Email from OAuth provider
-  access_token    String?  @db.Text         // Encrypted token
-  refresh_token   String?  @db.Text         // Encrypted refresh token
-  token_expires   DateTime? @db.DateTime(0) // Token expiration
-  profile_data    String?  @db.Text         // JSON profile data from provider
-  created_at      DateTime @default(now()) @db.DateTime(0)
-  updated_at      DateTime @default(now()) @db.DateTime(0)
-  users           users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_oauth_user")
-
-  @@unique([provider, provider_id], map: "unique_provider_id")
-  @@index([user_id], map: "idx_user")
-  @@index([provider, provider_email], map: "idx_provider_email")
 }

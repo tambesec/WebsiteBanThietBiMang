@@ -7,6 +7,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import helmet from 'helmet';
+import session from 'express-session';
 
 /**
  * Bootstrap the NestJS application
@@ -27,6 +28,21 @@ async function bootstrap() {
 
   // Security: Helmet middleware
   app.use(helmet());
+
+  // Session middleware for cart support
+  app.use(
+    session({
+      secret: configService.get<string>('jwtSecret') || 'networkstore-session-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        httpOnly: true,
+        secure: nodeEnv === 'production',
+        sameSite: 'lax',
+      },
+    }),
+  );
 
   // CORS Configuration
   app.enableCors({
