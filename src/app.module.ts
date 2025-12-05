@@ -10,6 +10,8 @@ import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CartModule } from './cart/cart.module';
 import { AddressesModule } from './addresses/addresses.module';
+import { OrdersModule } from './orders/orders.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import configuration from './config/configuration';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -41,6 +43,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     CategoriesModule,
     CartModule,
     AddressesModule,
+    OrdersModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -235,21 +235,24 @@ model product_images {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model product_reviews {
-  id                   Int      @id @default(autoincrement())
+  id                   Int       @id @default(autoincrement())
   product_id           Int
   user_id              Int
   order_id             Int?
-  rating               Int      @db.TinyInt
-  title                String?  @db.VarChar(200)
-  comment              String?  @db.Text
-  is_verified_purchase Int      @default(0) @db.TinyInt
-  is_approved          Int      @default(0) @db.TinyInt
-  admin_reply          String?  @db.Text
-  created_at           DateTime @default(now()) @db.DateTime(0)
-  updated_at           DateTime @default(now()) @db.DateTime(0)
-  orders               orders?  @relation(fields: [order_id], references: [id], onUpdate: NoAction, map: "fk_review_order")
-  products             products @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_review_product")
-  users                users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_review_user")
+  rating               Int       @db.TinyInt
+  title                String?   @db.VarChar(200)
+  comment              String?   @db.Text
+  images               String?   @db.Text
+  is_verified_purchase Int       @default(0) @db.TinyInt
+  is_approved          Int       @default(0) @db.TinyInt
+  helpful_count        Int       @default(0)
+  admin_reply          String?   @db.Text
+  replied_at           DateTime? @db.DateTime(0)
+  created_at           DateTime  @default(now()) @db.DateTime(0)
+  updated_at           DateTime  @default(now()) @db.DateTime(0)
+  orders               orders?   @relation(fields: [order_id], references: [id], onUpdate: NoAction, map: "fk_review_order")
+  products             products  @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_review_product")
+  users                users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_review_user")
 
   @@index([order_id], map: "idx_order")
   @@index([product_id, is_approved], map: "idx_product_approved")
