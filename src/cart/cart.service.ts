@@ -16,10 +16,80 @@ export class CartService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Get or create cart for user/session
+   * Get existing cart (does not create if not exists)
+   * Returns null if cart doesn't exist
+   */
+  async getCart(userId?: number, sessionId?: string) {
+    // Must have either userId or sessionId
+    if (!userId && !sessionId) {
+      return null;
+    }
+
+    let cart;
+
+    // Priority 1: Find by user_id (authenticated users)
+    if (userId) {
+      cart = await this.prisma.shopping_carts.findFirst({
+        where: { user_id: userId },
+        include: {
+          cart_items: {
+            include: {
+              products: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  price: true,
+                  compare_at_price: true,
+                  stock_quantity: true,
+                  primary_image: true,
+                  is_active: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    } else if (sessionId) {
+      // Priority 2: Find by session_id (guest users)
+      cart = await this.prisma.shopping_carts.findFirst({
+        where: {
+          session_id: sessionId,
+          user_id: null, // Only guest carts
+        },
+        include: {
+          cart_items: {
+            include: {
+              products: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  price: true,
+                  compare_at_price: true,
+                  stock_quantity: true,
+                  primary_image: true,
+                  is_active: true,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    if (!cart) {
+      return null;
+    }
+
+    return this.formatCartResponse(cart);
+  }
+
+  /**
+   * Get or create cart for user/session (internal use)
    * Security: Validates user_id matches authenticated user OR uses session_id
    */
-  async getOrCreateCart(userId?: number, sessionId?: string) {
+  private async getOrCreateCart(userId?: number, sessionId?: string) {
     // Security: Must have either userId or sessionId
     if (!userId && !sessionId) {
       throw new UnauthorizedException(
@@ -240,7 +310,7 @@ export class CartService {
     });
 
     // Return updated cart
-    return this.getOrCreateCart(userId, sessionId);
+    return this.getCart(userId, sessionId);
   }
 
   /**
@@ -298,7 +368,7 @@ export class CartService {
         data: { updated_at: new Date() },
       });
 
-      return this.getOrCreateCart(userId, sessionId);
+      return this.getCart(userId, sessionId);
     }
 
     // Security: Validate product is still active
@@ -331,7 +401,7 @@ export class CartService {
       data: { updated_at: new Date() },
     });
 
-    return this.getOrCreateCart(userId, sessionId);
+    return this.getCart(userId, sessionId);
   }
 
   /**
@@ -377,7 +447,7 @@ export class CartService {
       data: { updated_at: new Date() },
     });
 
-    return this.getOrCreateCart(userId, sessionId);
+    return this.getCart(userId, sessionId);
   }
 
   /**
@@ -385,7 +455,11 @@ export class CartService {
    * Security: Validates ownership
    */
   async clearCart(userId?: number, sessionId?: string) {
-    const cart = await this.getOrCreateCart(userId, sessionId);
+    const cart = await this.getCart(userId, sessionId);
+    
+    if (!cart) {
+      return { message: 'Cart is already empty' };
+    }
 
     if (cart.items.length === 0) {
       return cart;
@@ -404,7 +478,7 @@ export class CartService {
       data: { updated_at: new Date() },
     });
 
-    return this.getOrCreateCart(userId, sessionId);
+    return this.getCart(userId, sessionId);
   }
 
   /**
@@ -429,7 +503,7 @@ export class CartService {
 
     if (!guestCart || guestCart.cart_items.length === 0) {
       this.logger.log(`No guest cart to merge for session ${sessionId}`);
-      return this.getOrCreateCart(userId, sessionId);
+      return this.getCart(userId, sessionId);
     }
 
     // Get or create user cart
@@ -511,17 +585,17 @@ export class CartService {
       );
     }
 
-    return this.getOrCreateCart(userId, sessionId);
+    return this.getCart(userId, sessionId);
   }
 
   /**
-   * Validate cart items before checkout
+   * Validate cart before checkout
    * Security: Checks product availability, stock, active status
    */
   async validateCart(userId?: number, sessionId?: string) {
-    const cart = await this.getOrCreateCart(userId, sessionId);
+    const cart = await this.getCart(userId, sessionId);
 
-    if (cart.items.length === 0) {
+    if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
     }
 

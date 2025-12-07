@@ -41,51 +41,65 @@ export class CartController {
   @ApiOperation({
     summary: 'Get current cart',
     description:
-      'Retrieve current cart for authenticated user or guest session. Returns empty cart if none exists.',
+      'Retrieve current cart for authenticated user or guest session. Returns null if no cart exists.',
   })
   @ApiResponse({
     status: 200,
-    description: 'Cart retrieved successfully',
+    description: 'Cart retrieved successfully or null if no cart exists',
     schema: {
-      example: {
-        id: 1,
-        user_id: 1,
-        session_id: 'abc123',
-        items: [
-          {
+      oneOf: [
+        {
+          type: 'object',
+          example: {
             id: 1,
-            product: {
-              id: 1,
-              name: 'iPhone 15 Pro',
-              slug: 'iphone-15-pro',
-              price: 29990000,
-              compare_at_price: 27990000,
-              stock_quantity: 50,
-              primary_image: 'https://example.com/iphone.jpg',
-              is_active: 1,
+            user_id: 1,
+            session_id: 'abc123',
+            items: [
+              {
+                id: 1,
+                product: {
+                  id: 1,
+                  name: 'iPhone 15 Pro',
+                  slug: 'iphone-15-pro',
+                  price: 29990000,
+                  compare_at_price: 27990000,
+                  stock_quantity: 50,
+                  primary_image: 'https://example.com/iphone.jpg',
+                  is_active: 1,
+                },
+                quantity: 2,
+                price: 27990000,
+                subtotal: 55980000,
+                added_at: '2025-12-04T10:30:00.000Z',
+              },
+            ],
+            summary: {
+              items_count: 1,
+              total_quantity: 2,
+              subtotal: 55980000,
+              total: 55980000,
             },
-            quantity: 2,
-            price: 27990000,
-            subtotal: 55980000,
-            added_at: '2025-12-04T10:30:00.000Z',
+            created_at: '2025-12-01T08:00:00.000Z',
+            updated_at: '2025-12-04T10:30:00.000Z',
           },
-        ],
-        summary: {
-          items_count: 1,
-          total_quantity: 2,
-          subtotal: 55980000,
-          total: 55980000,
         },
-        created_at: '2025-12-01T08:00:00.000Z',
-        updated_at: '2025-12-04T10:30:00.000Z',
-      },
+        {
+          type: 'null',
+          example: null,
+        },
+      ],
     },
   })
   async getCart(@Request() req, @Session() session) {
     const userId = req.user?.id;
     const sessionId = session.id || session.sessionID;
 
-    return this.cartService.getOrCreateCart(userId, sessionId);
+    // Ensure session is saved for guest users
+    if (!userId && !session.cart_initialized) {
+      session.cart_initialized = true;
+    }
+
+    return this.cartService.getCart(userId, sessionId);
   }
 
   /**

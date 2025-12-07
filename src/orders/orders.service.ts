@@ -29,6 +29,7 @@ export class OrdersService {
    */
   async create(userId: number, dto: CreateOrderDto) {
     // Step 1: Validate and get cart
+    // Note: validateCart will throw BadRequestException if cart is null/empty
     const cartValidation = await this.cartService.validateCart(
       userId,
       undefined,
@@ -43,7 +44,8 @@ export class OrdersService {
 
     const cart = cartValidation.cart;
 
-    if (cart.items.length === 0) {
+    // Double check (should never reach here if cart is empty due to validateCart logic)
+    if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
     }
 
@@ -521,29 +523,35 @@ export class OrdersService {
 
   /**
    * Private helper: Generate unique order number
+   * Format: ORD-YYYYMMDD-HHMMSS-RRR (RRR = random 3 digits)
    */
   private async generateOrderNumber(): Promise<string> {
     const prefix = 'ORD';
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-
-    // Get today's order count
-    const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(date.setHours(23, 59, 59, 999));
-
-    const todayOrderCount = await this.prisma.orders.count({
-      where: {
-        created_at: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      },
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    
+    // Add random 3 digits to prevent collision
+    const random = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+    
+    const orderNumber = `${prefix}-${year}${month}${day}-${hours}${minutes}${seconds}-${random}`;
+    
+    // Check if exists (very rare collision)
+    const existing = await this.prisma.orders.findUnique({
+      where: { order_number: orderNumber },
     });
-
-    const sequence = String(todayOrderCount + 1).padStart(4, '0');
-    return `${prefix}-${year}${month}${day}-${sequence}`;
+    
+    // If collision happens, retry with new random
+    if (existing) {
+      await new Promise(resolve => setTimeout(resolve, 10)); // Wait 10ms
+      return this.generateOrderNumber();
+    }
+    
+    return orderNumber;
   }
 
   /**

@@ -114,12 +114,12 @@ export class ProductsService {
         // Brand filter
         brand ? { brand } : {},
 
-        // Price range filter
+        // Price range filter (convert to Decimal for comparison)
         min_price !== undefined || max_price !== undefined
           ? {
               price: {
-                ...(min_price !== undefined && { gte: min_price }),
-                ...(max_price !== undefined && { lte: max_price }),
+                ...(min_price !== undefined && { gte: new Prisma.Decimal(min_price) }),
+                ...(max_price !== undefined && { lte: new Prisma.Decimal(max_price) }),
               },
             }
           : {},

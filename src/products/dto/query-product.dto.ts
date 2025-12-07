@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsInt, Min, IsIn } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 /**
  * DTO for querying products with filters, search, and pagination
@@ -56,6 +56,21 @@ export class QueryProductDto {
     description: 'Filter featured products only',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return undefined;
+    // Convert string to boolean explicitly
+    if (typeof value === 'string') {
+      const lowerValue = value.toLowerCase().trim();
+      if (lowerValue === 'true' || lowerValue === '1') return true;
+      if (lowerValue === 'false' || lowerValue === '0') return false;
+      return undefined;
+    }
+    // Handle boolean values
+    if (typeof value === 'boolean') return value;
+    // Handle number values
+    if (typeof value === 'number') return value === 1;
+    return undefined;
+  }, { toClassOnly: true })
   is_featured?: boolean;
 
   @ApiPropertyOptional({
@@ -64,6 +79,21 @@ export class QueryProductDto {
     default: true,
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null) return true; // default value
+    // Convert string to boolean explicitly
+    if (typeof value === 'string') {
+      const lowerValue = value.toLowerCase().trim();
+      if (lowerValue === 'true' || lowerValue === '1') return true;
+      if (lowerValue === 'false' || lowerValue === '0') return false;
+      return true; // default if invalid string
+    }
+    // Handle boolean values
+    if (typeof value === 'boolean') return value;
+    // Handle number values
+    if (typeof value === 'number') return value === 1;
+    return true; // default value
+  }, { toClassOnly: true })
   is_active?: boolean;
 
   @ApiPropertyOptional({
