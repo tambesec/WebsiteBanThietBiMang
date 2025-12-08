@@ -1,20 +1,40 @@
 import React, { useEffect, useState } from "react";
 import SingleOrder from "./SingleOrder";
 import ordersData from "./ordersData";
+import { ordersApi } from "@/services/api";
+import type { Order } from "@/services/api";
 
 const Orders = () => {
-  const [orders, setOrders] = useState<any>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/order`)
-      .then((res) => res.json())
-      .then((data) => {
-        setOrders(data.orders);
-      })
-      .catch((err) => {
-        console.log(err.message);
-      });
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        const response = await ordersApi.getMyOrders({ page: 1, limit: 10 });
+        setOrders(response.data);
+      } catch (err: any) {
+        console.error('Error fetching orders:', err);
+        setError(err.message || 'Không thể tải danh sách đơn hàng');
+        // Fallback to static data nếu API fail
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue"></div>
+      </div>
+    );
+  }
 
   return (
     <>

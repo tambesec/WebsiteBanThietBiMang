@@ -191,6 +191,99 @@ export interface DashboardStats {
   topProducts: Product[];
 }
 
+export interface Review {
+  id: string;
+  userId: string;
+  user?: User;
+  productId: string;
+  product?: Product;
+  rating: number;
+  comment: string;
+  images?: string[];
+  isVerified: boolean;
+  adminReply?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Address {
+  id: string;
+  userId: string;
+  fullName: string;
+  phone: string;
+  address: string;
+  city: string;
+  district: string;
+  ward: string;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnalyticsData {
+  revenue: {
+    daily: { date: string; amount: number }[];
+    weekly: { week: string; amount: number }[];
+    monthly: { month: string; amount: number }[];
+    yearly: { year: string; amount: number }[];
+  };
+  orders: {
+    byStatus: { status: string; count: number }[];
+    byPaymentMethod: { method: string; count: number }[];
+    trend: { date: string; count: number }[];
+  };
+  products: {
+    topSelling: { productId: string; name: string; sold: number }[];
+    lowStock: Product[];
+    outOfStock: Product[];
+  };
+  customers: {
+    new: number;
+    returning: number;
+    topSpenders: { userId: string; name: string; totalSpent: number }[];
+  };
+}
+
+export interface ShippingMethod {
+  id: string;
+  name: string;
+  code: string;
+  basePrice: number;
+  pricePerKg?: number;
+  estimatedDays?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  code: string;
+  description?: string;
+  logo?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Discount {
+  id: string;
+  code: string;
+  description: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  minOrderAmount?: number;
+  maxUses?: number;
+  usedCount: number;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ==================== ADMIN AUTH API ====================
 export const adminAuthApi = {
   login: async (email: string, password: string): Promise<AuthResponse> => {
@@ -216,6 +309,20 @@ export const adminAuthApi = {
       oldPassword, 
       newPassword 
     });
+  },
+
+  updateProfile: async (profileData: Partial<AdminUser>): Promise<AdminUser> => {
+    const response = await apiClient.put('/api/v1/admin/auth/profile', profileData);
+    return response.data;
+  },
+
+  refreshToken: async (): Promise<AuthResponse> => {
+    const response = await apiClient.post('/api/v1/admin/auth/refresh-token');
+    if (response.data.token) {
+      localStorage.setItem('admin_token', response.data.token);
+      localStorage.setItem('admin_user', JSON.stringify(response.data.user));
+    }
+    return response.data;
   },
 };
 
@@ -278,6 +385,32 @@ export const adminProductsApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
+  },
+
+  getStatistics: async (): Promise<{
+    total: number;
+    active: number;
+    inactive: number;
+    lowStock: number;
+    outOfStock: number;
+  }> => {
+    const response = await apiClient.get('/api/v1/admin/products/statistics');
+    return response.data;
+  },
+
+  getLowStock: async (threshold: number = 10): Promise<Product[]> => {
+    const response = await apiClient.get('/api/v1/admin/products/low-stock', { 
+      params: { threshold } 
+    });
+    return response.data;
+  },
+
+  bulkUpdateStatus: async (ids: string[], isActive: boolean): Promise<void> => {
+    await apiClient.post('/api/v1/admin/products/bulk-update-status', { ids, isActive });
+  },
+
+  bulkUpdatePrice: async (updates: { id: string; price?: number; salePrice?: number }[]): Promise<void> => {
+    await apiClient.post('/api/v1/admin/products/bulk-update-price', { updates });
   },
 };
 
@@ -390,6 +523,47 @@ export const adminOrdersApi = {
     const response = await apiClient.post(`/api/admin/orders/${id}/cancel`, { reason });
     return response.data;
   },
+
+  getStatistics: async (period?: 'day' | 'week' | 'month' | 'year'): Promise<{
+    total: number;
+    pending: number;
+    processing: number;
+    shipped: number;
+    delivered: number;
+    cancelled: number;
+    totalRevenue: number;
+    averageOrderValue: number;
+  }> => {
+    const response = await apiClient.get('/api/v1/admin/orders/statistics', { params: { period } });
+    return response.data;
+  },
+
+  getRevenueByPeriod: async (startDate: string, endDate: string): Promise<{
+    labels: string[];
+    data: number[];
+  }> => {
+    const response = await apiClient.get('/api/v1/admin/orders/revenue', { 
+      params: { startDate, endDate } 
+    });
+    return response.data;
+  },
+
+  exportOrders: async (params?: { 
+    startDate?: string; 
+    endDate?: string; 
+    status?: string; 
+    format?: 'csv' | 'excel' 
+  }): Promise<Blob> => {
+    const response = await apiClient.get('/api/v1/admin/orders/export', { 
+      params,
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  bulkUpdateStatus: async (ids: string[], status: Order['status']): Promise<void> => {
+    await apiClient.post('/api/v1/admin/orders/bulk-update-status', { ids, status });
+  },
 };
 
 // ==================== ADMIN USERS API ====================
@@ -459,6 +633,192 @@ export const adminDashboardApi = {
     });
     return response.data;
   },
+
+  getAnalytics: async (startDate?: string, endDate?: string): Promise<AnalyticsData> => {
+    const response = await apiClient.get('/api/v1/admin/dashboard/analytics', { 
+      params: { startDate, endDate } 
+    });
+    return response.data;
+  },
+
+  getTopProducts: async (limit: number = 10, period?: string): Promise<Product[]> => {
+    const response = await apiClient.get('/api/v1/admin/dashboard/top-products', { 
+      params: { limit, period } 
+    });
+    return response.data;
+  },
+
+  getTopCustomers: async (limit: number = 10, period?: string): Promise<User[]> => {
+    const response = await apiClient.get('/api/v1/admin/dashboard/top-customers', { 
+      params: { limit, period } 
+    });
+    return response.data;
+  },
+
+  getLowStockAlert: async (): Promise<Product[]> => {
+    const response = await apiClient.get('/api/v1/admin/dashboard/low-stock-alert');
+    return response.data;
+  },
+
+  getRecentActivities: async (limit: number = 20): Promise<{
+    id: string;
+    type: 'order' | 'product' | 'user' | 'review';
+    description: string;
+    timestamp: string;
+  }[]> => {
+    const response = await apiClient.get('/api/v1/admin/dashboard/recent-activities', { 
+      params: { limit } 
+    });
+    return response.data;
+  },
+};
+
+// ==================== ADMIN REVIEWS API ====================
+export const adminReviewsApi = {
+  getAll: async (params?: PaginationParams & { 
+    productId?: string;
+    userId?: string;
+    rating?: number;
+    status?: 'pending' | 'approved' | 'rejected';
+  }): Promise<PaginatedResponse<Review>> => {
+    const response = await apiClient.get('/api/v1/admin/reviews', { params });
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<Review> => {
+    const response = await apiClient.get(`/api/v1/admin/reviews/${id}`);
+    return response.data;
+  },
+
+  updateStatus: async (id: string, status: 'approved' | 'rejected'): Promise<Review> => {
+    const response = await apiClient.patch(`/api/v1/admin/reviews/${id}/status`, { status });
+    return response.data;
+  },
+
+  addReply: async (id: string, reply: string): Promise<Review> => {
+    const response = await apiClient.post(`/api/v1/admin/reviews/${id}/reply`, { reply });
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/admin/reviews/${id}`);
+  },
+
+  bulkUpdateStatus: async (ids: string[], status: 'approved' | 'rejected'): Promise<void> => {
+    await apiClient.post('/api/v1/admin/reviews/bulk-update-status', { ids, status });
+  },
+
+  bulkDelete: async (ids: string[]): Promise<void> => {
+    await apiClient.post('/api/v1/admin/reviews/bulk-delete', { ids });
+  },
+};
+
+// ==================== ADMIN SHIPPING METHODS API ====================
+export const adminShippingMethodsApi = {
+  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<ShippingMethod>> => {
+    const response = await apiClient.get('/api/v1/admin/shipping-methods', { params });
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<ShippingMethod> => {
+    const response = await apiClient.get(`/api/v1/admin/shipping-methods/${id}`);
+    return response.data;
+  },
+
+  create: async (data: Omit<ShippingMethod, 'id' | 'createdAt' | 'updatedAt'>): Promise<ShippingMethod> => {
+    const response = await apiClient.post('/api/v1/admin/shipping-methods', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: Partial<ShippingMethod>): Promise<ShippingMethod> => {
+    const response = await apiClient.put(`/api/v1/admin/shipping-methods/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/admin/shipping-methods/${id}`);
+  },
+
+  toggleActive: async (id: string): Promise<ShippingMethod> => {
+    const response = await apiClient.patch(`/api/v1/admin/shipping-methods/${id}/toggle-active`);
+    return response.data;
+  },
+};
+
+// ==================== ADMIN PAYMENT METHODS API ====================
+export const adminPaymentMethodsApi = {
+  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<PaymentMethod>> => {
+    const response = await apiClient.get('/api/v1/admin/payment-methods', { params });
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<PaymentMethod> => {
+    const response = await apiClient.get(`/api/v1/admin/payment-methods/${id}`);
+    return response.data;
+  },
+
+  create: async (data: Omit<PaymentMethod, 'id' | 'createdAt' | 'updatedAt'>): Promise<PaymentMethod> => {
+    const response = await apiClient.post('/api/v1/admin/payment-methods', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: Partial<PaymentMethod>): Promise<PaymentMethod> => {
+    const response = await apiClient.put(`/api/v1/admin/payment-methods/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/admin/payment-methods/${id}`);
+  },
+
+  toggleActive: async (id: string): Promise<PaymentMethod> => {
+    const response = await apiClient.patch(`/api/v1/admin/payment-methods/${id}/toggle-active`);
+    return response.data;
+  },
+};
+
+// ==================== ADMIN DISCOUNTS API ====================
+export const adminDiscountsApi = {
+  getAll: async (params?: PaginationParams & { 
+    isActive?: boolean;
+    discountType?: 'percentage' | 'fixed';
+  }): Promise<PaginatedResponse<Discount>> => {
+    const response = await apiClient.get('/api/v1/admin/discounts', { params });
+    return response.data;
+  },
+
+  getById: async (id: string): Promise<Discount> => {
+    const response = await apiClient.get(`/api/v1/admin/discounts/${id}`);
+    return response.data;
+  },
+
+  create: async (data: Omit<Discount, 'id' | 'usedCount' | 'createdAt' | 'updatedAt'>): Promise<Discount> => {
+    const response = await apiClient.post('/api/v1/admin/discounts', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: Partial<Discount>): Promise<Discount> => {
+    const response = await apiClient.put(`/api/v1/admin/discounts/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/admin/discounts/${id}`);
+  },
+
+  toggleActive: async (id: string): Promise<Discount> => {
+    const response = await apiClient.patch(`/api/v1/admin/discounts/${id}/toggle-active`);
+    return response.data;
+  },
+
+  getUsageStats: async (id: string): Promise<{
+    totalUses: number;
+    totalDiscount: number;
+    orders: Order[];
+  }> => {
+    const response = await apiClient.get(`/api/v1/admin/discounts/${id}/usage-stats`);
+    return response.data;
+  },
 };
 
 // ==================== ADMIN UPLOAD API ====================
@@ -495,6 +855,10 @@ const adminApi = {
   orders: adminOrdersApi,
   users: adminUsersApi,
   dashboard: adminDashboardApi,
+  reviews: adminReviewsApi,
+  shippingMethods: adminShippingMethodsApi,
+  paymentMethods: adminPaymentMethodsApi,
+  discounts: adminDiscountsApi,
   upload: adminUploadApi,
   client: apiClient, // Export axios instance
 };

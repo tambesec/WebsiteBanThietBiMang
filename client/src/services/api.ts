@@ -180,6 +180,45 @@ export interface Review {
   product?: Product;
 }
 
+export interface WishlistItem {
+  id: number;
+  userId: number;
+  productItemId: number;
+  product?: Product;
+  addedAt: string;
+}
+
+export interface ShippingMethod {
+  id: number;
+  name: string;
+  code: string;
+  basePrice: number;
+  pricePerKg?: number;
+  estimatedDays?: number;
+  isActive: boolean;
+}
+
+export interface PaymentMethodOption {
+  id: number;
+  name: string;
+  code: string;
+  isActive: boolean;
+}
+
+export interface Discount {
+  id: number;
+  code: string;
+  description?: string;
+  discountType: 'percentage' | 'fixed_amount';
+  discountValue: number;
+  minOrderAmount?: number;
+  maxUses?: number;
+  usedCount: number;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+}
+
 export interface AuthResponse {
   id: number;
   email: string;
@@ -208,13 +247,20 @@ export interface PaginatedResponse<T> {
 
 // ==================== PRODUCTS API ====================
 export const productsApi = {
-  // Lấy danh sách sản phẩm
+  // Lấy danh sách sản phẩm với filters đầy đủ
   getAll: async (params?: PaginationParams & { 
     category?: string; 
     brand?: string; 
     minPrice?: number; 
     maxPrice?: number;
     search?: string;
+    color?: string;
+    size?: string;
+    rating?: number;
+    isActive?: boolean;
+    isFeatured?: boolean;
+    sortBy?: 'price' | 'name' | 'createdAt' | 'rating';
+    sortOrder?: 'asc' | 'desc';
   }): Promise<PaginatedResponse<Product>> => {
     const response = await apiClient.get('/api/v1/products', { params });
     // Backend returns: { success: true, data: { data: [...], meta: {...} } }
@@ -223,6 +269,31 @@ export const productsApi = {
       data: result.data || result,
       pagination: result.meta || { total: 0, page: 1, limit: 10, totalPages: 1 }
     };
+  },
+
+  // Lấy sản phẩm featured cho homepage
+  getFeatured: async (limit: number = 8): Promise<Product[]> => {
+    const response = await apiClient.get('/api/v1/products', { 
+      params: { isFeatured: true, limit, isActive: true } 
+    });
+    const result = response.data.data || response.data;
+    return result.data || result;
+  },
+
+  // Lấy sản phẩm mới nhất
+  getNewArrivals: async (limit: number = 8): Promise<Product[]> => {
+    const response = await apiClient.get('/api/v1/products', { 
+      params: { sortBy: 'createdAt', sortOrder: 'desc', limit, isActive: true } 
+    });
+    const result = response.data.data || response.data;
+    return result.data || result;
+  },
+
+  // Lấy sản phẩm bán chạy
+  getBestSellers: async (limit: number = 6): Promise<Product[]> => {
+    const response = await apiClient.get('/api/v1/products/best-sellers', { params: { limit } });
+    const result = response.data.data || response.data;
+    return result.data || result;
   },
 
   // Lấy chi tiết sản phẩm
@@ -387,13 +458,31 @@ export const ordersApi = {
   },
 
   // Lấy danh sách đơn hàng của user
-  getMyOrders: async (params?: PaginationParams): Promise<PaginatedResponse<Order>> => {
+  getMyOrders: async (params?: PaginationParams & { status?: string }): Promise<PaginatedResponse<Order>> => {
     const response = await apiClient.get('/api/v1/orders/my-orders', { params });
     const result = response.data.data || response.data;
     return {
       data: result.data || result,
       pagination: result.meta || { total: 0, page: 1, limit: 10, totalPages: 1 }
     };
+  },
+
+  // Lấy thống kê đơn hàng (dashboard)
+  getOrderStats: async (): Promise<{
+    total: number;
+    pending: number;
+    processing: number;
+    delivered: number;
+    cancelled: number;
+  }> => {
+    const response = await apiClient.get('/api/v1/orders/stats');
+    return response.data.data || response.data;
+  },
+
+  // Tracking đơn hàng
+  trackOrder: async (orderNumber: string): Promise<Order> => {
+    const response = await apiClient.get(`/api/v1/orders/track/${orderNumber}`);
+    return response.data.data || response.data;
   },
 
   // Lấy chi tiết đơn hàng
@@ -490,6 +579,83 @@ export const authApi = {
   },
 };
 
+// ==================== SHIPPING METHODS API ====================
+export const shippingMethodsApi = {
+  // Lấy danh sách phương thức vận chuyển
+  getAll: async (): Promise<ShippingMethod[]> => {
+    const response = await apiClient.get('/api/v1/shipping-methods');
+    return response.data.data || response.data;
+  },
+
+  // Lấy chi tiết phương thức vận chuyển
+  getById: async (id: number): Promise<ShippingMethod> => {
+    const response = await apiClient.get(`/api/v1/shipping-methods/${id}`);
+    return response.data.data || response.data;
+  },
+
+  // Tính phí ship dựa trên địa chỉ và trọng lượng
+  calculateFee: async (params: {
+    shippingMethodId: number;
+    addressId: number;
+    weight?: number;
+  }): Promise<{ fee: number; estimatedDays: number }> => {
+    const response = await apiClient.post('/api/v1/shipping-methods/calculate', params);
+    return response.data.data || response.data;
+  },
+};
+
+// ==================== PAYMENT METHODS API ====================
+export const paymentMethodsApi = {
+  // Lấy danh sách phương thức thanh toán
+  getAll: async (): Promise<PaymentMethodOption[]> => {
+    const response = await apiClient.get('/api/v1/payment-methods');
+    return response.data.data || response.data;
+  },
+
+  // Lấy chi tiết phương thức thanh toán
+  getById: async (id: number): Promise<PaymentMethodOption> => {
+    const response = await apiClient.get(`/api/v1/payment-methods/${id}`);
+    return response.data.data || response.data;
+  },
+};
+
+// ==================== DISCOUNTS API ====================
+export const discountsApi = {
+  // Validate mã giảm giá
+  validate: async (code: string, cartTotal: number): Promise<{
+    valid: boolean;
+    discount?: Discount;
+    discountAmount?: number;
+    message?: string;
+  }> => {
+    const response = await apiClient.post('/api/v1/discounts/validate', { code, cartTotal });
+    return response.data.data || response.data;
+  },
+
+  // Áp dụng mã giảm giá vào cart
+  apply: async (code: string): Promise<{ discountAmount: number; discount: Discount }> => {
+    const response = await apiClient.post('/api/v1/discounts/apply', { code });
+    return response.data.data || response.data;
+  },
+
+  // Lấy các mã giảm giá có thể sử dụng
+  getAvailable: async (): Promise<Discount[]> => {
+    const response = await apiClient.get('/api/v1/discounts/available');
+    return response.data.data || response.data;
+  },
+
+  // Lấy các mã giảm giá đang active (public)
+  getActive: async (): Promise<Discount[]> => {
+    const response = await apiClient.get('/api/v1/discounts/active');
+    return response.data.data || response.data;
+  },
+
+  // Remove discount khỏi cart
+  remove: async (): Promise<void> => {
+    await apiClient.delete('/api/v1/discounts/remove');
+  },
+};
+
 // ==================== ADDRESSES API ====================
 export const addressesApi = {
   // Lấy danh sách địa chỉ của user
@@ -532,6 +698,42 @@ export const addressesApi = {
   // Đặt địa chỉ mặc định
   setDefault: async (id: number): Promise<Address> => {
     const response = await apiClient.put(`/api/v1/users/addresses/${id}`, { isDefault: true });
+    return response.data.data || response.data;
+  },
+};
+
+// ==================== WISHLIST API ====================
+export const wishlistApi = {
+  // Lấy wishlist của user
+  getAll: async (): Promise<WishlistItem[]> => {
+    const response = await apiClient.get('/api/v1/wishlist');
+    return response.data.data || response.data;
+  },
+
+  // Thêm sản phẩm vào wishlist
+  addItem: async (productItemId: number): Promise<WishlistItem> => {
+    const response = await apiClient.post('/api/v1/wishlist/items', { productItemId });
+    return response.data.data || response.data;
+  },
+
+  // Xóa sản phẩm khỏi wishlist
+  removeItem: async (productItemId: number): Promise<void> => {
+    await apiClient.delete(`/api/v1/wishlist/items/${productItemId}`);
+  },
+
+  // Xóa toàn bộ wishlist
+  clear: async (): Promise<void> => {
+    await apiClient.delete('/api/v1/wishlist');
+  },
+
+  // Chuyển sản phẩm từ wishlist sang cart
+  moveToCart: async (productItemId: number, quantity: number = 1): Promise<void> => {
+    await apiClient.post(`/api/v1/wishlist/items/${productItemId}/move-to-cart`, { quantity });
+  },
+
+  // Check sản phẩm có trong wishlist không
+  checkItem: async (productItemId: number): Promise<{ inWishlist: boolean }> => {
+    const response = await apiClient.get(`/api/v1/wishlist/check/${productItemId}`);
     return response.data.data || response.data;
   },
 };
@@ -586,6 +788,10 @@ const api = {
   auth: authApi,
   addresses: addressesApi,
   reviews: reviewsApi,
+  wishlist: wishlistApi,
+  shippingMethods: shippingMethodsApi,
+  paymentMethods: paymentMethodsApi,
+  discounts: discountsApi,
   client: apiClient, // Export axios instance để sử dụng trực tiếp nếu cần
 };
 

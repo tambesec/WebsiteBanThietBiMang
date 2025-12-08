@@ -1,65 +1,16 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-
-// Sample orders data
-const ordersData = [
-  {
-    id: "ORD-20250108-001",
-    customerName: "Nguyễn Văn A",
-    customerEmail: "nguyenvana@email.com",
-    items: 3,
-    total: 2890000,
-    status: "pending",
-    paymentMethod: "COD",
-    date: "2025-01-08 10:30",
-  },
-  {
-    id: "ORD-20250108-002",
-    customerName: "Trần Thị B",
-    customerEmail: "tranthib@email.com",
-    items: 1,
-    total: 1200000,
-    status: "processing",
-    paymentMethod: "vnpay",
-    date: "2025-01-08 09:15",
-  },
-  {
-    id: "ORD-20250107-045",
-    customerName: "Lê Văn C",
-    customerEmail: "levanc@email.com",
-    items: 2,
-    total: 1650000,
-    status: "shipping",
-    paymentMethod: "momo",
-    date: "2025-01-07 16:45",
-  },
-  {
-    id: "ORD-20250107-044",
-    customerName: "Phạm Thị D",
-    customerEmail: "phamthid@email.com",
-    items: 4,
-    total: 3200000,
-    status: "completed",
-    paymentMethod: "vnpay",
-    date: "2025-01-07 14:20",
-  },
-  {
-    id: "ORD-20250107-043",
-    customerName: "Hoàng Văn E",
-    customerEmail: "hoangvane@email.com",
-    items: 1,
-    total: 450000,
-    status: "cancelled",
-    paymentMethod: "COD",
-    date: "2025-01-07 11:00",
-  },
-];
+import { adminOrdersApi, Order } from "@/services/api";
 
 const OrdersTable = () => {
-  const [orders] = useState(ordersData);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const statusOptions = [
     { value: "all", label: "Tất cả trạng thái" },
@@ -70,12 +21,38 @@ const OrdersTable = () => {
     { value: "cancelled", label: "Đã hủy" },
   ];
 
-  // Filter orders
+  // Fetch orders from API
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await adminOrdersApi.getAll({
+          page,
+          limit: 10,
+          search: searchTerm || undefined,
+          status: filterStatus !== 'all' ? filterStatus : undefined,
+        });
+        setOrders(response.data);
+        setTotalPages(response.pagination.totalPages);
+      } catch (err: any) {
+        console.error('Failed to fetch orders:', err);
+        setError(err.message || 'Không thể tải danh sách đơn hàng');
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [page, searchTerm, filterStatus]);
+
+  // Filter orders locally
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase());
+      order.user?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.user?.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       filterStatus === "all" || order.status === filterStatus;
     return matchesSearch && matchesStatus;
