@@ -28,14 +28,15 @@ export class RegisterDto {
   email: string;
 
   @ApiProperty({
-    description: 'Phone number (10-20 digits)',
+    description: 'Phone number (10-20 digits) - Optional',
     example: '0123456789',
     pattern: '^[0-9]{10,20}$',
+    required: false,
   })
-  @IsNotEmpty({ message: 'Phone number is required' })
+  @IsOptional()
   @IsString()
   @Matches(/^[0-9]{10,20}$/, { message: 'Phone number must be 10-20 digits' })
-  phone: string;
+  phone?: string;
 
   @ApiProperty({
     description: 'Password (min 8 chars, must contain uppercase, lowercase, number, and special character)',
@@ -47,7 +48,7 @@ export class RegisterDto {
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   @MaxLength(100, { message: 'Password must not exceed 100 characters' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]+$/, {
     message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
   password: string;
@@ -122,7 +123,7 @@ export class ChangePasswordDto {
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   @MaxLength(100, { message: 'Password must not exceed 100 characters' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]+$/, {
     message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
   new_password: string;
@@ -163,7 +164,7 @@ export class ResetPasswordDto {
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   @MaxLength(100, { message: 'Password must not exceed 100 characters' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]+$/, {
     message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
   new_password: string;

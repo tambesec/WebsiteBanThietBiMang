@@ -354,8 +354,8 @@ model users {
   id                    Int                   @id @default(autoincrement())
   full_name             String                @db.VarChar(150)
   email                 String                @unique(map: "email") @db.VarChar(320)
-  phone                 String                @db.VarChar(20)
-  password_hash         String                @db.VarChar(255)
+  phone                 String?               @db.VarChar(20)
+  password_hash         String?               @db.VarChar(255)
   role                  users_role            @default(customer)
   is_active             Int                   @default(1) @db.TinyInt
   is_email_verified     Int                   @default(0) @db.TinyInt
@@ -374,6 +374,7 @@ model users {
   shopping_carts        shopping_carts[]
   user_sessions         user_sessions[]
   verification_tokens   verification_tokens[]
+  oauth_accounts        oauth_accounts[]
 
   @@index([email], map: "idx_email")
   @@index([role], map: "idx_role")
@@ -413,9 +414,37 @@ enum addresses_address_type {
   office
   other
 }
-
 enum orders_payment_status {
   unpaid
   paid
   refunded
+}
+
+/// OAuth Accounts - Best Practice Design
+/// Supports multiple OAuth providers (Google, Facebook, GitHub, etc.)
+/// Stores only essential data, NO sensitive tokens
+model oauth_accounts {
+  id                Int            @id @default(autoincrement())
+  user_id           Int
+  provider          oauth_provider
+  provider_user_id  String         @db.VarChar(255)
+  provider_email    String?        @db.VarChar(320)
+  provider_username String?        @db.VarChar(150)
+  avatar_url        String?        @db.VarChar(500)
+  is_primary        Int            @default(0) @db.TinyInt
+  created_at        DateTime       @default(now()) @db.DateTime(0)
+  updated_at        DateTime       @default(now()) @db.DateTime(0)
+  
+  users users @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_oauth_user")
+
+  @@unique([provider, provider_user_id], map: "unique_provider_user")
+  @@index([user_id], map: "idx_oauth_user")
+  @@index([provider_email], map: "idx_provider_email")
+}
+
+enum oauth_provider {
+  google
+  facebook
+  github
+  apple
 }

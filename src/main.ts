@@ -48,7 +48,13 @@ async function bootstrap() {
   app.enableCors({
     origin: nodeEnv === 'production' 
       ? ['https://yourdomain.com'] // Replace with your production domain
-      : ['http://localhost:3000', 'http://localhost:3001'],
+      : [
+          'http://localhost:3000', 
+          'http://localhost:3001',
+          // GitHub Codespaces URLs
+          'https://special-space-happiness-7v5gpj6p5gxrcpwvw-3001.app.github.dev',
+          /^https:\/\/.*\.app\.github\.dev$/, // Allow all Codespaces URLs
+        ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
