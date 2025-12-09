@@ -10,8 +10,8 @@ export class HealthController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'Health check endpoint' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Service is healthy',
     schema: {
       type: 'object',
@@ -21,12 +21,12 @@ export class HealthController {
         uptime: { type: 'number', description: 'Uptime in seconds' },
         version: { type: 'string', example: '1.0.0' },
         environment: { type: 'string', example: 'development' },
-      }
-    }
+      },
+    },
   })
   check() {
     const uptime = Math.floor((Date.now() - this.startTime.getTime()) / 1000);
-    
+
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),

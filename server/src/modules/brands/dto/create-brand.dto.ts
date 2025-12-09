@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, MaxLength, IsOptional, IsBoolean, IsUrl } from 'class-validator';
 
 export class CreateBrandDto {
   @ApiProperty({ example: 'TP-Link', description: 'Brand name' })
@@ -8,27 +8,42 @@ export class CreateBrandDto {
   @MaxLength(100)
   name: string;
 
-  @ApiProperty({ example: 'tp-link', description: 'URL slug' })
+  @ApiPropertyOptional({ example: 'tp-link', description: 'URL slug (auto-generated if not provided)' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(150)
-  slug: string;
+  slug?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'Leading network equipment manufacturer',
     description: 'Brand description',
-    required: false,
   })
+  @IsOptional()
   @IsString()
   @MaxLength(500)
   description?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'https://example.com/logo.png',
     description: 'Brand logo URL',
-    required: false,
   })
+  @IsOptional()
   @IsString()
   @MaxLength(500)
-  logoUrl?: string;
+  logo?: string;
+
+  @ApiPropertyOptional({
+    example: 'https://tp-link.com',
+    description: 'Brand website URL',
+  })
+  @IsOptional()
+  @IsString()
+  @IsUrl()
+  @MaxLength(255)
+  website?: string;
+
+  @ApiPropertyOptional({ example: true, description: 'Brand active status' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

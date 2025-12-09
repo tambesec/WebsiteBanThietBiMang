@@ -1,20 +1,65 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Breadcrumb from "../Common/Breadcrumb";
 import CustomSelect from "./CustomSelect";
 import CategoryDropdown from "./CategoryDropdown";
 import GenderDropdown from "./GenderDropdown";
-import SizeDropdown from "./SizeDropdown";
-import ColorsDropdwon from "./ColorsDropdwon";
 import PriceDropdown from "./PriceDropdown";
-import shopData from "../Shop/shopData";
 import SingleGridItem from "../Shop/SingleGridItem";
 import SingleListItem from "../Shop/SingleListItem";
+import { productsApi, categoriesApi, brandsApi } from "@/services/api";
+import { Product, transformProduct } from "@/types/product";
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  isActive: boolean;
+  parentId?: number;
+  productsCount?: number;
+}
+
+interface Brand {
+  id: number;
+  name: string;
+  slug: string;
+  productsCount?: number;
+}
+
+interface FilterState {
+  categoryId?: number;
+  brand?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: 'price' | 'name' | 'createdAt' | 'rating';
+  sortOrder?: 'asc' | 'desc';
+}
 
 const ShopWithSidebar = () => {
   const [productStyle, setProductStyle] = useState("grid");
   const [productSidebar, setProductSidebar] = useState(false);
   const [stickyMenu, setStickyMenu] = useState(false);
+  
+  // Data states
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<{ name: string; products: number; isRefined: boolean; id: number }[]>([]);
+  const [brands, setBrands] = useState<{ name: string; products: number; id: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const productsPerPage = 9;
+  
+  // Filter states
+  const [filters, setFilters] = useState<FilterState>({
+    sortBy: 'createdAt',
+    sortOrder: 'desc'
+  });
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [priceRange, setPriceRange] = useState<{ min?: number; max?: number }>({});
 
   const handleStickyMenu = () => {
     if (window.scrollY >= 80) {
@@ -25,73 +70,184 @@ const ShopWithSidebar = () => {
   };
 
   const options = [
-    { label: "Sản Phẩm Mới Nhất", value: "0" },
-    { label: "Bán Chạy Nhất", value: "1" },
-    { label: "Sản Phẩm Cũ", value: "2" },
+    { label: "Sản Phẩm Mới Nhất", value: "newest" },
+    { label: "Giá Thấp Đến Cao", value: "price_asc" },
+    { label: "Giá Cao Đến Thấp", value: "price_desc" },
+    { label: "Đánh Giá Cao Nhất", value: "rating" },
+    { label: "Bán Chạy Nhất", value: "bestseller" },
   ];
 
-  const categories = [
-    {
-      name: "Router WiFi",
-      products: 25,
-      isRefined: true,
-    },
-    {
-      name: "Switch Mạng",
-      products: 18,
-      isRefined: false,
-    },
-    {
-      name: "Access Point",
-      products: 15,
-      isRefined: false,
-    },
-    {
-      name: "Modem",
-      products: 12,
-      isRefined: false,
-    },
-    {
-      name: "Card Mạng",
-      products: 20,
-      isRefined: false,
-    },
-    {
-      name: "Dây Cáp Mạng",
-      products: 30,
-      isRefined: false,
-    },
-  ];
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await categoriesApi.getAll();
+        const formattedCategories = data
+          .filter((cat: Category) => !cat.parentId && cat.isActive !== false)
+          .map((cat: Category) => ({
+            id: cat.id,
+            name: cat.name,
+            products: cat.productsCount || 0,
+            isRefined: selectedCategory === cat.id,
+          }));
+        setCategories(formattedCategories);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
+  }, [selectedCategory]);
 
-  const brands = [
-    {
-      name: "TP-Link",
-      products: 35,
-    },
-    {
-      name: "Cisco",
-      products: 28,
-    },
-    {
-      name: "D-Link",
-      products: 22,
-    },
-    {
-      name: "Ubiquiti",
-      products: 18,
-    },
-    {
-      name: "Tenda",
-      products: 15,
-    },
-  ];
+  // Fetch brands
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const data = await brandsApi.getAll();
+        const formattedBrands = data.map((brand: Brand) => ({
+          id: brand.id,
+          name: brand.name,
+          products: brand.productsCount || 0,
+        }));
+        setBrands(formattedBrands);
+      } catch (error) {
+        console.error('Error fetching brands:', error);
+      }
+    };
+    fetchBrands();
+  }, []);
+
+  // Fetch products with filters
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: any = {
+        page: currentPage,
+        limit: productsPerPage,
+        isActive: true,
+      };
+
+      // Apply filters
+      if (selectedCategory) {
+        params.category = selectedCategory;
+      }
+      if (selectedBrand) {
+        params.brand = selectedBrand;
+      }
+      if (priceRange.min !== undefined) {
+        params.minPrice = priceRange.min;
+      }
+      if (priceRange.max !== undefined) {
+        params.maxPrice = priceRange.max;
+      }
+      if (filters.sortBy) {
+        params.sortBy = filters.sortBy;
+      }
+      if (filters.sortOrder) {
+        params.sortOrder = filters.sortOrder;
+      }
+
+      const response = await productsApi.getAll(params);
+      const transformedProducts = response.data.map(transformProduct);
+      
+      setProducts(transformedProducts);
+      setTotalProducts(response.pagination?.total || transformedProducts.length);
+      setTotalPages(response.pagination?.totalPages || Math.ceil(transformedProducts.length / productsPerPage));
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, selectedCategory, selectedBrand, priceRange, filters]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  // Handle sort change
+  const handleSortChange = (value: string) => {
+    switch (value) {
+      case 'newest':
+        setFilters({ ...filters, sortBy: 'createdAt', sortOrder: 'desc' });
+        break;
+      case 'price_asc':
+        setFilters({ ...filters, sortBy: 'price', sortOrder: 'asc' });
+        break;
+      case 'price_desc':
+        setFilters({ ...filters, sortBy: 'price', sortOrder: 'desc' });
+        break;
+      case 'rating':
+        setFilters({ ...filters, sortBy: 'rating', sortOrder: 'desc' });
+        break;
+      case 'bestseller':
+        setFilters({ ...filters, sortBy: 'createdAt', sortOrder: 'desc' });
+        break;
+      default:
+        setFilters({ ...filters, sortBy: 'createdAt', sortOrder: 'desc' });
+    }
+    setCurrentPage(1);
+  };
+
+  // Handle category filter
+  const handleCategoryChange = (categoryId: number | null) => {
+    setSelectedCategory(categoryId);
+    setCurrentPage(1);
+  };
+
+  // Handle brand filter
+  const handleBrandChange = (brandName: string | null) => {
+    setSelectedBrand(brandName);
+    setCurrentPage(1);
+  };
+
+  // Handle price filter
+  const handlePriceChange = (min?: number, max?: number) => {
+    setPriceRange({ min, max });
+    setCurrentPage(1);
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSelectedCategory(null);
+    setSelectedBrand(null);
+    setPriceRange({});
+    setFilters({ sortBy: 'createdAt', sortOrder: 'desc' });
+    setCurrentPage(1);
+  };
+
+  // Generate pagination numbers
+  const getPaginationNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
 
   useEffect(() => {
     window.addEventListener("scroll", handleStickyMenu);
 
     // closing sidebar while clicking outside
-    function handleClickOutside(event) {
-      if (!event.target.closest(".sidebar-content")) {
+    function handleClickOutside(event: MouseEvent) {
+      if (!(event.target as Element).closest(".sidebar-content")) {
         setProductSidebar(false);
       }
     }
@@ -103,7 +259,10 @@ const ShopWithSidebar = () => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  });
+  }, [productSidebar]);
+
+  const startProduct = (currentPage - 1) * productsPerPage + 1;
+  const endProduct = Math.min(currentPage * productsPerPage, totalProducts);
 
   return (
     <>
@@ -160,18 +319,36 @@ const ShopWithSidebar = () => {
                   <div className="bg-white shadow-1 rounded-lg py-4 px-5">
                     <div className="flex items-center justify-between">
                       <p>Bộ lọc:</p>
-                      <button className="text-blue">Xóa tất cả</button>
+                      <button 
+                        type="button"
+                        onClick={clearAllFilters}
+                        className="text-blue hover:underline"
+                      >
+                        Xóa tất cả
+                      </button>
                     </div>
                   </div>
 
                   {/* <!-- category box --> */}
-                  <CategoryDropdown categories={categories} />
+                  <CategoryDropdown 
+                    categories={categories} 
+                    onCategoryChange={handleCategoryChange}
+                    selectedCategory={selectedCategory}
+                  />
 
                   {/* <!-- brand box --> */}
-                  <GenderDropdown genders={brands} />
+                  <GenderDropdown 
+                    genders={brands} 
+                    onBrandChange={handleBrandChange}
+                    selectedBrand={selectedBrand}
+                  />
 
                   {/* // <!-- price range box --> */}
-                  <PriceDropdown />
+                  <PriceDropdown 
+                    onPriceChange={handlePriceChange}
+                    currentMin={priceRange.min}
+                    currentMax={priceRange.max}
+                  />
                 </div>
               </form>
             </div>
@@ -183,10 +360,13 @@ const ShopWithSidebar = () => {
                 <div className="flex items-center justify-between">
                   {/* <!-- top bar left --> */}
                   <div className="flex flex-wrap items-center gap-4">
-                    <CustomSelect options={options} />
+                    <CustomSelect options={options} onChange={handleSortChange} />
 
                     <p>
-                      Hiển thị <span className="text-dark">9 trong số 50</span>{" "}
+                      Hiển thị{" "}
+                      <span className="text-dark">
+                        {totalProducts > 0 ? `${startProduct}-${endProduct}` : "0"} trong số {totalProducts}
+                      </span>{" "}
                       sản phẩm
                     </p>
                   </div>
@@ -272,141 +452,119 @@ const ShopWithSidebar = () => {
                 </div>
               </div>
 
-              {/* <!-- Products Grid Tab Content Start --> */}
-              <div
-                className={`${
-                  productStyle === "grid"
-                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-7.5 gap-y-9"
-                    : "flex flex-col gap-7.5"
-                }`}
-              >
-                {shopData.map((item, key) =>
-                  productStyle === "grid" ? (
-                    <SingleGridItem item={item} key={key} />
-                  ) : (
-                    <SingleListItem item={item} key={key} />
-                  )
-                )}
-              </div>
-              {/* <!-- Products Grid Tab Content End --> */}
-
-              {/* <!-- Products Pagination Start --> */}
-              <div className="flex justify-center mt-15">
-                <div className="bg-white shadow-1 rounded-md p-2">
-                  <ul className="flex items-center">
-                    <li>
-                      <button
-                        id="paginationLeft"
-                        aria-label="button for pagination left"
-                        type="button"
-                        disabled
-                        className="flex items-center justify-center w-8 h-9 ease-out duration-200 rounded-[3px disabled:text-gray-4"
-                      >
-                        <svg
-                          className="fill-current"
-                          width="18"
-                          height="18"
-                          viewBox="0 0 18 18"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M12.1782 16.1156C12.0095 16.1156 11.8407 16.0594 11.7282 15.9187L5.37197 9.45C5.11885 9.19687 5.11885 8.80312 5.37197 8.55L11.7282 2.08125C11.9813 1.82812 12.3751 1.82812 12.6282 2.08125C12.8813 2.33437 12.8813 2.72812 12.6282 2.98125L6.72197 9L12.6563 15.0187C12.9095 15.2719 12.9095 15.6656 12.6563 15.9187C12.4876 16.0312 12.347 16.1156 12.1782 16.1156Z"
-                            fill=""
-                          />
-                        </svg>
-                      </button>
-                    </li>
-
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] bg-blue text-white hover:text-white hover:bg-blue"
-                      >
-                        1
-                      </a>
-                    </li>
-
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        2
-                      </a>
-                    </li>
-
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        3
-                      </a>
-                    </li>
-
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        4
-                      </a>
-                    </li>
-
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        5
-                      </a>
-                    </li>
-
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        ...
-                      </a>
-                    </li>
-
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        10
-                      </a>
-                    </li>
-
-                    <li>
-                      <button
-                        id="paginationLeft"
-                        aria-label="button for pagination left"
-                        type="button"
-                        className="flex items-center justify-center w-8 h-9 ease-out duration-200 rounded-[3px] hover:text-white hover:bg-blue disabled:text-gray-4"
-                      >
-                        <svg
-                          className="fill-current"
-                          width="18"
-                          height="18"
-                          viewBox="0 0 18 18"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M5.82197 16.1156C5.65322 16.1156 5.5126 16.0594 5.37197 15.9469C5.11885 15.6937 5.11885 15.3 5.37197 15.0469L11.2782 9L5.37197 2.98125C5.11885 2.72812 5.11885 2.33437 5.37197 2.08125C5.6251 1.82812 6.01885 1.82812 6.27197 2.08125L12.6282 8.55C12.8813 8.80312 12.8813 9.19687 12.6282 9.45L6.27197 15.9187C6.15947 16.0312 5.99072 16.1156 5.82197 16.1156Z"
-                            fill=""
-                          />
-                        </svg>
-                      </button>
-                    </li>
-                  </ul>
+              {/* <!-- Loading State --> */}
+              {loading ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue"></div>
                 </div>
-              </div>
-              {/* <!-- Products Pagination End --> */}
+              ) : products.length === 0 ? (
+                <div className="text-center py-20 text-gray-500">
+                  <p className="text-xl mb-4">Không tìm thấy sản phẩm nào</p>
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-blue hover:underline"
+                  >
+                    Xóa bộ lọc và thử lại
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* <!-- Products Grid Tab Content Start --> */}
+                  <div
+                    className={`${
+                      productStyle === "grid"
+                        ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-7.5 gap-y-9"
+                        : "flex flex-col gap-7.5"
+                    }`}
+                  >
+                    {products.map((item, key) =>
+                      productStyle === "grid" ? (
+                        <SingleGridItem item={item} key={key} />
+                      ) : (
+                        <SingleListItem item={item} key={key} />
+                      )
+                    )}
+                  </div>
+                  {/* <!-- Products Grid Tab Content End --> */}
+
+                  {/* <!-- Products Pagination Start --> */}
+                  {totalPages > 1 && (
+                    <div className="flex justify-center mt-15">
+                      <div className="bg-white shadow-1 rounded-md p-2">
+                        <ul className="flex items-center">
+                          <li>
+                            <button
+                              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                              disabled={currentPage === 1}
+                              aria-label="button for pagination left"
+                              type="button"
+                              className="flex items-center justify-center w-8 h-9 ease-out duration-200 rounded-[3px] disabled:text-gray-4 hover:text-blue"
+                            >
+                              <svg
+                                className="fill-current"
+                                width="18"
+                                height="18"
+                                viewBox="0 0 18 18"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <path
+                                  d="M12.1782 16.1156C12.0095 16.1156 11.8407 16.0594 11.7282 15.9187L5.37197 9.45C5.11885 9.19687 5.11885 8.80312 5.37197 8.55L11.7282 2.08125C11.9813 1.82812 12.3751 1.82812 12.6282 2.08125C12.8813 2.33437 12.8813 2.72812 12.6282 2.98125L6.72197 9L12.6563 15.0187C12.9095 15.2719 12.9095 15.6656 12.6563 15.9187C12.4876 16.0312 12.347 16.1156 12.1782 16.1156Z"
+                                  fill=""
+                                />
+                              </svg>
+                            </button>
+                          </li>
+
+                          {getPaginationNumbers().map((page, index) => (
+                            <li key={index}>
+                              {page === '...' ? (
+                                <span className="flex py-1.5 px-3.5">...</span>
+                              ) : (
+                                <button
+                                  onClick={() => setCurrentPage(page as number)}
+                                  className={`flex py-1.5 px-3.5 duration-200 rounded-[3px] ${
+                                    currentPage === page
+                                      ? 'bg-blue text-white'
+                                      : 'hover:text-white hover:bg-blue'
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              )}
+                            </li>
+                          ))}
+
+                          <li>
+                            <button
+                              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                              disabled={currentPage === totalPages}
+                              aria-label="button for pagination right"
+                              type="button"
+                              className="flex items-center justify-center w-8 h-9 ease-out duration-200 rounded-[3px] hover:text-blue disabled:text-gray-4"
+                            >
+                              <svg
+                                className="fill-current"
+                                width="18"
+                                height="18"
+                                viewBox="0 0 18 18"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <path
+                                  d="M5.82197 16.1156C5.65322 16.1156 5.5126 16.0594 5.37197 15.9469C5.11885 15.6937 5.11885 15.3 5.37197 15.0469L11.2782 9L5.37197 2.98125C5.11885 2.72812 5.11885 2.33437 5.37197 2.08125C5.6251 1.82812 6.01885 1.82812 6.27197 2.08125L12.6282 8.55C12.8813 8.80312 12.8813 9.19687 12.6282 9.45L6.27197 15.9187C6.15947 16.0312 5.99072 16.1156 5.82197 16.1156Z"
+                                  fill=""
+                                />
+                              </svg>
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                  {/* <!-- Products Pagination End --> */}
+                </>
+              )}
             </div>
             {/* // <!-- Content End --> */}
           </div>

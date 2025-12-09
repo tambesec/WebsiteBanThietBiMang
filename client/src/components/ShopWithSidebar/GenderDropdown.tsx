@@ -1,23 +1,35 @@
 "use client";
 import React, { useState } from "react";
 
-const GenderItem = ({ category }) => {
-  const [selected, setSelected] = useState(false);
+interface Brand {
+  id: number;
+  name: string;
+  products: number;
+}
+
+interface BrandItemProps {
+  brand: Brand;
+  isSelected: boolean;
+  onSelect: (name: string) => void;
+}
+
+const BrandItem = ({ brand, isSelected, onSelect }: BrandItemProps) => {
   return (
     <button
+      type="button"
       className={`${
-        selected && "text-blue"
-      } group flex items-center justify-between ease-out duration-200 hover:text-blue `}
-      onClick={() => setSelected(!selected)}
+        isSelected && "text-blue"
+      } group flex items-center justify-between ease-out duration-200 hover:text-blue w-full`}
+      onClick={() => onSelect(brand.name)}
     >
       <div className="flex items-center gap-2">
         <div
           className={`cursor-pointer flex items-center justify-center rounded w-4 h-4 border ${
-            selected ? "border-blue bg-blue" : "bg-white border-gray-3"
+            isSelected ? "border-blue bg-blue" : "bg-white border-gray-3"
           }`}
         >
           <svg
-            className={selected ? "block" : "hidden"}
+            className={isSelected ? "block" : "hidden"}
             width="10"
             height="10"
             viewBox="0 0 10 10"
@@ -34,22 +46,39 @@ const GenderItem = ({ category }) => {
           </svg>
         </div>
 
-        <span>{category.name}</span>
+        <span>{brand.name}</span>
       </div>
 
       <span
         className={`${
-          selected ? "text-white bg-blue" : "bg-gray-2"
+          isSelected ? "text-white bg-blue" : "bg-gray-2"
         } inline-flex rounded-[30px] text-custom-xs px-2 ease-out duration-200 group-hover:text-white group-hover:bg-blue`}
       >
-        {category.products}
+        {brand.products}
       </span>
     </button>
   );
 };
 
-const GenderDropdown = ({ genders }) => {
+interface GenderDropdownProps {
+  genders: Brand[];
+  onBrandChange?: (brandName: string | null) => void;
+  selectedBrand?: string | null;
+}
+
+const GenderDropdown = ({ genders, onBrandChange, selectedBrand }: GenderDropdownProps) => {
   const [toggleDropdown, setToggleDropdown] = useState(true);
+
+  const handleBrandSelect = (brandName: string) => {
+    if (onBrandChange) {
+      // If same brand is clicked, deselect it
+      if (selectedBrand === brandName) {
+        onBrandChange(null);
+      } else {
+        onBrandChange(brandName);
+      }
+    }
+  };
 
   return (
     <div className="bg-white shadow-1 rounded-lg">
@@ -61,8 +90,11 @@ const GenderDropdown = ({ genders }) => {
       >
         <p className="text-dark">Thương Hiệu</p>
         <button
-          onClick={() => setToggleDropdown(!toggleDropdown)}
-          aria-label="button for gender dropdown"
+          onClick={(e) => {
+            e.stopPropagation();
+            setToggleDropdown(!toggleDropdown);
+          }}
+          aria-label="button for brand dropdown"
           className={`text-dark ease-out duration-200 ${
             toggleDropdown && "rotate-180"
           }`}
@@ -91,8 +123,13 @@ const GenderDropdown = ({ genders }) => {
           toggleDropdown ? "flex" : "hidden"
         }`}
       >
-        {genders.map((gender, key) => (
-          <GenderItem key={key} category={gender} />
+        {genders.map((brand, key) => (
+          <BrandItem 
+            key={key} 
+            brand={brand}
+            isSelected={selectedBrand === brand.name}
+            onSelect={handleBrandSelect}
+          />
         ))}
       </div>
     </div>

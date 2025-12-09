@@ -1,14 +1,51 @@
-import { useState } from 'react';
+"use client";
+import { useState, useEffect } from 'react';
 import RangeSlider from 'react-range-slider-input';
 import 'react-range-slider-input/dist/style.css';
 
-const PriceDropdown = () => {
+interface PriceDropdownProps {
+  onPriceChange?: (min?: number, max?: number) => void;
+  currentMin?: number;
+  currentMax?: number;
+}
+
+const PriceDropdown = ({ onPriceChange, currentMin, currentMax }: PriceDropdownProps) => {
   const [toggleDropdown, setToggleDropdown] = useState(true);
+  const maxPrice = 50000000; // 50 million VND
 
   const [selectedPrice, setSelectedPrice] = useState({
-    from: 0,
-    to: 100000000,
+    from: currentMin || 0,
+    to: currentMax || maxPrice,
   });
+
+  // Update local state when props change
+  useEffect(() => {
+    setSelectedPrice({
+      from: currentMin || 0,
+      to: currentMax || maxPrice,
+    });
+  }, [currentMin, currentMax]);
+
+  const handlePriceChange = (values: number[]) => {
+    const from = Math.floor(values[0]);
+    const to = Math.ceil(values[1]);
+    setSelectedPrice({ from, to });
+  };
+
+  const handleApplyFilter = () => {
+    if (onPriceChange) {
+      const min = selectedPrice.from > 0 ? selectedPrice.from : undefined;
+      const max = selectedPrice.to < maxPrice ? selectedPrice.to : undefined;
+      onPriceChange(min, max);
+    }
+  };
+
+  const handleClearFilter = () => {
+    setSelectedPrice({ from: 0, to: maxPrice });
+    if (onPriceChange) {
+      onPriceChange(undefined, undefined);
+    }
+  };
 
   return (
     <div className="bg-white shadow-1 rounded-lg">
@@ -18,7 +55,10 @@ const PriceDropdown = () => {
       >
         <p className="text-dark">Giá</p>
         <button
-          onClick={() => setToggleDropdown(!toggleDropdown)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setToggleDropdown(!toggleDropdown);
+          }}
           id="price-dropdown-btn"
           aria-label="button for price dropdown"
           className={`text-dark ease-out duration-200 ${
@@ -52,13 +92,9 @@ const PriceDropdown = () => {
               className="margin-lg"
               step={'any'}
               min={0}
-              max={100000000}
-              onInput={(e) =>
-                setSelectedPrice({
-                  from: Math.floor(e[0]),
-                  to: Math.ceil(e[1]),
-                })
-              }
+              max={maxPrice}
+              value={[selectedPrice.from, selectedPrice.to]}
+              onInput={handlePriceChange}
             />
 
             <div className="price-amount flex items-center justify-between pt-4">
@@ -79,6 +115,24 @@ const PriceDropdown = () => {
                   {selectedPrice.to.toLocaleString('vi-VN')}
                 </span>
               </div>
+            </div>
+
+            {/* Filter buttons */}
+            <div className="flex gap-2 mt-4">
+              <button
+                type="button"
+                onClick={handleApplyFilter}
+                className="flex-1 py-2 px-4 bg-blue text-white text-sm rounded hover:bg-blue/90 transition"
+              >
+                Áp dụng
+              </button>
+              <button
+                type="button"
+                onClick={handleClearFilter}
+                className="py-2 px-4 border border-gray-3 text-dark text-sm rounded hover:bg-gray-1 transition"
+              >
+                Xóa
+              </button>
             </div>
           </div>
         </div>

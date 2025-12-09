@@ -1,16 +1,16 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsOptional, IsInt, IsString, IsBoolean, Min, Max } from 'class-validator';
 
 export class ProductQueryDto {
-  @ApiProperty({ required: false, example: 1, description: 'Page number' })
+  @ApiPropertyOptional({ example: 1, description: 'Page number' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiProperty({ required: false, example: 20, description: 'Items per page' })
+  @ApiPropertyOptional({ example: 20, description: 'Items per page' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -18,40 +18,44 @@ export class ProductQueryDto {
   @Max(100)
   limit?: number = 20;
 
-  @ApiProperty({ required: false, example: 'router', description: 'Search keyword' })
+  @ApiPropertyOptional({ example: 'router', description: 'Search keyword' })
   @IsOptional()
   @IsString()
   search?: string;
 
-  @ApiProperty({ required: false, example: 1, description: 'Category ID' })
+  @ApiPropertyOptional({ example: 1, description: 'Category ID' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   categoryId?: number;
 
-  @ApiProperty({ required: false, example: 'TP-Link', description: 'Brand name' })
+  @ApiPropertyOptional({ example: 'tp-link', description: 'Brand slug' })
   @IsOptional()
   @IsString()
   brand?: string;
 
-  @ApiProperty({ required: false, example: true, description: 'Active products only' })
+  @ApiPropertyOptional({ example: true, description: 'Active products only' })
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiProperty({
-    required: false,
+  @ApiPropertyOptional({ example: true, description: 'Featured products only' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isFeatured?: boolean;
+
+  @ApiPropertyOptional({
     example: 'createdAt',
     description: 'Sort field',
-    enum: ['createdAt', 'name', 'price'],
+    enum: ['createdAt', 'name', 'price', 'avgRating', 'soldCount'],
   })
   @IsOptional()
   @IsString()
   sortBy?: string = 'createdAt';
 
-  @ApiProperty({
-    required: false,
+  @ApiPropertyOptional({
     example: 'desc',
     description: 'Sort order',
     enum: ['asc', 'desc'],

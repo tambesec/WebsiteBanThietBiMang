@@ -5,12 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import {
-  CreateProductDto,
-  UpdateProductDto,
-  CreateProductItemDto,
-  ProductQueryDto,
-} from './dto';
+import { CreateProductDto, UpdateProductDto, CreateProductItemDto, ProductQueryDto } from './dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -22,16 +17,17 @@ export class ProductsService {
    * Security: SQL injection prevention via Prisma
    */
   async findAll(query: ProductQueryDto) {
-    const { page, limit, search, categoryId, brand, isActive, sortBy, sortOrder } = query;
+    const { page, limit, search, categoryId, brand, isActive, isFeatured, sortBy, sortOrder } = query;
     const skip = (page - 1) * limit;
 
     // Build where clause with sanitized inputs
     const where: Prisma.ProductWhereInput = {
       ...(isActive !== undefined && { isActive }),
+      ...(isFeatured !== undefined && { isFeatured }),
       ...(categoryId && { categoryId }),
       ...(brand && {
         brand: {
-          contains: brand,
+          slug: brand,
         },
       }),
       ...(search && {
@@ -61,6 +57,9 @@ export class ProductsService {
           category: {
             select: { id: true, name: true, slug: true },
           },
+          brand: {
+            select: { id: true, name: true, slug: true, logo: true },
+          },
           items: {
             where: { isActive: true },
             take: 1,
@@ -69,6 +68,7 @@ export class ProductsService {
               id: true,
               sku: true,
               price: true,
+              salePrice: true,
               qtyInStock: true,
             },
           },
@@ -233,6 +233,8 @@ export class ProductsService {
    * Security: Admin only (enforced by guard), input validation via DTOs
    */
   async create(createProductDto: CreateProductDto) {
+    const { categoryId, brandId, ...rest } = createProductDto;
+
     // Check if slug already exists
     const existing = await this.prisma.product.findUnique({
       where: { slug: createProductDto.slug },
@@ -244,17 +246,38 @@ export class ProductsService {
 
     // Verify category exists
     const category = await this.prisma.productCategory.findUnique({
-      where: { id: createProductDto.categoryId },
+      where: { id: categoryId },
     });
 
     if (!category) {
-      throw new BadRequestException(`Category with ID ${createProductDto.categoryId} not found`);
+      throw new BadRequestException(`Category with ID ${categoryId} not found`);
+    }
+
+    // Verify brand exists if provided
+    if (brandId) {
+      const brand = await this.prisma.brand.findUnique({
+        where: { id: brandId },
+      });
+      if (!brand) {
+        throw new BadRequestException(`Brand with ID ${brandId} not found`);
+      }
     }
 
     return this.prisma.product.create({
-      data: createProductDto,
+      data: {
+        ...rest,
+        category: {
+          connect: { id: categoryId },
+        },
+        ...(brandId && {
+          brand: {
+            connect: { id: brandId },
+          },
+        }),
+      },
       include: {
         category: true,
+        brand: true,
       },
     });
   }
@@ -264,6 +287,8 @@ export class ProductsService {
    * Security: Admin only, validates product exists
    */
   async update(id: number, updateProductDto: UpdateProductDto) {
+    const { categoryId, brandId, ...rest } = updateProductDto;
+
     // Check product exists
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) {
@@ -281,22 +306,43 @@ export class ProductsService {
     }
 
     // Verify category if updating
-    if (updateProductDto.categoryId) {
+    if (categoryId) {
       const category = await this.prisma.productCategory.findUnique({
-        where: { id: updateProductDto.categoryId },
+        where: { id: categoryId },
       });
       if (!category) {
-        throw new BadRequestException(
-          `Category with ID ${updateProductDto.categoryId} not found`,
-        );
+        throw new BadRequestException(`Category with ID ${categoryId} not found`);
+      }
+    }
+
+    // Verify brand if updating
+    if (brandId) {
+      const brand = await this.prisma.brand.findUnique({
+        where: { id: brandId },
+      });
+      if (!brand) {
+        throw new BadRequestException(`Brand with ID ${brandId} not found`);
       }
     }
 
     return this.prisma.product.update({
       where: { id },
-      data: updateProductDto,
+      data: {
+        ...rest,
+        ...(categoryId && {
+          category: {
+            connect: { id: categoryId },
+          },
+        }),
+        ...(brandId !== undefined && {
+          brand: brandId
+            ? { connect: { id: brandId } }
+            : { disconnect: true },
+        }),
+      },
       include: {
         category: true,
+        brand: true,
       },
     });
   }

@@ -115,10 +115,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Toggle user active status' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'User status toggled' })
-  async toggleUserStatus(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-  ) {
+  async toggleUserStatus(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.adminService.toggleUserStatus(id, req.user.sub);
   }
 

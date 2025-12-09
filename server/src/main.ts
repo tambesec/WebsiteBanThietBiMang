@@ -1,14 +1,20 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import helmet from 'helmet';
 import compression from 'compression';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Enable NestJS logger
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+  });
+
+  const logger = new Logger('Bootstrap');
 
   // Security: Helmet for HTTP headers protection
   app.use(helmet());
@@ -16,13 +22,32 @@ async function bootstrap() {
   // Performance: Enable compression
   app.use(compression());
 
+  // Request logging middleware
+  app.use((req: any, res: any, next: any) => {
+    const startTime = Date.now();
+    const { method, originalUrl, ip } = req;
+
+    // Log request
+    logger.log(`➡️  ${method} ${originalUrl} - IP: ${ip}`);
+
+    // Log response when finished
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      const { statusCode } = res;
+      const statusEmoji = statusCode < 400 ? '✅' : '❌';
+      logger.log(`${statusEmoji} ${method} ${originalUrl} - ${statusCode} - ${duration}ms`);
+    });
+
+    next();
+  });
+
   // Enable CORS
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',') || [
       'http://localhost:3000',
       'http://localhost:3001',
       'http://localhost:3002',
-      'http://localhost:5173'
+      'http://localhost:5173',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -32,8 +57,11 @@ async function bootstrap() {
   // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Global response transformer
-  app.useGlobalInterceptors(new TransformInterceptor());
+  // Global interceptors
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(),
+    new TransformInterceptor(),
+  );
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -70,8 +98,10 @@ async function bootstrap() {
 
   const port = process.env.PORT || 5000;
   await app.listen(port);
-  console.log(`🚀 Server running on http://localhost:${port}`);
-  console.log(`📚 API docs available at http://localhost:${port}/docs`);
+
+  logger.log(`🚀 Server running on http://localhost:${port}`);
+  logger.log(`📚 API docs available at http://localhost:${port}/docs`);
+  logger.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 }
 
 bootstrap();

@@ -128,7 +128,9 @@ export class CategoriesService {
       });
 
       if (!parent) {
-        throw new BadRequestException(`Parent category with ID ${createCategoryDto.parentId} not found`);
+        throw new BadRequestException(
+          `Parent category with ID ${createCategoryDto.parentId} not found`,
+        );
       }
     }
 
@@ -160,7 +162,9 @@ export class CategoriesService {
       });
 
       if (existing) {
-        throw new ConflictException(`Category with slug '${updateCategoryDto.slug}' already exists`);
+        throw new ConflictException(
+          `Category with slug '${updateCategoryDto.slug}' already exists`,
+        );
       }
     }
 
@@ -176,7 +180,9 @@ export class CategoriesService {
       });
 
       if (!parent) {
-        throw new BadRequestException(`Parent category with ID ${updateCategoryDto.parentId} not found`);
+        throw new BadRequestException(
+          `Parent category with ID ${updateCategoryDto.parentId} not found`,
+        );
       }
     }
 
@@ -209,11 +215,15 @@ export class CategoriesService {
 
     // Prevent deletion if has products or children
     if (category._count.products > 0) {
-      throw new BadRequestException('Cannot delete category with products. Please reassign products first.');
+      throw new BadRequestException(
+        'Cannot delete category with products. Please reassign products first.',
+      );
     }
 
     if (category._count.children > 0) {
-      throw new BadRequestException('Cannot delete category with sub-categories. Please delete or reassign them first.');
+      throw new BadRequestException(
+        'Cannot delete category with sub-categories. Please delete or reassign them first.',
+      );
     }
 
     await this.prisma.productCategory.delete({

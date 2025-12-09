@@ -69,7 +69,9 @@ export class OrdersService {
           );
         }
         if (!item.productItem.isActive || !item.productItem.product.isActive) {
-          throw new BadRequestException(`Product ${item.productItem.product.name} is no longer available`);
+          throw new BadRequestException(
+            `Product ${item.productItem.product.name} is no longer available`,
+          );
         }
         subtotal += Number(item.productItem.price) * item.quantity;
       }

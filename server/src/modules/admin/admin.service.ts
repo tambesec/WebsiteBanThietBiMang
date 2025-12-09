@@ -270,12 +270,7 @@ export class AdminService {
    * Get all orders with pagination and filters
    * Security: Admin only
    */
-  async getAllOrders(
-    page: number = 1,
-    limit: number = 20,
-    status?: string,
-    search?: string,
-  ) {
+  async getAllOrders(page: number = 1, limit: number = 20, status?: string, search?: string) {
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -352,7 +347,7 @@ export class AdminService {
 
     // Note: OrderStatusHistory requires createdBy, skipping history for now
     // Or you would need to pass userId from controller
-    
+
     // Update order
     return this.prisma.shopOrder.update({
       where: { id: orderId },

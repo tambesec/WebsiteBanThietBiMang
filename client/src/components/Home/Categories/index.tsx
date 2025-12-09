@@ -1,16 +1,29 @@
 "use client";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { useCallback, useRef, useEffect } from "react";
-import data from "./categoryData";
+import { useCallback, useRef, useEffect, useState } from "react";
 import Image from "next/image";
 
 // Import Swiper styles
 import "swiper/css/navigation";
 import "swiper/css";
 import SingleItem from "./SingleItem";
+import { categoriesApi } from "@/services/api";
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  displayOrder: number;
+  isActive: boolean;
+  parentId?: number;
+}
 
 const Categories = () => {
   const sliderRef = useRef(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const handlePrev = useCallback(() => {
     if (!sliderRef.current) return;
@@ -23,10 +36,55 @@ const Categories = () => {
   }, []);
 
   useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await categoriesApi.getAll();
+        // Filter only parent categories (no parentId) and active
+        const parentCategories = data
+          .filter((cat: Category) => !cat.parentId && cat.isActive !== false)
+          .sort((a: Category, b: Category) => (a.displayOrder || 0) - (b.displayOrder || 0));
+        setCategories(parentCategories);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        // Fallback to empty array
+        setCategories([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
     if (sliderRef.current) {
       sliderRef.current.swiper.init();
     }
-  }, []);
+  }, [categories]);
+
+  // Transform API data to match SingleItem expected format
+  const transformedData = categories.map((cat, index) => ({
+    id: cat.id,
+    title: cat.name,
+    img: cat.image || `/images/categories/categories-0${(index % 7) + 1}.png`,
+    slug: cat.slug,
+  }));
+
+  if (loading) {
+    return (
+      <section className="overflow-hidden pt-17.5">
+        <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0 pb-15 border-b border-gray-3">
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue"></div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (transformedData.length === 0) {
+    return null;
+  }
 
   return (
     <section className="overflow-hidden pt-17.5">
@@ -134,7 +192,7 @@ const Categories = () => {
               },
             }}
           >
-            {data.map((item, key) => (
+            {transformedData.map((item, key) => (
               <SwiperSlide key={key}>
                 <SingleItem item={item} />
               </SwiperSlide>

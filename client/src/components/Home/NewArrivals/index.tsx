@@ -1,10 +1,47 @@
-import React from "react";
+"use client";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import ProductItem from "@/components/Common/ProductItem";
-import shopData from "@/components/Shop/shopData";
+import { productsApi } from "@/services/api";
+import { Product, transformProduct } from "@/types/product";
 
 const NewArrival = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await productsApi.getNewArrivals(8);
+        // Transform backend data to frontend format
+        const transformedProducts = Array.isArray(data) 
+          ? data.map(transformProduct)
+          : [];
+        setProducts(transformedProducts);
+      } catch (error) {
+        console.error('Error fetching new arrivals:', error);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="overflow-hidden pt-15">
+        <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue"></div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="overflow-hidden pt-15">
       <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
@@ -46,12 +83,18 @@ const NewArrival = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-7.5 gap-y-9">
-          {/* <!-- Sản phẩm mới item --> */}
-          {shopData.map((item, key) => (
-            <ProductItem item={item} key={key} />
-          ))}
-        </div>
+        {products.length === 0 ? (
+          <div className="text-center py-10 text-gray-500">
+            Chưa có sản phẩm mới
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-7.5 gap-y-9">
+            {/* <!-- Sản phẩm mới item --> */}
+            {products.map((item, key) => (
+              <ProductItem item={item} key={key} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

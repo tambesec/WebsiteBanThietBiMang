@@ -100,8 +100,8 @@ export class UsersService {
       },
       orderBy: { isDefault: 'desc' },
     });
-    
-    return userAddresses.map(ua => ({
+
+    return userAddresses.map((ua) => ({
       ...ua.address,
       isDefault: ua.isDefault,
       addressType: ua.addressType,
@@ -124,11 +124,15 @@ export class UsersService {
     // Create Address first
     const address = await this.prisma.address.create({
       data: {
-        streetAddress: createDto.addressLine1 + (createDto.addressLine2 ? ', ' + createDto.addressLine2 : ''),
+        recipientName: createDto.recipientName,
+        phone: createDto.phone,
+        streetAddress: createDto.streetAddress,
+        ward: createDto.ward,
+        district: createDto.district,
         city: createDto.city,
-        region: createDto.district,
+        region: createDto.region,
         postalCode: createDto.postalCode,
-        country: createDto.country || 'Vietnam',
+        country: createDto.country || 'Việt Nam',
       },
     });
 
@@ -137,12 +141,25 @@ export class UsersService {
       data: {
         userId,
         addressId: address.id,
-        addressType: 'shipping',
+        addressType: createDto.addressType || 'shipping',
         isDefault: createDto.isDefault || false,
       },
     });
 
-    return address;
+    return {
+      id: address.id,
+      recipientName: address.recipientName,
+      phone: address.phone,
+      streetAddress: address.streetAddress,
+      ward: address.ward,
+      district: address.district,
+      city: address.city,
+      region: address.region,
+      postalCode: address.postalCode,
+      country: address.country,
+      addressType: createDto.addressType || 'shipping',
+      isDefault: createDto.isDefault || false,
+    };
   }
 
   /**
@@ -171,23 +188,41 @@ export class UsersService {
     const updated = await this.prisma.address.update({
       where: { id: addressId },
       data: {
-        streetAddress: updateDto.addressLine1 + (updateDto.addressLine2 ? ', ' + updateDto.addressLine2 : ''),
+        recipientName: updateDto.recipientName,
+        phone: updateDto.phone,
+        streetAddress: updateDto.streetAddress,
+        ward: updateDto.ward,
+        district: updateDto.district,
         city: updateDto.city,
-        region: updateDto.district,
+        region: updateDto.region,
         postalCode: updateDto.postalCode,
-        country: updateDto.country || 'Vietnam',
+        country: updateDto.country,
       },
     });
 
-    // Update isDefault if needed
-    if (updateDto.isDefault !== undefined) {
-      await this.prisma.userAddress.update({
-        where: { userId_addressId: { userId, addressId } },
-        data: { isDefault: updateDto.isDefault },
-      });
-    }
+    // Update addressType and isDefault if needed
+    await this.prisma.userAddress.update({
+      where: { userId_addressId: { userId, addressId } },
+      data: {
+        ...(updateDto.addressType && { addressType: updateDto.addressType }),
+        ...(updateDto.isDefault !== undefined && { isDefault: updateDto.isDefault }),
+      },
+    });
 
-    return updated;
+    return {
+      id: updated.id,
+      recipientName: updated.recipientName,
+      phone: updated.phone,
+      streetAddress: updated.streetAddress,
+      ward: updated.ward,
+      district: updated.district,
+      city: updated.city,
+      region: updated.region,
+      postalCode: updated.postalCode,
+      country: updated.country,
+      addressType: updateDto.addressType || userAddress.addressType,
+      isDefault: updateDto.isDefault ?? userAddress.isDefault,
+    };
   }
 
   /**

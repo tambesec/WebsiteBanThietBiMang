@@ -17,6 +17,11 @@ model SiteUser {
   username          String    @unique @db.VarChar(100)
   email             String    @unique @db.VarChar(350)
   phone             String?   @db.VarChar(20)
+  firstName         String?   @map("first_name") @db.VarChar(100)
+  lastName          String?   @map("last_name") @db.VarChar(100)
+  fullName          String?   @map("full_name") @db.VarChar(200)
+  avatar            String?   @db.VarChar(500)
+  googleId          String?   @unique @map("google_id") @db.VarChar(100)
   passwordHash      String    @map("password_hash") @db.VarChar(255)
   passwordExpiresAt DateTime? @map("password_expires_at")
   isActive          Boolean   @default(true) @map("is_active")
@@ -37,10 +42,12 @@ model SiteUser {
   verificationTokens VerificationToken[]
   securityLogs       SecurityLog[]
   shoppingCart       ShoppingCart?
+  wishlistItems      WishlistItem[]
   OrderStatusHistory OrderStatusHistory[]
 
   @@index([email, isActive])
   @@index([username])
+  @@index([googleId])
   @@map("site_user")
 }
 
@@ -93,16 +100,20 @@ model RolePermission {
 }
 
 model UserSession {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  tokenHash String   @unique @db.VarChar(255)
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  tokenHash    String   @unique @db.VarChar(255)
+  refreshToken String?  @unique @map("refresh_token") @db.VarChar(500)
+  ipAddress    String?  @map("ip_address") @db.VarChar(50)
+  userAgent    String?  @map("user_agent") @db.VarChar(500)
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   // Relations
   user SiteUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+  @@index([refreshToken])
   @@map("user_session")
 }
 
@@ -139,6 +150,9 @@ model SecurityLog {
   id        Int      @id @default(autoincrement())
   userId    Int?     @map("user_id")
   eventType String   @db.VarChar(50)
+  ipAddress String?  @map("ip_address") @db.VarChar(50)
+  userAgent String?  @map("user_agent") @db.VarChar(500)
+  details   Json?    @db.Json
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
@@ -153,11 +167,15 @@ model SecurityLog {
 
 model Address {
   id            Int     @id @default(autoincrement())
+  recipientName String  @map("recipient_name") @db.VarChar(100)
+  phone         String  @db.VarChar(20)
   streetAddress String  @map("street_address") @db.VarChar(500)
+  ward          String? @db.VarChar(100)
+  district      String? @db.VarChar(100)
   city          String  @db.VarChar(100)
   region        String? @db.VarChar(100)
   postalCode    String? @map("postal_code") @db.VarChar(20)
-  country       String  @db.VarChar(100)
+  country       String  @default("Việt Nam") @db.VarChar(100)
 
   // Relations
   userAddresses  UserAddress[]
@@ -178,16 +196,40 @@ model UserAddress {
   address Address  @relation(fields: [addressId], references: [id], onDelete: Cascade)
 
   @@id([userId, addressId])
+  @@index([userId, addressType])
   @@map("user_address")
 }
 
 // ============ Products & Categories ============
 
+model Brand {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(100)
+  slug        String   @unique @db.VarChar(150)
+  logo        String?  @db.VarChar(500)
+  description String?  @db.VarChar(500)
+  website     String?  @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  products Product[]
+
+  @@map("brand")
+}
+
 model ProductCategory {
-  id       Int    @id @default(autoincrement())
-  parentId Int?   @map("parent_id")
-  name     String @db.VarChar(100)
-  slug     String @unique @db.VarChar(150)
+  id           Int      @id @default(autoincrement())
+  parentId     Int?     @map("parent_id")
+  name         String   @db.VarChar(100)
+  slug         String   @unique @db.VarChar(150)
+  description  String?  @db.VarChar(500)
+  image        String?  @db.VarChar(500)
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations
   parent     ProductCategory?    @relation("ParentChildren", fields: [parentId], references: [id], onDelete: SetNull)
@@ -197,23 +239,36 @@ model ProductCategory {
   variations Variation[]
 
   @@index([parentId])
+  @@index([displayOrder])
   @@map("product_category")
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  categoryId  Int      @map("category_id")
-  name        String   @db.VarChar(300)
-  slug        String   @unique @db.VarChar(350)
-  brand       String?  @db.VarChar(100)
-  model       String?  @db.VarChar(100)
-  description String?  @db.Text
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id               Int      @id @default(autoincrement())
+  categoryId       Int      @map("category_id")
+  brandId          Int?     @map("brand_id")
+  name             String   @db.VarChar(300)
+  slug             String   @unique @db.VarChar(350)
+  model            String?  @db.VarChar(100)
+  shortDescription String?  @map("short_description") @db.VarChar(500)
+  description      String?  @db.Text
+  specifications   Json?    @db.Json
+  tags             Json?    @db.Json // array of strings
+  price            Decimal  @default(0) @db.Decimal(12, 2)
+  salePrice        Decimal? @map("sale_price") @db.Decimal(12, 2)
+  stock            Int      @default(0)
+  avgRating        Decimal  @default(0) @map("avg_rating") @db.Decimal(2, 1)
+  reviewCount      Int      @default(0) @map("review_count")
+  viewCount        Int      @default(0) @map("view_count")
+  soldCount        Int      @default(0) @map("sold_count")
+  isActive         Boolean  @default(true) @map("is_active")
+  isFeatured       Boolean  @default(false) @map("is_featured")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   // Relations
   category        ProductCategory         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  brand           Brand?                  @relation(fields: [brandId], references: [id], onDelete: SetNull)
   items           ProductItem[]
   images          ProductImage[]
   attributeValues ProductAttributeValue[]
@@ -221,7 +276,8 @@ model Product {
   discounts       DiscountProduct[]
 
   @@index([categoryId, isActive])
-  @@index([brand])
+  @@index([brandId])
+  @@index([isFeatured, isActive])
   @@map("product")
 }
 
@@ -230,6 +286,9 @@ model ProductItem {
   productId      Int      @map("product_id")
   sku            String   @unique @db.VarChar(100)
   price          Decimal  @db.Decimal(12, 2)
+  salePrice      Decimal? @map("sale_price") @db.Decimal(12, 2)
+  color          String?  @db.VarChar(50)
+  size           String?  @db.VarChar(50)
   qtyInStock     Int      @default(0) @map("qty_in_stock")
   weightKg       Decimal? @map("weight_kg") @db.Decimal(8, 2)
   warrantyMonths Int      @default(12) @map("warranty_months")
@@ -240,6 +299,7 @@ model ProductItem {
   cartItems      CartItem[]
   orderItems     OrderItem[]
   configurations ProductConfiguration[]
+  wishlistItems  WishlistItem[]
 
   @@index([productId, isActive])
   @@map("product_item")
@@ -346,6 +406,23 @@ model ProductReview {
   @@index([productId, isApproved])
   @@index([userId])
   @@map("product_review")
+}
+
+// ============ Wishlist ============
+
+model WishlistItem {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  productItemId Int      @map("product_item_id")
+  addedAt       DateTime @default(now()) @map("added_at")
+
+  // Relations
+  user        SiteUser    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productItem ProductItem @relation(fields: [productItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productItemId])
+  @@index([userId])
+  @@map("wishlist_item")
 }
 
 // ============ Shopping Cart ============
