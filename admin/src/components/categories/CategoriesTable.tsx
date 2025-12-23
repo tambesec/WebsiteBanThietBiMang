@@ -1,0 +1,470 @@
+"use client";
+import { useState, useEffect } from "react";
+import { categoriesApi } from "@/lib/api-client";
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  parent_id?: number;
+  display_order: number;
+  is_active: boolean;
+  image_url?: string;
+  products_count?: number;
+  parent?: {
+    id: number;
+    name: string;
+  };
+}
+
+const CategoriesTable = () => {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<boolean | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCategories, setTotalCategories] = useState(0);
+  const [showModal, setShowModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const limit = 10;
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    parent_id: undefined as number | undefined,
+    display_order: 0,
+    is_active: true,
+  });
+
+  useEffect(() => {
+    fetchCategories();
+  }, [currentPage, filterStatus]);
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      const response = await categoriesApi.categoriesControllerFindAll(
+        searchTerm || undefined,
+        undefined, // parent_id
+        filterStatus,
+        true, // includeProductsCount
+        'display_order',
+        'asc',
+        currentPage,
+        limit
+      );
+
+      setCategories(response.data.data?.categories || []);
+      setTotalPages(response.data.data?.pagination?.total_pages || 1);
+      setTotalCategories(response.data.data?.pagination?.total || 0);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchCategories();
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  const openAddModal = () => {
+    setEditingCategory(null);
+    setFormData({
+      name: "",
+      description: "",
+      parent_id: undefined,
+      display_order: 0,
+      is_active: true,
+    });
+    setShowModal(true);
+  };
+
+  const openEditModal = (category: Category) => {
+    setEditingCategory(category);
+    setFormData({
+      name: category.name,
+      description: category.description || "",
+      parent_id: category.parent_id,
+      display_order: category.display_order,
+      is_active: category.is_active,
+    });
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      if (editingCategory) {
+        // Update
+        await categoriesApi.categoriesControllerUpdate(editingCategory.id, formData);
+      } else {
+        // Create
+        await categoriesApi.categoriesControllerCreate(formData);
+      }
+      
+      setShowModal(false);
+      fetchCategories();
+    } catch (error: any) {
+      console.error('Failed to save category:', error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra!');
+    }
+  };
+
+  const handleDelete = async (categoryId: number) => {
+    if (!confirm('Bạn có chắc muốn xóa danh mục này?')) return;
+    
+    try {
+      await categoriesApi.categoriesControllerRemove(categoryId);
+      fetchCategories();
+    } catch (error: any) {
+      console.error('Failed to delete category:', error);
+      alert(error.response?.data?.message || 'Không thể xóa danh mục!');
+    }
+  };
+
+  const handleToggleActive = async (category: Category) => {
+    try {
+      await categoriesApi.categoriesControllerUpdate(category.id, {
+        is_active: !category.is_active,
+      });
+      fetchCategories();
+    } catch (error) {
+      console.error('Failed to toggle category status:', error);
+    }
+  };
+
+  return (
+    <>
+      <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+        {/* Header */}
+        <div className="flex flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between md:px-6 xl:px-7.5">
+          <div className="flex items-center gap-3">
+            <h4 className="text-xl font-semibold text-black dark:text-white">
+              Danh Sách Danh Mục
+            </h4>
+            <span className="inline-flex items-center justify-center rounded-full bg-primary px-2.5 py-0.5 text-sm font-medium text-white">
+              {totalCategories}
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Search */}
+            <div className="relative flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Tìm danh mục..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="w-full rounded-lg border border-stroke bg-transparent py-2 pl-10 pr-4 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2">
+                <svg className="fill-body" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path fillRule="evenodd" clipRule="evenodd" d="M9.16666 3.33332C5.945 3.33332 3.33332 5.945 3.33332 9.16666C3.33332 12.3883 5.945 15 9.16666 15C12.3883 15 15 12.3883 15 9.16666C15 5.945 12.3883 3.33332 9.16666 3.33332ZM1.66666 9.16666C1.66666 5.02452 5.02452 1.66666 9.16666 1.66666C13.3088 1.66666 16.6667 5.02452 16.6667 9.16666C16.6667 13.3088 13.3088 16.6667 9.16666 16.6667C5.02452 16.6667 1.66666 13.3088 1.66666 9.16666Z" fill=""/>
+                  <path fillRule="evenodd" clipRule="evenodd" d="M13.2857 13.2857C13.6112 12.9603 14.1388 12.9603 14.4642 13.2857L18.0892 16.9107C18.4147 17.2362 18.4147 17.7638 18.0892 18.0892C17.7638 18.4147 17.2362 18.4147 16.9107 18.0892L13.2857 14.4642C12.9603 14.1388 12.9603 13.6112 13.2857 13.2857Z" fill=""/>
+                </svg>
+              </span>
+              <button
+                onClick={handleSearch}
+                className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-opacity-90"
+              >
+                Tìm
+              </button>
+            </div>
+
+            {/* Filter Status */}
+            <select
+              value={filterStatus === undefined ? 'all' : filterStatus ? 'active' : 'inactive'}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFilterStatus(value === 'all' ? undefined : value === 'active');
+                setCurrentPage(1);
+              }}
+              className="rounded-lg border border-stroke bg-transparent px-4 py-2 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Đã ẩn</option>
+            </select>
+
+            {/* Add Button */}
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-center font-medium text-white hover:bg-opacity-90"
+            >
+              <svg className="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10.0003 1.66669C5.40533 1.66669 1.66699 5.40502 1.66699 10C1.66699 14.595 5.40533 18.3334 10.0003 18.3334C14.5953 18.3334 18.3337 14.595 18.3337 10C18.3337 5.40502 14.5953 1.66669 10.0003 1.66669ZM13.3337 10.8334H10.8337V13.3334C10.8337 13.7917 10.4587 14.1667 10.0003 14.1667C9.54199 14.1667 9.16699 13.7917 9.16699 13.3334V10.8334H6.66699C6.20866 10.8334 5.83366 10.4584 5.83366 10C5.83366 9.54169 6.20866 9.16669 6.66699 9.16669H9.16699V6.66669C9.16699 6.20835 9.54199 5.83335 10.0003 5.83335C10.4587 5.83335 10.8337 6.20835 10.8337 6.66669V9.16669H13.3337C13.792 9.16669 14.167 9.54169 14.167 10C14.167 10.4584 13.792 10.8334 13.3337 10.8334Z" fill=""/>
+              </svg>
+              Thêm Danh Mục
+            </button>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full table-auto">
+            <thead>
+              <tr className="bg-gray-2 text-left dark:bg-meta-4">
+                <th className="px-4 py-4 font-medium text-black dark:text-white xl:pl-7.5">
+                  Tên Danh Mục
+                </th>
+                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                  Danh Mục Cha
+                </th>
+                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                  Số Sản Phẩm
+                </th>
+                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                  Thứ Tự
+                </th>
+                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                  Trạng Thái
+                </th>
+                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                  Thao Tác
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-10">
+                    <div className="flex justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
+                    </div>
+                  </td>
+                </tr>
+              ) : categories.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-10 text-gray-500">
+                    Không có dữ liệu
+                  </td>
+                </tr>
+              ) : (
+                categories.map((category) => (
+                  <tr key={category.id} className="border-b border-stroke dark:border-strokedark">
+                    <td className="px-4 py-5 xl:pl-7.5">
+                      <h5 className="font-medium text-black dark:text-white">
+                        {category.name}
+                      </h5>
+                      {category.description && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          {category.description}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-5">
+                      <p className="text-black dark:text-white">
+                        {category.parent?.name || '-'}
+                      </p>
+                    </td>
+                    <td className="px-4 py-5">
+                      <p className="text-black dark:text-white">
+                        {category.products_count || 0}
+                      </p>
+                    </td>
+                    <td className="px-4 py-5">
+                      <p className="text-black dark:text-white">
+                        {category.display_order}
+                      </p>
+                    </td>
+                    <td className="px-4 py-5">
+                      <button
+                        onClick={() => handleToggleActive(category)}
+                        className={`inline-flex rounded-full bg-opacity-10 px-3 py-1 text-sm font-medium ${
+                          category.is_active
+                            ? 'bg-success text-success'
+                            : 'bg-danger text-danger'
+                        }`}
+                      >
+                        {category.is_active ? 'Hoạt động' : 'Đã ẩn'}
+                      </button>
+                    </td>
+                    <td className="px-4 py-5">
+                      <div className="flex items-center space-x-3.5">
+                        <button
+                          onClick={() => openEditModal(category)}
+                          className="hover:text-primary"
+                          title="Chỉnh sửa"
+                        >
+                          <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                            <path d="M13.7535 2.47502H11.5879V1.9969C11.5879 1.15315 10.9129 0.478149 10.0691 0.478149H7.90352C7.05977 0.478149 6.38477 1.15315 6.38477 1.9969V2.47502H4.21914C3.40352 2.47502 2.72852 3.15002 2.72852 3.96565V4.8094C2.72852 5.42815 3.09414 5.9344 3.62852 6.1594L4.07852 15.4688C4.13477 16.6219 5.09102 17.5219 6.24414 17.5219H11.7004C12.8535 17.5219 13.8098 16.6219 13.866 15.4688L14.3441 6.13127C14.8785 5.90627 15.2441 5.3719 15.2441 4.78127V3.93752C15.2441 3.15002 14.5691 2.47502 13.7535 2.47502ZM7.67852 1.9969C7.67852 1.85627 7.79102 1.74377 7.93164 1.74377H10.0973C10.2379 1.74377 10.3504 1.85627 10.3504 1.9969V2.47502H7.70664V1.9969H7.67852ZM4.02227 3.96565C4.02227 3.85315 4.10664 3.74065 4.24727 3.74065H13.7535C13.866 3.74065 13.9785 3.82502 13.9785 3.96565V4.8094C13.9785 4.9219 13.8941 5.0344 13.7535 5.0344H4.24727C4.13477 5.0344 4.02227 4.95002 4.02227 4.8094V3.96565ZM11.7285 16.2563H6.27227C5.79414 16.2563 5.40039 15.8906 5.37227 15.3844L4.95039 6.2719H13.0785L12.6566 15.3844C12.6004 15.8625 12.2066 16.2563 11.7285 16.2563Z" fill=""/>
+                            <path d="M9.00039 9.11255C8.66289 9.11255 8.35352 9.3938 8.35352 9.75942V13.3313C8.35352 13.6688 8.63477 13.9782 9.00039 13.9782C9.33789 13.9782 9.64727 13.6969 9.64727 13.3313V9.75942C9.64727 9.3938 9.33789 9.11255 9.00039 9.11255Z" fill=""/>
+                            <path d="M11.2502 9.67504C10.8846 9.64692 10.6033 9.90004 10.5752 10.2657L10.4064 12.7407C10.3783 13.0782 10.6314 13.3875 10.9971 13.4157C11.0252 13.4157 11.0252 13.4157 11.0533 13.4157C11.3908 13.4157 11.6721 13.1625 11.6721 12.825L11.8408 10.35C11.8408 9.98442 11.5877 9.70317 11.2502 9.67504Z" fill=""/>
+                            <path d="M6.72245 9.67504C6.38495 9.70317 6.1037 10.0125 6.13182 10.35L6.3287 12.825C6.35683 13.1625 6.63808 13.4157 6.94745 13.4157C6.97558 13.4157 6.97558 13.4157 7.0037 13.4157C7.3412 13.3875 7.62245 13.0782 7.59433 12.7407L7.39745 10.2657C7.39745 9.90004 7.08808 9.64692 6.72245 9.67504Z" fill=""/>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(category.id)}
+                          className="hover:text-danger"
+                          title="Xóa"
+                        >
+                          <svg className="fill-current" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                            <path d="M13.7535 2.47502H11.5879V1.9969C11.5879 1.15315 10.9129 0.478149 10.0691 0.478149H7.90352C7.05977 0.478149 6.38477 1.15315 6.38477 1.9969V2.47502H4.21914C3.40352 2.47502 2.72852 3.15002 2.72852 3.96565V4.8094C2.72852 5.42815 3.09414 5.9344 3.62852 6.1594L4.07852 15.4688C4.13477 16.6219 5.09102 17.5219 6.24414 17.5219H11.7004C12.8535 17.5219 13.8098 16.6219 13.866 15.4688L14.3441 6.13127C14.8785 5.90627 15.2441 5.3719 15.2441 4.78127V3.93752C15.2441 3.15002 14.5691 2.47502 13.7535 2.47502ZM7.67852 1.9969C7.67852 1.85627 7.79102 1.74377 7.93164 1.74377H10.0973C10.2379 1.74377 10.3504 1.85627 10.3504 1.9969V2.47502H7.70664V1.9969H7.67852ZM4.02227 3.96565C4.02227 3.85315 4.10664 3.74065 4.24727 3.74065H13.7535C13.866 3.74065 13.9785 3.82502 13.9785 3.96565V4.8094C13.9785 4.9219 13.8941 5.0344 13.7535 5.0344H4.24727C4.13477 5.0344 4.02227 4.95002 4.02227 4.8094V3.96565ZM11.7285 16.2563H6.27227C5.79414 16.2563 5.40039 15.8906 5.37227 15.3844L4.95039 6.2719H13.0785L12.6566 15.3844C12.6004 15.8625 12.2066 16.2563 11.7285 16.2563Z" fill=""/>
+                            <path d="M9.00039 9.11255C8.66289 9.11255 8.35352 9.3938 8.35352 9.75942V13.3313C8.35352 13.6688 8.63477 13.9782 9.00039 13.9782C9.33789 13.9782 9.64727 13.6969 9.64727 13.3313V9.75942C9.64727 9.3938 9.33789 9.11255 9.00039 9.11255Z" fill=""/>
+                            <path d="M11.2502 9.67504C10.8846 9.64692 10.6033 9.90004 10.5752 10.2657L10.4064 12.7407C10.3783 13.0782 10.6314 13.3875 10.9971 13.4157C11.0252 13.4157 11.0252 13.4157 11.0533 13.4157C11.3908 13.4157 11.6721 13.1625 11.6721 12.825L11.8408 10.35C11.8408 9.98442 11.5877 9.70317 11.2502 9.67504Z" fill=""/>
+                            <path d="M6.72245 9.67504C6.38495 9.70317 6.1037 10.0125 6.13182 10.35L6.3287 12.825C6.35683 13.1625 6.63808 13.4157 6.94745 13.4157C6.97558 13.4157 6.97558 13.4157 7.0037 13.4157C7.3412 13.3875 7.62245 13.0782 7.59433 12.7407L7.39745 10.2657C7.39745 9.90004 7.08808 9.64692 6.72245 9.67504Z" fill=""/>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center px-4 py-4 md:px-6 xl:px-7.5">
+            <p className="text-sm text-gray-500">
+              Trang {currentPage} / {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="rounded bg-gray px-3 py-1 text-sm font-medium text-black hover:bg-gray-2 disabled:opacity-50 dark:bg-meta-4 dark:text-white"
+              >
+                Trước
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="rounded bg-gray px-3 py-1 text-sm font-medium text-black hover:bg-gray-2 disabled:opacity-50 dark:bg-meta-4 dark:text-white"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-999999 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-2xl rounded-lg bg-white p-6 dark:bg-boxdark">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-black dark:text-white">
+                {editingCategory ? 'Chỉnh Sửa Danh Mục' : 'Thêm Danh Mục Mới'}
+              </h3>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label className="mb-2.5 block text-black dark:text-white">
+                  Tên danh mục <span className="text-meta-1">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  placeholder="Nhập tên danh mục"
+                  className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="mb-2.5 block text-black dark:text-white">
+                  Mô tả
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  placeholder="Nhập mô tả (không bắt buộc)"
+                  className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+                />
+              </div>
+
+              <div className="mb-4 flex gap-4">
+                <div className="w-1/2">
+                  <label className="mb-2.5 block text-black dark:text-white">
+                    Danh mục cha
+                  </label>
+                  <select
+                    value={formData.parent_id || ''}
+                    onChange={(e) => setFormData({ ...formData, parent_id: e.target.value ? Number(e.target.value) : undefined })}
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+                  >
+                    <option value="">-- Danh mục gốc --</option>
+                    {categories.filter(c => !editingCategory || c.id !== editingCategory.id).map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="w-1/2">
+                  <label className="mb-2.5 block text-black dark:text-white">
+                    Thứ tự hiển thị
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.display_order}
+                    onChange={(e) => setFormData({ ...formData, display_order: Number(e.target.value) })}
+                    min="0"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 outline-none transition focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+                  />
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="h-5 w-5 rounded border-stroke"
+                  />
+                  <span className="text-black dark:text-white">Kích hoạt danh mục</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="rounded bg-primary px-6 py-2 font-medium text-white hover:bg-opacity-90"
+                >
+                  {editingCategory ? 'Cập Nhật' : 'Thêm Mới'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default CategoriesTable;

@@ -1,0 +1,15 @@
+<svg width="256" height="64" viewBox="0 0 256 64" xmlns="http://www.w3.org/2000/svg">
+  <g transform="scale(1.6)">
+    <circle cx="18" cy="18" r="18" fill="#3C50E0"/>
+    <path d="M11.1445 10.4995L18.0015 18.0426V25.4995H11.1445Z" fill="white"/>
+    <path opacity="0.7" d="M24.8574 25.5L18.0004 17.9569V10.5H24.8574Z" fill="white"/>
+
+    <text x="50" y="24"
+      font-family="Arial, sans-serif"
+      font-size="20"
+      fill="#1C274C"
+      font-weight="600">
+      NetTech
+    </text>
+  </g>
+</svg>

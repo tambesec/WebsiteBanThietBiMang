@@ -7,7 +7,8 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import helmet from 'helmet';
-import session from 'express-session';
+import * as session from 'express-session';
+import * as cookieParser from 'cookie-parser';
 
 /**
  * Bootstrap the NestJS application
@@ -21,13 +22,26 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
-  // Get configuration service
+  // Get configuration service (for non-environment configs only)
   const configService = app.get(ConfigService);
   const port = configService.get<number>('port');
-  const nodeEnv = configService.get<string>('nodeEnv');
+
+  // 🔥 BEST PRACTICE: Use ConfigService which has loaded .env file
+  // ConfigModule.forRoot() already loaded .env into ConfigService
+  const nodeEnv = configService.get<string>('nodeEnv') || 'development';
+  const isProd = nodeEnv === 'production';
+
+  // 🧪 DEBUG LOGS - Keep these for production debugging
+  logger.log(`NODE_ENV (from ConfigService) = ${nodeEnv}`);
+  logger.log(`NODE_ENV (from process.env) = ${process.env.NODE_ENV}`);
+  logger.log(`isProd = ${isProd}`);
+  logger.log(`🔍 CORS mode: ${isProd ? 'PRODUCTION' : 'DEVELOPMENT'}`);
 
   // Security: Helmet middleware
   app.use(helmet());
+
+  // Cookie parser middleware (for reading cookies)
+  app.use(cookieParser());
 
   // Session middleware for cart support
   app.use(
@@ -38,26 +52,31 @@ async function bootstrap() {
       cookie: {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         httpOnly: true,
-        secure: nodeEnv === 'production',
-        sameSite: 'lax',
+        secure: isProd, // Use isProd flag
+        sameSite: isProd ? 'none' : 'lax', // 'none' for production (cross-site), 'lax' for dev
       },
     }),
   );
 
   // CORS Configuration
+  // Development: Allow localhost origins
+  // Production: Configure for your production domains
+  const corsOrigins = [
+    'http://localhost:3001', // Client frontend (localhost)
+    'http://localhost:3002', // Admin dashboard (localhost)
+    'http://192.168.2.5:3001', // Client frontend (LAN IP)
+    'http://192.168.2.5:3002', // Admin dashboard (LAN IP)
+    /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d{4}$/, // Allow any LAN IP
+  ];
+  
+  logger.log(`🔍 CORS allowed origins: ${JSON.stringify(corsOrigins)}`);
+  
   app.enableCors({
-    origin: nodeEnv === 'production' 
-      ? ['https://yourdomain.com'] // Replace with your production domain
-      : [
-          'http://localhost:3000', 
-          'http://localhost:3001',
-          // GitHub Codespaces URLs
-          'https://special-space-happiness-7v5gpj6p5gxrcpwvw-3001.app.github.dev',
-          /^https:\/\/.*\.app\.github\.dev$/, // Allow all Codespaces URLs
-        ],
-    credentials: true,
+    origin: corsOrigins,
+    credentials: true, // Enable credentials for session/cookies
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+    exposedHeaders: ['Authorization'],
   });
 
   // Global API prefix
@@ -126,7 +145,7 @@ async function bootstrap() {
   await app.listen(port || 3000);
 
   logger.log(`🚀 Application is running on: http://localhost:${port}/api/v1`);
-  logger.log(`📚 Swagger API docs available at: http://localhost:${port}/api`);
+  logger.log(`📚 Swagger API docs availa (isProd: ${isProd})ble at: http://localhost:${port}/api`);
   logger.log(`📝 Environment: ${nodeEnv}`);
   logger.log(`🔐 Auth endpoints available at: http://localhost:${port}/api/v1/auth`);
 }

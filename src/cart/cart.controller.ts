@@ -12,6 +12,7 @@ import {
   Session,
   HttpCode,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -34,14 +35,14 @@ export class CartController {
 
   /**
    * Get current cart
-   * Public endpoint - works for both authenticated and guest users
+   * Protected endpoint - requires authentication
    */
   @Get()
-  @Public()
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get current cart',
     description:
-      'Retrieve current cart for authenticated user or guest session. Returns null if no cart exists.',
+      'Retrieve current cart for authenticated user. Returns null if no cart exists.',
   })
   @ApiResponse({
     status: 200,
@@ -91,27 +92,23 @@ export class CartController {
     },
   })
   async getCart(@Request() req, @Session() session) {
-    const userId = req.user?.id;
+    const userId = req.user.id;
     const sessionId = session.id || session.sessionID;
 
-    // Ensure session is saved for guest users
-    if (!userId && !session.cart_initialized) {
-      session.cart_initialized = true;
-    }
-
+    this.logger.log(`[getCart] User ${userId} requesting cart`);
     return this.cartService.getCart(userId, sessionId);
   }
 
   /**
    * Add product to cart
-   * Public endpoint - works for both authenticated and guest users
+   * Protected endpoint - requires authentication
    */
   @Post('items')
-  @Public()
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Add product to cart',
     description:
-      'Add a product to cart or increase quantity if already exists. Validates stock availability.',
+      'Add a product to cart or increase quantity if already exists. Requires authentication. Validates stock availability.',
   })
   @ApiResponse({
     status: 201,
@@ -122,6 +119,10 @@ export class CartController {
     description: 'Bad request - Invalid data, insufficient stock, or product unavailable',
   })
   @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Authentication required',
+  })
+  @ApiResponse({
     status: 404,
     description: 'Product not found',
   })
@@ -130,22 +131,27 @@ export class CartController {
     @Request() req,
     @Session() session,
   ) {
-    const userId = req.user?.id;
+    // Now req.user is guaranteed to be defined (JwtAuthGuard)
+    const userId = req.user.id;
     const sessionId = session.id || session.sessionID;
 
+    this.logger.log(`[addToCart] User ${userId} adding product ${dto.product_id}`);
     return this.cartService.addToCart(dto, userId, sessionId);
   }
 
+  private readonly logger = new Logger(CartController.name);
+
   /**
    * Update cart item quantity
-   * Public endpoint - validates ownership
+   * Protected endpoint - requires authentication
    */
   @Patch('items/:id')
-  @Public()
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update cart item quantity',
     description:
-      'Update quantity of a cart item. Set quantity to 0 to remove item. Validates stock availability and ownership.',
+      'Update quantity of existing cart item. Validates stock and ownership.',
   })
   @ApiParam({
     name: 'id',
@@ -158,39 +164,34 @@ export class CartController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - Invalid quantity or insufficient stock',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - Not owner of this cart item',
+    description: 'Bad request - Insufficient stock or invalid quantity',
   })
   @ApiResponse({
     status: 404,
     description: 'Cart item not found',
   })
   async updateCartItem(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIntPipe) itemId: number,
     @Body() dto: UpdateCartItemDto,
     @Request() req,
     @Session() session,
   ) {
-    const userId = req.user?.id;
+    const userId = req.user.id;
     const sessionId = session.id || session.sessionID;
 
-    return this.cartService.updateCartItem(id, dto, userId, sessionId);
+    return this.cartService.updateCartItem(itemId, dto, userId, sessionId);
   }
 
   /**
    * Remove item from cart
-   * Public endpoint - validates ownership
+   * Protected endpoint - requires authentication
    */
   @Delete('items/:id')
-  @Public()
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Remove item from cart',
-    description:
-      'Remove a specific item from cart. Validates ownership.',
+    description: 'Remove a specific item from cart by item ID.',
   })
   @ApiParam({
     name: 'id',
@@ -199,58 +200,40 @@ export class CartController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Item removed from cart successfully',
-    schema: {
-      example: {
-        message: 'Item removed from cart successfully',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - Not owner of this cart item',
+    description: 'Item removed successfully',
   })
   @ApiResponse({
     status: 404,
     description: 'Cart item not found',
   })
   async removeCartItem(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIntPipe) itemId: number,
     @Request() req,
     @Session() session,
   ) {
-    const userId = req.user?.id;
+    const userId = req.user.id;
     const sessionId = session.id || session.sessionID;
 
-    await this.cartService.removeCartItem(id, userId, sessionId);
-
-    return {
-      message: 'Item removed from cart successfully',
-    };
+    return this.cartService.removeCartItem(itemId, userId, sessionId);
   }
 
   /**
-   * Clear entire cart
-   * Public endpoint - validates ownership
+   * Clear all items from cart
+   * Protected endpoint - requires authentication
    */
   @Delete()
-  @Public()
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Clear cart',
-    description: 'Remove all items from cart.',
+    description: 'Remove all items from current cart.',
   })
   @ApiResponse({
     status: 200,
     description: 'Cart cleared successfully',
-    schema: {
-      example: {
-        message: 'Cart cleared successfully',
-      },
-    },
   })
   async clearCart(@Request() req, @Session() session) {
-    const userId = req.user?.id;
+    const userId = req.user.id;
     const sessionId = session.id || session.sessionID;
 
     await this.cartService.clearCart(userId, sessionId);
@@ -262,10 +245,10 @@ export class CartController {
 
   /**
    * Validate cart before checkout
-   * Public endpoint - checks product availability and stock
+   * Protected endpoint - requires authentication
    */
   @Get('validate')
-  @Public()
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Validate cart',
     description:
@@ -291,7 +274,7 @@ export class CartController {
     description: 'Cart is empty',
   })
   async validateCart(@Request() req, @Session() session) {
-    const userId = req.user?.id;
+    const userId = req.user.id;
     const sessionId = session.id || session.sessionID;
 
     return this.cartService.validateCart(userId, sessionId);

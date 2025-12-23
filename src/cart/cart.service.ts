@@ -101,6 +101,29 @@ export class CartService {
 
     // Priority 1: Find by user_id (authenticated users)
     if (userId) {
+      this.logger.log(`[getOrCreateCart] Looking for user cart: user_id=${userId}`);
+      
+      // First, check if there's a guest cart to merge
+      const guestCart = await this.prisma.shopping_carts.findFirst({
+        where: {
+          session_id: sessionId,
+          user_id: null,
+        },
+        include: {
+          cart_items: true,
+        },
+      });
+
+      if (guestCart && guestCart.cart_items.length > 0) {
+        this.logger.log(`[getOrCreateCart] Found guest cart with ${guestCart.cart_items.length} items, merging...`);
+        // Convert guest cart to user cart
+        await this.prisma.shopping_carts.update({
+          where: { id: guestCart.id },
+          data: { user_id: userId },
+        });
+        this.logger.log(`[getOrCreateCart] Merged guest cart ${guestCart.id} to user ${userId}`);
+      }
+
       cart = await this.prisma.shopping_carts.findFirst({
         where: { user_id: userId },
         include: {
@@ -666,7 +689,8 @@ export class CartService {
    */
   private formatCartResponse(cart: any) {
     const items = cart.cart_items.map((item) => {
-      const price = item.products.compare_at_price || item.products.price;
+      // Use actual selling price (lower price), not compare_at_price (higher price)
+      const price = item.products.price;
       const subtotal = price * item.quantity;
 
       return {

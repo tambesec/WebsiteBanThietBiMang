@@ -1,0 +1,22 @@
+{
+  "categories": "Danh mục",
+  "allCategories": "Tất cả danh mục",
+  "category": "Danh mục",
+  "subcategories": "Danh mục con",
+  "networkCards": "Card mạng",
+  "hubSwitch": "Hub & Switch",
+  "routers": "Router",
+  "wirelessAP": "Bộ phát sóng WiFi",
+  "modem": "Modem",
+  "usbWifi": "USB WiFi",
+  "ethernetCables": "Cáp mạng",
+  "networkAccessories": "Phụ kiện mạng",
+  "firewalls": "Tường lửa",
+  "powerSupply": "Nguồn điện",
+  "rackCabinets": "Tủ rack",
+  "poeDevices": "Thiết bị PoE",
+  "networkExtenders": "Bộ khuếch đại",
+  "antennas": "Anten",
+  "connectors": "Đầu nối",
+  "other": "Khác"
+}

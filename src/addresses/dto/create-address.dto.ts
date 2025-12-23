@@ -93,14 +93,16 @@ export class CreateAddressDto {
   ward?: string;
 
   @ApiProperty({
-    description: 'Postal code (optional)',
+    description: 'Postal code (optional, 5-10 digits)',
     example: '700000',
-    maxLength: 20,
+    pattern: '^[0-9]{5,10}$',
     required: false,
   })
   @IsOptional()
   @IsString({ message: 'Postal code must be a string' })
-  @MaxLength(20, { message: 'Postal code cannot exceed 20 characters' })
+  @Matches(/^[0-9]{5,10}$/, {
+    message: 'Postal code must be 5-10 digits',
+  })
   @Transform(({ value }) => value?.trim())
   postal_code?: string;
 

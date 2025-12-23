@@ -8,7 +8,10 @@ import {
   Res,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
+  Patch,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiTags,
@@ -26,6 +29,7 @@ import {
   ChangePasswordDto,
   ForgotPasswordDto,
   ResetPasswordDto,
+  UpdateProfileDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
@@ -42,22 +46,60 @@ export class AuthController {
 
   /**
    * POST /auth/register
-   * Register a new user account
+   * Register a new user account and auto-login
    */
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Register a new user account' })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiOperation({ summary: 'Register a new user account and auto-login' })
+  @ApiResponse({ status: 201, description: 'User registered and logged in successfully' })
   @ApiResponse({ status: 409, description: 'Email already registered' })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const ipAddress = req.ip || req.socket.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    const result = await this.authService.register(registerDto, ipAddress, userAgent);
+
+    // Set tokens in HTTP-only cookies (auto-login after register)
+    if (result.access_token && result.refresh_token) {
+      const isDev = process.env.NODE_ENV !== 'production';
+      const cookieOptions = {
+        httpOnly: true,
+        secure: false, // Must be false for localhost HTTP
+        sameSite: 'lax' as const, // lax works for localhost same-site
+        path: '/',
+      };
+      
+      res.cookie('access_token', result.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000,
+      });
+
+      res.cookie('refresh_token', result.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+    }
+
+    // Return only user data
+    return {
+      message: result.message,
+      user: result.user,
+    };
   }
 
   /**
    * POST /auth/login
-   * Login with email and password
+   * Login with email and password (for client app - uses cookies)
    */
   @Public()
   @Post('login')
@@ -65,46 +107,147 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({
     status: 200,
-    description: 'Login successful, returns access and refresh tokens',
+    description: 'Login successful, tokens set in HTTP-only cookies',
   })
   @ApiResponse({
     status: 401,
     description: 'Invalid credentials or account locked',
   })
-  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const ipAddress = req.ip || req.socket.remoteAddress;
     const userAgent = req.headers['user-agent'];
 
-    return this.authService.login(loginDto, ipAddress, userAgent);
+    const result = await this.authService.login(loginDto, ipAddress, userAgent);
+
+    // Set tokens in HTTP-only cookies
+    res.cookie('access_token', result.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    res.cookie('refresh_token', result.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    // Return only user data (no tokens)
+    return {
+      message: 'Login successful',
+      user: result.user,
+    };
+  }
+
+  /**
+   * GET /auth/session
+   * Get current session state - NEVER returns 401
+   * Returns { authenticated: false } for guest
+   * Returns { authenticated: true, user } for logged-in user
+   * Uses refresh token from cookie to determine state
+   */
+  @Public()
+  @Get('session')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get current session state (guest or authenticated)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Session state returned (never 401)' 
+  })
+  async getSession(@Req() req: Request) {
+    const refreshToken = (req as any).cookies?.refresh_token;
+
+    // No refresh token = guest
+    if (!refreshToken) {
+      return {
+        authenticated: false,
+        user: null,
+      };
+    }
+
+    try {
+      // Try to get user from refresh token
+      const session = await this.authService.getSessionFromRefreshToken(refreshToken);
+      
+      return {
+        authenticated: true,
+        user: session.user,
+      };
+    } catch (error) {
+      // Invalid/expired refresh token = guest
+      return {
+        authenticated: false,
+        user: null,
+      };
+    }
   }
 
   /**
    * POST /auth/refresh
-   * Refresh access token using refresh token
+   * Refresh access token using refresh token from cookie
    */
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token' })
-  @ApiResponse({ status: 200, description: 'New access token generated' })
+  @ApiOperation({ summary: 'Refresh access token from cookie' })
+  @ApiResponse({ status: 200, description: 'New access token set in cookie' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto.refresh_token);
+  async refreshToken(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = (req as any).cookies?.refresh_token;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+
+    const result = await this.authService.refreshToken(refreshToken);
+
+    // Set new access token in cookie
+    res.cookie('access_token', result.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    return { message: 'Token refreshed successfully' };
   }
 
   /**
    * POST /auth/logout
-   * Logout and invalidate refresh token
+   * Logout and clear cookies
+   * No body needed - uses refresh_token from cookies
    */
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Logout user and invalidate session' })
+  @ApiOperation({ summary: 'Logout user and clear cookies (no body needed)' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async logout(@Body() logoutDto: LogoutDto, @Req() req: any) {
-    return this.authService.logout(logoutDto.refresh_token, req.user.id);
+  async logout(
+    @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.refresh_token;
+
+    if (refreshToken) {
+      await this.authService.logout(refreshToken, req.user.id);
+    }
+
+    // Clear cookies
+    res.clearCookie('access_token');
+    res.clearCookie('refresh_token');
+
+    return { message: 'Logged out successfully' };
   }
 
   /**
@@ -122,6 +265,27 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getProfile(@Req() req: any) {
     return this.authService.getProfile(req.user.id);
+  }
+
+  /**
+   * PATCH /auth/profile
+   * Update current user profile (requires authentication)
+   */
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Patch('profile')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 409, description: 'Email already taken' })
+  async updateProfile(
+    @Body() updateProfileDto: UpdateProfileDto,
+    @Req() req: any,
+  ) {
+    return this.authService.updateProfile(req.user.id, updateProfileDto);
   }
 
   /**
@@ -225,9 +389,27 @@ export class AuthController {
     try {
       const result = await this.authService.validateOAuthUser(req.user);
 
-      // Redirect to frontend with tokens
+      // Set tokens in HTTP-only cookies (CRITICAL for auth to work)
+      // IMPORTANT: No domain specified = cookies work across localhost:3000 and localhost:3001
+      res.cookie('access_token', result.access_token, {
+        httpOnly: true,
+        secure: false, // Must be false for localhost
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 15 * 60 * 1000, // 15 minutes
+      });
+
+      res.cookie('refresh_token', result.refresh_token, {
+        httpOnly: true,
+        secure: false, // Must be false for localhost
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      // Redirect to frontend callback page
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      const redirectUrl = `${frontendUrl}/auth/callback?access_token=${result.access_token}&refresh_token=${result.refresh_token}`;
+      const redirectUrl = `${frontendUrl}/auth/callback`;
 
       return res.redirect(redirectUrl);
     } catch (error) {
@@ -290,7 +472,7 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
-        password: {
+        new_password: {
           type: 'string',
           example: 'NewPassword@123',
           minLength: 8,
@@ -300,7 +482,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: 'Password set successfully' })
   @ApiResponse({ status: 400, description: 'Password already set' })
-  async setPassword(@Req() req: any, @Body('password') password: string) {
-    return this.authService.setPasswordForOAuthUser(req.user.id, password);
+  async setPassword(@Req() req: any, @Body('new_password') newPassword: string) {
+    return this.authService.setPasswordForOAuthUser(req.user.id, newPassword);
   }
 }

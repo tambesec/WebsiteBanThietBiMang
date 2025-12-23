@@ -1,0 +1,46 @@
+{
+  "sections": {
+    "newArrivals": "Hàng mới về",
+    "featuredProducts": "Sản phẩm nổi bật",
+    "bestSellers": "Bán chạy nhất",
+    "specialOffers": "Ưu đãi đặc biệt",
+    "topCategories": "Danh mục hàng đầu",
+    "whyChooseUs": "Tại sao chọn chúng tôi",
+    "customerReviews": "Đánh giá khách hàng",
+    "blog": "Blog & Tin tức",
+    "newsletter": "Đăng ký nhận tin",
+    "brands": "Thương hiệu",
+    "services": "Dịch vụ"
+  },
+  "features": {
+    "freeShipping": "Miễn phí vận chuyển",
+    "freeShippingDesc": "Cho đơn hàng trên 500.000đ",
+    "support247": "Hỗ trợ 24/7",
+    "support247Desc": "Tư vấn nhiệt tình",
+    "securePayment": "Thanh toán bảo mật",
+    "securePaymentDesc": "100% an toàn",
+    "moneyBack": "Đổi trả 30 ngày",
+    "moneyBackDesc": "Hoàn tiền dễ dàng",
+    "qualityGuarantee": "Đảm bảo chất lượng",
+    "qualityGuaranteeDesc": "Hàng chính hãng",
+    "fastDelivery": "Giao hàng nhanh",
+    "fastDeliveryDesc": "Toàn quốc"
+  },
+  "newsletter": {
+    "title": "Đăng ký nhận tin",
+    "subtitle": "Nhận thông tin về sản phẩm mới và ưu đãi đặc biệt",
+    "placeholder": "Nhập email của bạn",
+    "button": "Đăng ký",
+    "success": "Đăng ký thành công!",
+    "error": "Có lỗi xảy ra, vui lòng thử lại"
+  },
+  "footer": {
+    "about": "Về chúng tôi",
+    "aboutDesc": "NetTechPro - Cung cấp thiết bị mạng chất lượng cao với giá cạnh tranh nhất thị trường",
+    "quickLinks": "Liên kết nhanh",
+    "categories": "Danh mục",
+    "support": "Hỗ trợ",
+    "followUs": "Theo dõi chúng tôi",
+    "copyright": "Bản quyền thuộc về NetTechPro. Tất cả quyền được bảo lưu."
+  }
+}

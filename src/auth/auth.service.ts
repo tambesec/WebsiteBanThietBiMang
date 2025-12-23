@@ -36,9 +36,9 @@ export class AuthService {
   }
 
   /**
-   * Register new user
+   * Register new user (auto-login after registration)
    */
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto, ipAddress?: string, userAgent?: string) {
     const { email, password, full_name, phone } = registerDto;
 
     // Check if email already exists
@@ -65,14 +65,7 @@ export class AuthService {
           role: users_role.customer,
           is_active: 1,
           is_email_verified: 0,
-        },
-        select: {
-          id: true,
-          email: true,
-          full_name: true,
-          phone: true,
-          role: true,
-          created_at: true,
+          last_login: new Date(),
         },
       });
 
@@ -89,6 +82,7 @@ export class AuthService {
         data: {
           user_id: newUser.id,
           event_type: 'user_registered',
+          ip_address: ipAddress?.substring(0, 45),
           details: JSON.stringify({ email: newUser.email }),
         },
       });
@@ -98,9 +92,36 @@ export class AuthService {
 
     this.logger.log(`New user registered: ${user.email}`);
 
+    // Auto-login: Generate tokens
+    const tokens = await this.generateTokens(user);
+
+    // Create session
+    const expiresAt = new Date();
+    expiresAt.setDate(
+      expiresAt.getDate() + 
+      parseInt(this.configService.get('jwt.refresh.expiresIn').replace('d', ''))
+    );
+
+    await this.prisma.user_sessions.create({
+      data: {
+        user_id: user.id,
+        token_hash: await this.hashToken(tokens.refresh_token),
+        ip_address: ipAddress?.substring(0, 45),
+        user_agent: userAgent?.substring(0, 255),
+        expires_at: expiresAt,
+      },
+    });
+
     return {
       message: 'User registered successfully',
-      user,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role,
+      },
     };
   }
 
@@ -211,6 +232,70 @@ export class AuthService {
   }
 
   /**
+   * Get session from refresh token (for /auth/session endpoint)
+   * Returns user data if valid refresh token exists
+   * Throws error if invalid/expired (caught by controller to return guest state)
+   */
+  async getSessionFromRefreshToken(refreshToken: string) {
+    try {
+      // Verify refresh token
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: this.configService.get('jwt.refresh.secret'),
+      });
+
+      // Check if session exists
+      const tokenHash = await this.hashToken(refreshToken);
+      const session = await this.prisma.user_sessions.findFirst({
+        where: {
+          user_id: payload.sub,
+          token_hash: tokenHash,
+          expires_at: { gt: new Date() },
+        },
+        include: {
+          users: {
+            select: {
+              id: true,
+              email: true,
+              full_name: true,
+              phone: true,
+              role: true,
+              is_active: true,
+              password_hash: true,
+              oauth_accounts: {
+                select: {
+                  provider: true,
+                  is_primary: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!session || !session.users.is_active) {
+        throw new UnauthorizedException('Invalid session');
+      }
+
+      const hasOAuth = session.users.oauth_accounts && session.users.oauth_accounts.length > 0;
+
+      return {
+        user: {
+          id: session.users.id,
+          email: session.users.email,
+          full_name: session.users.full_name,
+          phone: session.users.phone,
+          role: session.users.role,
+          is_oauth_user: hasOAuth, // Has OAuth = cannot change email
+          has_password: !!session.users.password_hash,
+          oauth_providers: session.users.oauth_accounts?.map(oa => oa.provider) || [],
+        },
+      };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  /**
    * Refresh access token
    */
   async refreshToken(refreshToken: string) {
@@ -244,6 +329,15 @@ export class AuthService {
 
       // Generate new access token
       const accessToken = await this.generateAccessToken(session.users);
+
+      // Optional: Rotate refresh token for better security
+      // Uncomment if you want to rotate refresh tokens on each refresh
+      // const newRefreshToken = await this.generateRefreshToken(session.users);
+      // await this.prisma.user_sessions.update({
+      //   where: { id: session.id },
+      //   data: { token_hash: await this.hashToken(newRefreshToken) },
+      // });
+      // return { access_token: accessToken, refresh_token: newRefreshToken };
 
       return {
         access_token: accessToken,
@@ -288,6 +382,13 @@ export class AuthService {
         is_email_verified: true,
         last_login: true,
         created_at: true,
+        password_hash: true,
+        oauth_accounts: {
+          select: {
+            provider: true,
+            is_primary: true,
+          },
+        },
       },
     });
 
@@ -295,7 +396,82 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    const hasOAuth = user.oauth_accounts && user.oauth_accounts.length > 0;
+
+    // Don't expose password_hash
+    const { password_hash, oauth_accounts, ...safeUser } = user;
+
+    return {
+      ...safeUser,
+      is_oauth_user: hasOAuth, // Has OAuth = cannot change email (even with password)
+      has_password: !!password_hash,
+      oauth_providers: oauth_accounts?.map(oa => oa.provider) || [],
+    };
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(userId: number, updateData: { full_name?: string; email?: string; phone?: string }) {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      include: {
+        oauth_accounts: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Check if user has OAuth account
+    const hasOAuth = user.oauth_accounts && user.oauth_accounts.length > 0;
+
+    // Prevent email change for ANY user with OAuth (even if they have password)
+    if (updateData.email && updateData.email !== user.email) {
+      if (hasOAuth) {
+        throw new ConflictException(
+          'Cannot change email for accounts linked with OAuth. Please unlink OAuth providers first.'
+        );
+      }
+
+      // Check if new email is already taken
+      const existingUser = await this.prisma.users.findUnique({
+        where: { email: updateData.email },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('Email already taken');
+      }
+    }
+
+    // Update user profile
+    const updatedUser = await this.prisma.users.update({
+      where: { id: userId },
+      data: {
+        full_name: updateData.full_name ?? user.full_name,
+        email: updateData.email ?? user.email,
+        phone: updateData.phone ?? user.phone,
+      },
+      select: {
+        id: true,
+        email: true,
+        full_name: true,
+        phone: true,
+        role: true,
+        is_active: true,
+        is_email_verified: true,
+        last_login: true,
+        created_at: true,
+      },
+    });
+
+    this.logger.log(`User profile updated: ${updatedUser.email}`);
+
+    return {
+      message: 'Profile updated successfully',
+      user: updatedUser,
+    };
   }
 
   /**
@@ -319,6 +495,12 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
     if (!isPasswordValid) {
       throw new BadRequestException('Current password is incorrect');
+    }
+
+    // Check if new password is same as current password
+    const isSameAsCurrentPassword = await bcrypt.compare(newPassword, user.password_hash);
+    if (isSameAsCurrentPassword) {
+      throw new BadRequestException('New password must be different from current password');
     }
 
     // Check if new password was used before
@@ -799,6 +981,21 @@ export class AuthService {
       // Generate JWT tokens
       const tokens = await this.generateTokens(user);
 
+      // Create session in database
+      const expiresAt = new Date();
+      expiresAt.setDate(
+        expiresAt.getDate() + 
+        parseInt(this.configService.get('jwt.refresh.expiresIn').replace('d', ''))
+      );
+
+      await this.prisma.user_sessions.create({
+        data: {
+          user_id: user.id,
+          token_hash: await this.hashToken(tokens.refresh_token),
+          expires_at: expiresAt,
+        },
+      });
+
       return {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
@@ -905,6 +1102,21 @@ export class AuthService {
 
     // Generate JWT tokens
     const tokens = await this.generateTokens(user);
+
+    // Create session in database
+    const expiresAt = new Date();
+    expiresAt.setDate(
+      expiresAt.getDate() + 
+      parseInt(this.configService.get('jwt.refresh.expiresIn').replace('d', ''))
+    );
+
+    await this.prisma.user_sessions.create({
+      data: {
+        user_id: user.id,
+        token_hash: await this.hashToken(tokens.refresh_token),
+        expires_at: expiresAt,
+      },
+    });
 
     return {
       access_token: tokens.access_token,

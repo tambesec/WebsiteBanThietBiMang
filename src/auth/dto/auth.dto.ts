@@ -169,3 +169,43 @@ export class ResetPasswordDto {
   })
   new_password: string;
 }
+
+/**
+ * DTO for updating user profile
+ */
+export class UpdateProfileDto {
+  @ApiProperty({
+    description: 'Full name of the user',
+    example: 'John Doe',
+    minLength: 2,
+    maxLength: 150,
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2, { message: 'Full name must be at least 2 characters' })
+  @MaxLength(150, { message: 'Full name must not exceed 150 characters' })
+  full_name?: string;
+
+  @ApiProperty({
+    description: 'User email address',
+    example: 'john.doe@example.com',
+    maxLength: 320,
+    required: false,
+  })
+  @IsOptional()
+  @IsEmail({}, { message: 'Invalid email format' })
+  @MaxLength(320, { message: 'Email must not exceed 320 characters' })
+  email?: string;
+
+  @ApiProperty({
+    description: 'Phone number (10-20 digits)',
+    example: '0123456789',
+    pattern: '^[0-9]{10,20}$',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9]{10,20}$/, { message: 'Phone number must be 10-20 digits' })
+  phone?: string;
+}

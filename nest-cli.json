@@ -3,6 +3,18 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "watchAssets": true
+  },
+  "watchOptions": {
+    "ignored": [
+      "node_modules",
+      "dist",
+      "client/**",
+      "admin/**",
+      "docker-export/**",
+      "team-package/**",
+      "*.log"
+    ]
   }
 }
