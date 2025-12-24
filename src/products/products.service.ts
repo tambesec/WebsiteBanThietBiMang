@@ -54,10 +54,13 @@ export class ProductsService {
       counter++;
     }
 
+    // Separate additional_images from main product data
+    const { additional_images, ...productData } = createProductDto;
+
     // Create product
     const product = await this.prisma.products.create({
       data: {
-        ...createProductDto,
+        ...productData,
         slug: finalSlug,
         is_active: 1,
         is_featured: 0,
@@ -72,6 +75,17 @@ export class ProductsService {
         },
       },
     });
+
+    // Create additional images if provided
+    if (additional_images && additional_images.length > 0) {
+      await this.prisma.product_images.createMany({
+        data: additional_images.map((url, index) => ({
+          product_id: product.id,
+          image_url: url,
+          display_order: index,
+        })),
+      });
+    }
 
     this.logger.log(`Product created: ${product.name} (ID: ${product.id})`);
 
@@ -402,11 +416,14 @@ export class ProductsService {
       slug = finalSlug;
     }
 
+    // Separate additional_images from main product data
+    const { additional_images, ...productData } = updateProductDto;
+
     // Update product
     const product = await this.prisma.products.update({
       where: { id },
       data: {
-        ...updateProductDto,
+        ...productData,
         ...(slug && { slug }),
         updated_at: new Date(),
       },
@@ -418,8 +435,30 @@ export class ProductsService {
             slug: true,
           },
         },
+        product_images: {
+          orderBy: { display_order: 'asc' },
+        },
       },
     });
+
+    // Update additional images if provided
+    if (additional_images !== undefined) {
+      // Delete existing images
+      await this.prisma.product_images.deleteMany({
+        where: { product_id: id },
+      });
+
+      // Create new images if any
+      if (additional_images.length > 0) {
+        await this.prisma.product_images.createMany({
+          data: additional_images.map((url, index) => ({
+            product_id: id,
+            image_url: url,
+            display_order: index,
+          })),
+        });
+      }
+    }
 
     this.logger.log(`Product updated: ${product.name} (ID: ${product.id})`);
 
@@ -481,6 +520,32 @@ export class ProductsService {
     return {
       message: `Product ${updated.is_featured === 1 ? 'featured' : 'unfeatured'} successfully`,
       is_featured: updated.is_featured === 1,
+    };
+  }
+
+  /**
+   * Toggle active status
+   */
+  async toggleActive(id: number) {
+    const product = await this.prisma.products.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const updated = await this.prisma.products.update({
+      where: { id },
+      data: {
+        is_active: product.is_active === 1 ? 0 : 1,
+        updated_at: new Date(),
+      },
+    });
+
+    return {
+      message: `Product ${updated.is_active === 1 ? 'activated' : 'deactivated'} successfully`,
+      is_active: updated.is_active === 1,
     };
   }
 

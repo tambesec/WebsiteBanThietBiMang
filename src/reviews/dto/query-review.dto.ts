@@ -39,14 +39,14 @@ export class QueryReviewDto {
 
   @ApiPropertyOptional({
     description: 'Filter by approval status',
-    example: 'approved',
+    example: 'all',
     enum: ['all', 'approved', 'pending', 'rejected'],
   })
   @IsOptional()
   @IsString()
   @IsIn(['all', 'approved', 'pending', 'rejected'])
   @Transform(({ value }) => value?.toLowerCase())
-  status?: string = 'approved';
+  status?: string;
 
   @ApiPropertyOptional({
     description: 'Filter by verified purchase',

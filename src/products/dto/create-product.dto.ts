@@ -8,6 +8,7 @@ import {
   MaxLength,
   IsInt,
   IsBoolean,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -124,6 +125,16 @@ export class CreateProductDto {
   @IsOptional()
   @MaxLength(500)
   primary_image?: string;
+
+  @ApiPropertyOptional({
+    example: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg'],
+    description: 'Additional product images (array of URLs)',
+    type: [String],
+  })
+  @IsOptional()
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  additional_images?: string[];
 
   @ApiPropertyOptional({
     example: 24,

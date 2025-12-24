@@ -65,6 +65,18 @@ export class ReviewsController {
     return this.reviewsService.findAll(query);
   }
 
+  @Get('admin/all')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Get all reviews (Admin - including pending)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Reviews retrieved successfully',
+  })
+  @ApiBearerAuth()
+  findAllAdmin(@Query() query: QueryReviewDto) {
+    return this.reviewsService.findAll(query, true); // Pass isAdmin flag
+  }
+
   @Get(':id')
   @Public()
   @ApiOperation({ summary: 'Get review by ID' })

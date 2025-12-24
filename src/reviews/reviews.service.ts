@@ -117,7 +117,7 @@ export class ReviewsService {
   /**
    * Get all reviews with filtering and pagination
    */
-  async findAll(query: QueryReviewDto) {
+  async findAll(query: QueryReviewDto, isAdmin: boolean = false) {
     const {
       product_id,
       user_id,
@@ -130,6 +130,8 @@ export class ReviewsService {
       page = 1,
       limit = 20,
     } = query;
+
+    console.log('FindAll Reviews - isAdmin:', isAdmin, 'Query:', query);
 
     const skip = (page - 1) * limit;
 
@@ -149,13 +151,19 @@ export class ReviewsService {
     }
 
     // Approval status filter
-    if (status && status !== 'all') {
+    // For public users: only show approved reviews by default
+    // For admin: show all reviews by default, respect status filter
+    if (!isAdmin && (!status || status === 'all')) {
+      where.is_approved = 1; // Public only sees approved
+    } else if (status && status !== 'all') {
       if (status === 'approved') {
         where.is_approved = 1;
       } else if (status === 'pending') {
         where.is_approved = 0;
       }
     }
+
+    console.log('Reviews WHERE clause:', JSON.stringify(where, null, 2));
 
     // Verified purchase filter
     if (verified && verified !== 'all') {
@@ -199,6 +207,8 @@ export class ReviewsService {
       }),
       this.prisma.product_reviews.count({ where }),
     ]);
+
+    console.log('Reviews found:', reviews.length, 'Total:', total);
 
     return {
       reviews: reviews.map((review) => this.formatReviewResponse(review)),

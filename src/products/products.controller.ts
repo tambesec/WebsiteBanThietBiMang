@@ -253,6 +253,34 @@ export class ProductsController {
   }
 
   /**
+   * Toggle active status (Admin only)
+   */
+  @Patch(':id/toggle-active')
+  @Roles('admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Toggle product active status (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Active status updated successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing token',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin role required',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
+  @ApiParam({ name: 'id', type: Number })
+  toggleActive(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.toggleActive(id);
+  }
+
+  /**
    * Update stock quantity (Admin only)
    */
   @Patch(':id/stock')

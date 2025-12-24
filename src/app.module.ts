@@ -14,6 +14,7 @@ import { OrdersModule } from './orders/orders.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { DiscountsModule } from './discounts/discounts.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { UsersModule } from './users/users.module';
 import configuration from './config/configuration';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -49,6 +50,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     ReviewsModule,
     DiscountsModule,
     DashboardModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

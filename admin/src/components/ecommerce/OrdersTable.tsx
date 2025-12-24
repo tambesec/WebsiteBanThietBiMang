@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ordersApi } from "@/lib/api-client";
 import type { OrderDto } from "@/generated-api";
+import Badge from "../ui/badge/Badge";
 
 const OrdersTable = () => {
   const [orders, setOrders] = useState<OrderDto[]>([]);
@@ -78,68 +79,54 @@ const OrdersTable = () => {
     });
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-      pending: {
-        bg: "bg-warning bg-opacity-10",
-        text: "text-warning",
-        label: "Chờ xác nhận",
-      },
-      confirmed: {
-        bg: "bg-blue-500 bg-opacity-10",
-        text: "text-blue-500",
-        label: "Đã xác nhận",
-      },
-      processing: {
-        bg: "bg-primary bg-opacity-10",
-        text: "text-primary",
-        label: "Đang xử lý",
-      },
-      shipped: {
-        bg: "bg-blue-600 bg-opacity-10",
-        text: "text-blue-600",
-        label: "Đang giao",
-      },
-      delivered: {
-        bg: "bg-success bg-opacity-10",
-        text: "text-success",
-        label: "Đã giao",
-      },
-      cancelled: {
-        bg: "bg-danger bg-opacity-10",
-        text: "text-danger",
-        label: "Đã hủy",
-      },
+  const getStatusColor = (status: string) => {
+    const statusMap: Record<string, "success" | "warning" | "error" | "info"> = {
+      'delivered': 'success',
+      'confirmed': 'info',
+      'processing': 'warning',
+      'shipped': 'info',
+      'pending': 'warning',
+      'cancelled': 'error',
+      'returned': 'error',
     };
-
-    const config = statusConfig[status?.toLowerCase()] || statusConfig.pending;
-    return (
-      <span
-        className={`inline-flex rounded-full ${config.bg} px-3 py-1 text-sm font-medium ${config.text}`}
-      >
-        {config.label}
-      </span>
-    );
+    return statusMap[status?.toLowerCase()] || 'warning';
   };
 
-  const getPaymentBadge = (method?: string) => {
-    if (!method) return null;
-    const methodConfig: Record<string, { label: string; color: string }> = {
-      cod: { label: "Tiền mặt", color: "bg-gray-500" },
-      vnpay: { label: "VNPay", color: "bg-blue-500" },
-      momo: { label: "MoMo", color: "bg-pink-500" },
-      zalopay: { label: "ZaloPay", color: "bg-blue-400" },
-      bank_transfer: { label: "Chuyển khoản", color: "bg-green-500" },
+  const getStatusText = (status: string) => {
+    const statusTextMap: Record<string, string> = {
+      'delivered': 'Đã giao',
+      'confirmed': 'Đã xác nhận',
+      'processing': 'Đang xử lý',
+      'shipped': 'Đang vận chuyển',
+      'pending': 'Chờ xử lý',
+      'cancelled': 'Đã hủy',
+      'returned': 'Đã trả hàng',
     };
+    return statusTextMap[status?.toLowerCase()] || status;
+  };
 
-    const config = methodConfig[method.toLowerCase()] || { label: method, color: "bg-gray-500" };
-    return (
-      <span
-        className={`inline-flex rounded-full ${config.color} px-2.5 py-0.5 text-xs font-medium text-white`}
-      >
-        {config.label}
-      </span>
-    );
+  const getPaymentColor = (method?: string): "success" | "warning" | "error" | "info" => {
+    if (!method) return 'info';
+    const methodMap: Record<string, "success" | "warning" | "error" | "info"> = {
+      'cod': 'warning',
+      'vnpay': 'info',
+      'momo': 'error',
+      'zalopay': 'info',
+      'bank_transfer': 'success',
+    };
+    return methodMap[method.toLowerCase()] || 'info';
+  };
+
+  const getPaymentText = (method?: string) => {
+    if (!method) return 'N/A';
+    const methodConfig: Record<string, string> = {
+      'cod': 'Tiền mặt',
+      'vnpay': 'VNPay',
+      'momo': 'MoMo',
+      'zalopay': 'ZaloPay',
+      'bank_transfer': 'Chuyển khoản',
+    };
+    return methodConfig[method.toLowerCase()] || method;
   };
 
   return (
@@ -294,10 +281,20 @@ const OrdersTable = () => {
                     </p>
                   </td>
                   <td className="px-4 py-5">
-                    {getPaymentBadge(order.payment_method)}
+                    <Badge
+                      size="sm"
+                      color={getPaymentColor(order.payment_method)}
+                    >
+                      {getPaymentText(order.payment_method)}
+                    </Badge>
                   </td>
                   <td className="px-4 py-5">
-                    {getStatusBadge(order.status?.name || order.status as string)}
+                    <Badge
+                      size="sm"
+                      color={getStatusColor(order.status?.name || order.status as string)}
+                    >
+                      {getStatusText(order.status?.name || order.status as string)}
+                    </Badge>
                   </td>
                   <td className="px-4 py-5">
                     <p className="text-sm text-black dark:text-white">

@@ -122,7 +122,7 @@ const ProductsTable = () => {
 
   return (
     <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-      {/* Header */}
+      {/* Header with Add Button */}
       <div className="flex flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between md:px-6 xl:px-7.5">
         <div className="flex items-center gap-3">
           <h4 className="text-xl font-semibold text-black dark:text-white">
@@ -133,6 +133,40 @@ const ProductsTable = () => {
           </span>
         </div>
 
+        {/* Add Product Button */}
+        <Link
+          href="/products/add"
+          className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-blue-600 px-6 py-3 text-center font-semibold text-white shadow-md hover:bg-blue-700 hover:shadow-xl transition-all"
+        >
+          <svg
+            className="fill-white"
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M10 4.16669V15.8334"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M4.16699 10H15.8337"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          Thêm Sản Phẩm
+        </Link>
+      </div>
+
+      {/* Filters Section */}
+      <div className="border-t border-stroke px-4 py-4 dark:border-strokedark md:px-6 xl:px-7.5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {/* Search */}
           <div className="relative flex items-center gap-2">
@@ -188,17 +222,6 @@ const ProductsTable = () => {
             <option value="true">Đang bán</option>
             <option value="false">Ngừng bán</option>
           </select>
-
-          {/* Add Product Button */}
-          <Link
-            href="/products/create"
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-white hover:bg-opacity-90"
-          >
-            <svg className="mr-2 fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M10 4.16666V15.8333M4.16666 10H15.8333" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Thêm sản phẩm
-          </Link>
         </div>
       </div>
 
@@ -320,15 +343,15 @@ const ProductsTable = () => {
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/products/edit/${product.id}`}
-                        className="inline-flex rounded bg-primary px-3 py-1 text-sm font-medium text-white hover:bg-opacity-90"
+                        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
                       >
-                        Sửa
+                        ✏️ Sửa
                       </Link>
                       <button
                         onClick={() => handleDelete(product.id)}
-                        className="inline-flex rounded bg-danger px-3 py-1 text-sm font-medium text-white hover:bg-opacity-90"
+                        className="rounded-md bg-danger px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
                       >
-                        Xóa
+                        🗑️ Xóa
                       </button>
                     </div>
                   </td>

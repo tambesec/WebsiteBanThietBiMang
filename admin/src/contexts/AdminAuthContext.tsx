@@ -9,6 +9,7 @@ interface AdminUser {
   email: string;
   username: string;
   full_name?: string;
+  phone?: string;
   role?: string;
   roles: string[];
 }
@@ -31,27 +32,47 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     const loadUser = async () => {
       try {
         const token = localStorage.getItem('admin_token');
-        const savedUser = localStorage.getItem('admin_user');
         
-        if (token && savedUser) {
-          // Verify token is still valid by making a test API call
+        if (token) {
+          // Fetch latest profile data from backend instead of using stale localStorage
           try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/auth/profile`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/users/admin/profile`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
               },
             });
 
             if (response.ok) {
-              const userData = JSON.parse(savedUser);
+              const profileData = await response.json();
+              // profileData might be wrapped in TransformInterceptor format
+              const admin = profileData.data || profileData;
+              
+              const userData = {
+                id: admin.id,
+                email: admin.email,
+                username: admin.full_name || admin.email,
+                full_name: admin.full_name,
+                phone: admin.phone,
+                role: admin.role,
+                roles: [admin.role],
+              };
+              
+              // Update localStorage with fresh data
+              localStorage.setItem('admin_user', JSON.stringify(userData));
               setUser(userData);
             } else {
               // Token is invalid, clear it
               clearAdminTokens();
             }
           } catch (error) {
-            // Network error or invalid token
-            clearAdminTokens();
+            console.error('Failed to fetch admin profile:', error);
+            // Network error - try using cached data
+            const savedUser = localStorage.getItem('admin_user');
+            if (savedUser) {
+              setUser(JSON.parse(savedUser));
+            } else {
+              clearAdminTokens();
+            }
           }
         }
       } catch (error) {
@@ -112,6 +133,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         email: data.user.email,
         username: data.user.full_name || data.user.email,
         full_name: data.user.full_name,
+        phone: data.user.phone,
         role: userRole,
         roles: ['admin'],
       };

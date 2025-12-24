@@ -12,6 +12,27 @@ interface ProductFormProps {
 
 const ProductForm: React.FC<ProductFormProps> = ({ mode, productData }) => {
   const router = useRouter();
+  
+  // Store initial data for comparison
+  const [initialData] = useState({
+    name: productData?.name || "",
+    category_id: productData?.category_id || "",
+    brand: productData?.brand || "",
+    model: productData?.model || "",
+    sku: productData?.sku || "",
+    price: productData?.price || "",
+    compare_at_price: productData?.compare_at_price || "",
+    stock_quantity: productData?.stock_quantity || "",
+    warranty_months: productData?.warranty_months || "12",
+    description: productData?.description || "",
+    specifications: productData?.specifications || "",
+    meta_title: productData?.meta_title || "",
+    meta_description: productData?.meta_description || "",
+    is_active: productData?.is_active ?? true,
+    primary_image: productData?.primary_image || "",
+    additional_images: productData?.product_images?.map((img: any) => img.image_url) || []
+  });
+
   const [formData, setFormData] = useState({
     name: productData?.name || "",
     category_id: productData?.category_id || "",
@@ -36,7 +57,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode, productData }) => {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [imageUrl, setImageUrl] = useState("");
+  const [primaryImageUrl, setPrimaryImageUrl] = useState("");
+  const [additionalImageUrl, setAdditionalImageUrl] = useState("");
 
   // Load categories from API
   useEffect(() => {
@@ -71,34 +93,40 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode, productData }) => {
     }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isPrimary: boolean = false) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const imageUrls = Array.from(files).map((file) =>
-        URL.createObjectURL(file)
-      );
-      
-      if (isPrimary) {
-        setPrimaryImage(imageUrls[0]);
-      } else {
-        setAdditionalImages((prev) => [...prev, ...imageUrls]);
+  const handleAddImageUrl = (isPrimary: boolean = false) => {
+    const url = isPrimary ? primaryImageUrl : additionalImageUrl;
+    
+    // Validate URL
+    if (!url.trim()) {
+      alert('Vui lòng nhập URL ảnh');
+      return;
+    }
+    
+    // Check if valid URL
+    try {
+      const urlObj = new URL(url);
+      if (!urlObj.protocol.startsWith('http')) {
+        alert('URL phải bắt đầu bằng http:// hoặc https://');
+        return;
       }
+    } catch (e) {
+      alert('URL không hợp lệ. Vui lòng nhập URL đầy đủ (bắt đầu với https://)');
+      return;
+    }
+    
+    if (isPrimary) {
+      console.log('Setting primary image:', url);
+      setPrimaryImage(url.trim());
+      setPrimaryImageUrl("");
+    } else {
+      console.log('Adding additional image:', url);
+      setAdditionalImages((prev) => [...prev, url.trim()]);
+      setAdditionalImageUrl("");
     }
   };
 
   const removeAdditionalImage = (index: number) => {
     setAdditionalImages((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleAddImageUrl = (isPrimary: boolean = false) => {
-    if (imageUrl.trim()) {
-      if (isPrimary) {
-        setPrimaryImage(imageUrl.trim());
-      } else {
-        setAdditionalImages((prev) => [...prev, imageUrl.trim()]);
-      }
-      setImageUrl("");
-    }
   };
 
   const handleImageUrlKeyPress = (e: React.KeyboardEvent<HTMLInputElement>, isPrimary: boolean = false) => {
@@ -108,13 +136,187 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode, productData }) => {
     }
   };
 
+  const validateForm = (): string | null => {
+    // Validate required fields
+    if (!formData.name.trim()) {
+      return "Tên sản phẩm không được để trống";
+    }
+    if (!formData.category_id) {
+      return "Vui lòng chọn danh mục";
+    }
+    if (!formData.brand) {
+      return "Vui lòng chọn thương hiệu";
+    }
+    if (!formData.sku.trim()) {
+      return "SKU không được để trống";
+    }
+    
+    // Validate numbers
+    const price = Number(formData.price);
+    const comparePrice = formData.compare_at_price ? Number(formData.compare_at_price) : 0;
+    const stock = Number(formData.stock_quantity);
+    const warranty = formData.warranty_months ? Number(formData.warranty_months) : 0;
+
+    if (isNaN(price) || price <= 0) {
+      return "Giá bán phải lớn hơn 0";
+    }
+    
+    if (comparePrice && (isNaN(comparePrice) || comparePrice <= 0)) {
+      return "Giá gốc phải lớn hơn 0";
+    }
+
+    // Validate price logic: sale price must be <= compare price
+    if (comparePrice > 0 && price > comparePrice) {
+      return "Giá bán không được cao hơn giá gốc";
+    }
+
+    if (isNaN(stock) || stock < 0) {
+      return "Số lượng tồn kho phải >= 0";
+    }
+
+    if (warranty && (isNaN(warranty) || warranty < 0)) {
+      return "Thời hạn bảo hành phải >= 0";
+    }
+
+    // Validate JSON if provided
+    if (formData.specifications && formData.specifications.trim()) {
+      try {
+        JSON.parse(formData.specifications);
+      } catch {
+        return "Thông số kỹ thuật phải là JSON hợp lệ";
+      }
+    }
+
+    return null;
+  };
+
+  const hasChanges = (): boolean => {
+    // Skip change detection for add mode
+    if (mode === "add") {
+      return true;
+    }
+
+    console.log('=== Checking for changes ===');
+    console.log('Current primaryImage:', primaryImage);
+    console.log('Initial primary_image:', initialData.primary_image);
+    console.log('Current additionalImages:', additionalImages);
+    console.log('Initial additionalImages:', initialData.additional_images);
+
+    // Compare form data
+    for (const key in formData) {
+      const currentValue = String(formData[key as keyof typeof formData] ?? "");
+      const initialValue = String(initialData[key as keyof typeof initialData] ?? "");
+      if (currentValue !== initialValue) {
+        console.log(`Changed field: ${key}`, { current: currentValue, initial: initialValue });
+        return true;
+      }
+    }
+
+    // Compare images - normalize empty strings and undefined
+    const currentPrimaryImage = primaryImage || "";
+    const initialPrimaryImage = initialData.primary_image || "";
+    
+    if (currentPrimaryImage !== initialPrimaryImage) {
+      console.log('Primary image changed', { current: currentPrimaryImage, initial: initialPrimaryImage });
+      return true;
+    }
+
+    // Compare additional images (check both length and content)
+    if (additionalImages.length !== initialData.additional_images.length) {
+      console.log('Additional images count changed', { 
+        current: additionalImages.length, 
+        initial: initialData.additional_images.length 
+      });
+      return true;
+    }
+    
+    for (let i = 0; i < additionalImages.length; i++) {
+      if (additionalImages[i] !== initialData.additional_images[i]) {
+        console.log('Additional image changed at index', i, {
+          current: additionalImages[i],
+          initial: initialData.additional_images[i]
+        });
+        return true;
+      }
+    }
+
+    console.log('No changes detected');
+    return false;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Auto-add pending image URLs if user forgot to click "Thêm"
+    if (primaryImageUrl.trim() && !primaryImage) {
+      setPrimaryImage(primaryImageUrl.trim());
+      alert("Đã tự động thêm ảnh chính từ URL bạn nhập. Vui lòng nhấn Cập nhật lại.");
+      return;
+    }
+    
+    if (additionalImageUrl.trim()) {
+      setAdditionalImages((prev) => [...prev, additionalImageUrl.trim()]);
+      setAdditionalImageUrl("");
+      alert("Đã tự động thêm ảnh phụ từ URL bạn nhập. Vui lòng nhấn Cập nhật lại.");
+      return;
+    }
+
+    // Validate form
+    const validationError = validateForm();
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
+    // Check for changes (only in edit mode)
+    if (mode === "edit" && !hasChanges()) {
+      alert("Không có thay đổi nào để cập nhật!");
+      return;
+    }
+
+    // Confirm before saving
+    const confirmMessage = mode === "edit" 
+      ? `Bạn có chắc muốn cập nhật sản phẩm "${formData.name}"?`
+      : `Bạn có chắc muốn thêm sản phẩm "${formData.name}"?`;
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // TODO: API call to save product
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const payload = {
+        name: formData.name,
+        category_id: Number(formData.category_id),
+        brand: formData.brand,
+        model: formData.model || undefined,
+        sku: formData.sku,
+        price: Number(formData.price),
+        compare_at_price: formData.compare_at_price ? Number(formData.compare_at_price) : undefined,
+        stock_quantity: Number(formData.stock_quantity),
+        warranty_months: formData.warranty_months ? Number(formData.warranty_months) : undefined,
+        description: formData.description || undefined,
+        specifications: formData.specifications || undefined,
+        meta_title: formData.meta_title || undefined,
+        meta_description: formData.meta_description || undefined,
+        primary_image: primaryImage || undefined,
+        additional_images: additionalImages.length > 0 ? additionalImages : undefined,
+      };
+
+      const { productsApi } = await import("@/lib/api-client");
+
+      if (mode === "edit" && productData?.id) {
+        await productsApi.productsControllerUpdate(productData.id, payload);
+        
+        // Update is_active separately if changed
+        if (productData.is_active !== formData.is_active) {
+          await productsApi.productsControllerToggleActive(productData.id);
+        }
+      } else {
+        // TODO: Add create product API call when ready
+        await productsApi.productsControllerCreate(payload);
+      }
       
       alert(
         mode === "add"
@@ -122,8 +324,9 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode, productData }) => {
           : "Cập nhật sản phẩm thành công!"
       );
       router.push("/products");
-    } catch (error) {
-      alert("Có lỗi xảy ra. Vui lòng thử lại!");
+    } catch (error: any) {
+      console.error("Product save error:", error);
+      alert(error.response?.data?.message || "Có lỗi xảy ra. Vui lòng thử lại!");
     } finally {
       setLoading(false);
     }
@@ -402,40 +605,32 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode, productData }) => {
               Ảnh chính sản phẩm
             </label>
             
-            {/* Upload Primary Image */}
-            <div className="mb-4">
-              <label className="mb-2 block text-sm text-bodydark">
-                Tải lên từ máy tính
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleImageUpload(e, true)}
-                className="w-full cursor-pointer rounded-lg border-[1.5px] border-stroke bg-transparent font-medium outline-none transition file:mr-5 file:border-collapse file:cursor-pointer file:border-0 file:border-r file:border-solid file:border-stroke file:bg-whiter file:px-5 file:py-3 file:hover:bg-primary file:hover:bg-opacity-10 focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:file:border-form-strokedark dark:file:bg-white/30 dark:file:text-white dark:focus:border-primary"
-              />
-            </div>
-
             {/* Add Primary Image URL */}
             <div className="mb-4">
               <label className="mb-2 block text-sm text-bodydark">
-                Hoặc nhập URL ảnh
+                Nhập URL ảnh (khuyến nghị dùng Cloudinary)
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  onKeyPress={(e) => handleImageUrlKeyPress(e, true)}
-                  placeholder="https://example.com/image.jpg"
-                  className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleAddImageUrl(true)}
-                  className="rounded bg-primary px-6 py-3 font-medium text-white hover:bg-opacity-95"
-                >
-                  Thêm
-                </button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={primaryImageUrl}
+                    onChange={(e) => setPrimaryImageUrl(e.target.value)}
+                    onKeyPress={(e) => handleImageUrlKeyPress(e, true)}
+                    placeholder="https://res.cloudinary.com/your-cloud/image/upload/v1234567890/product.jpg"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddImageUrl(true)}
+                    className="rounded bg-primary px-6 py-3 font-medium text-white hover:bg-opacity-95"
+                  >
+                    Thêm
+                  </button>
+                </div>
+                <p className="text-xs text-bodydark">
+                  💡 Upload ảnh lên <a href="https://cloudinary.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Cloudinary</a> rồi copy URL vào đây
+                </p>
               </div>
             </div>
 
@@ -478,41 +673,32 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode, productData }) => {
               Ảnh bổ sung (nhiều ảnh)
             </label>
             
-            {/* Upload Additional Images */}
-            <div className="mb-4">
-              <label className="mb-2 block text-sm text-bodydark">
-                Tải lên từ máy tính
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => handleImageUpload(e, false)}
-                className="w-full cursor-pointer rounded-lg border-[1.5px] border-stroke bg-transparent font-medium outline-none transition file:mr-5 file:border-collapse file:cursor-pointer file:border-0 file:border-r file:border-solid file:border-stroke file:bg-whiter file:px-5 file:py-3 file:hover:bg-primary file:hover:bg-opacity-10 focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:file:border-form-strokedark dark:file:bg-white/30 dark:file:text-white dark:focus:border-primary"
-              />
-            </div>
-
             {/* Add Additional Image URL */}
             <div className="mb-4">
               <label className="mb-2 block text-sm text-bodydark">
-                Hoặc nhập URL ảnh
+                Nhập URL ảnh (khuyến nghị dùng Cloudinary)
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  onKeyPress={(e) => handleImageUrlKeyPress(e, false)}
-                  placeholder="https://example.com/image.jpg"
-                  className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleAddImageUrl(false)}
-                  className="rounded bg-primary px-6 py-3 font-medium text-white hover:bg-opacity-95"
-                >
-                  Thêm
-                </button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={additionalImageUrl}
+                    onChange={(e) => setAdditionalImageUrl(e.target.value)}
+                    onKeyPress={(e) => handleImageUrlKeyPress(e, false)}
+                    placeholder="https://res.cloudinary.com/your-cloud/image/upload/v1234567890/product.jpg"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 font-medium outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddImageUrl(false)}
+                    className="rounded bg-primary px-6 py-3 font-medium text-white hover:bg-opacity-95"
+                  >
+                    Thêm
+                  </button>
+                </div>
+                <p className="text-xs text-bodydark">
+                  💡 Có thể thêm nhiều ảnh, mỗi ảnh 1 URL
+                </p>
               </div>
             </div>
 

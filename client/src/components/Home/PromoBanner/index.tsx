@@ -21,7 +21,7 @@ const PromoBanner = () => {
             </p>
 
             <a
-              href="#"
+              href="/shop?search=cisco+catalyst"
               className="inline-flex font-medium text-custom-sm text-white bg-blue py-[11px] px-9.5 rounded-md ease-out duration-200 hover:bg-blue-dark mt-7.5"
             >
               Mua ngay
@@ -62,7 +62,7 @@ const PromoBanner = () => {
               </p>
 
               <a
-                href="#"
+                href="/shop?search=fortinet"
                 className="inline-flex font-medium text-custom-sm text-white bg-teal py-2.5 px-8.5 rounded-md ease-out duration-200 hover:bg-teal-dark mt-9"
               >
                 Xem ngay
@@ -94,7 +94,7 @@ const PromoBanner = () => {
               </p>
 
               <a
-                href="#"
+                href="/shop?search=ubiquiti+unifi"
                 className="inline-flex font-medium text-custom-sm text-white bg-orange py-2.5 px-8.5 rounded-md ease-out duration-200 hover:bg-orange-dark mt-7.5"
               >
                 Mua ngay

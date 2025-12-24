@@ -392,21 +392,35 @@ export class OrdersService {
 
     // Update order with transaction
     await this.prisma.$transaction(async (tx) => {
+      // Prepare update data
+      const updateData: any = {
+        status_id: dto.status_id,
+        updated_at: new Date(),
+        // Update shipped_at for shipped status
+        ...(dto.status_id === 4 && !order.shipped_at
+          ? { shipped_at: new Date() }
+          : {}),
+        // Update delivered_at for delivered status
+        ...(dto.status_id === 5 && !order.delivered_at
+          ? { delivered_at: new Date() }
+          : {}),
+      };
+
+      // Add optional fields if provided
+      if (dto.tracking_number !== undefined) {
+        updateData.tracking_number = dto.tracking_number;
+      }
+      if (dto.payment_status !== undefined) {
+        updateData.payment_status = dto.payment_status;
+      }
+      if (dto.admin_note !== undefined) {
+        updateData.admin_note = dto.admin_note;
+      }
+
       // Update order status
       await tx.orders.update({
         where: { id: orderId },
-        data: {
-          status_id: dto.status_id,
-          updated_at: new Date(),
-          // Update shipped_at for shipped status
-          ...(dto.status_id === 4 && !order.shipped_at
-            ? { shipped_at: new Date() }
-            : {}),
-          // Update delivered_at for delivered status
-          ...(dto.status_id === 5 && !order.delivered_at
-            ? { delivered_at: new Date() }
-            : {}),
-        },
+        data: updateData,
       });
 
       // Create history entry

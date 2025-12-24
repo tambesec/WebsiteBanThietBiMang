@@ -8,6 +8,8 @@ import ReviewList from "./ReviewList";
 import ReviewForm from "./ReviewForm";
 import { usePreviewSlider } from "@/app/context/PreviewSliderContext";
 import { useAppSelector } from "@/redux/store";
+import { useCart } from "@/contexts/CartContext";
+import { useRouter } from "next/navigation";
 
 const ShopDetails = () => {
   const [activeColor, setActiveColor] = useState("blue");
@@ -18,6 +20,10 @@ const ShopDetails = () => {
   const [type, setType] = useState("active");
   const [sim, setSim] = useState("dual");
   const [quantity, setQuantity] = useState(1);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+
+  const { addToCart } = useCart();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState("tabOne");
   const [reviewRefreshKey, setReviewRefreshKey] = useState(0);
@@ -131,6 +137,20 @@ const ShopDetails = () => {
       }
     }
   }, [product.id]);
+
+  // Handle purchase now - Add to cart and redirect to checkout
+  const handlePurchaseNow = async () => {
+    setIsPurchasing(true);
+    try {
+      await addToCart(product.id, quantity);
+      router.push('/checkout');
+    } catch (error: any) {
+      console.error('Purchase failed:', error.message);
+      alert(error.message || 'Không thể thực hiện mua hàng. Vui lòng thử lại.');
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
 
   // pass the product here when you get the real data.
   const handlePreviewSlider = () => {
@@ -716,12 +736,13 @@ const ShopDetails = () => {
                         </button>
                       </div>
 
-                      <a
-                        href="#"
-                        className="inline-flex font-medium text-white bg-blue py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue-dark"
+                      <button
+                        onClick={handlePurchaseNow}
+                        disabled={isPurchasing}
+                        className="inline-flex font-medium text-white bg-blue py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Mua ngay
-                      </a>
+                        {isPurchasing ? 'Đang xử lý...' : 'Mua ngay'}
+                      </button>
 
                       <a
                         href="#"

@@ -3,8 +3,9 @@ import { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
 import { MoreDotIcon } from "@/icons";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
+import { dashboardApi } from "@/lib/api-client";
 
 // Dynamically import the ReactApexChart component
 const ReactApexChart = dynamic(() => import("react-apexcharts"), {
@@ -12,6 +13,44 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
 });
 
 export default function MonthlySalesChart() {
+  const [chartData, setChartData] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await dashboardApi.dashboardControllerGetRevenueChart('year');
+        const data = response.data;
+        
+        // Initialize with zeros for all 12 months
+        const monthlyOrders = new Array(12).fill(0);
+        
+        // Fill in actual data
+        if (Array.isArray(data)) {
+          data.forEach((item: any) => {
+            // Parse month from date string (format: YYYY-MM)
+            const monthMatch = item.date?.match(/-([0-9]{2})$/);
+            if (monthMatch) {
+              const monthIndex = parseInt(monthMatch[1]) - 1;
+              if (monthIndex >= 0 && monthIndex < 12) {
+                monthlyOrders[monthIndex] = item.orders || 0;
+              }
+            }
+          });
+        }
+        
+        setChartData(monthlyOrders);
+      } catch (error) {
+        console.error('Failed to fetch sales data:', error);
+        // Use fallback data on error
+        setChartData([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
   const options: ApexOptions = {
     colors: ["#465fff"],
     chart: {
@@ -93,8 +132,8 @@ export default function MonthlySalesChart() {
   };
   const series = [
     {
-      name: "Bán Hàng",
-      data: [168, 385, 201, 298, 187, 195, 291, 110, 215, 390, 280, 112],
+      name: "Đơn Hàng",
+      data: chartData,
     },
   ];
   const [isOpen, setIsOpen] = useState(false);
