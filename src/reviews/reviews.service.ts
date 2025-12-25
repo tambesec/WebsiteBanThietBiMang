@@ -131,8 +131,6 @@ export class ReviewsService {
       limit = 20,
     } = query;
 
-    console.log('FindAll Reviews - isAdmin:', isAdmin, 'Query:', query);
-
     const skip = (page - 1) * limit;
 
     // Build where clause
@@ -162,8 +160,6 @@ export class ReviewsService {
         where.is_approved = 0;
       }
     }
-
-    console.log('Reviews WHERE clause:', JSON.stringify(where, null, 2));
 
     // Verified purchase filter
     if (verified && verified !== 'all') {
@@ -207,8 +203,6 @@ export class ReviewsService {
       }),
       this.prisma.product_reviews.count({ where }),
     ]);
-
-    console.log('Reviews found:', reviews.length, 'Total:', total);
 
     return {
       reviews: reviews.map((review) => this.formatReviewResponse(review)),

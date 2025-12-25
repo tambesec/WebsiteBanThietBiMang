@@ -150,19 +150,20 @@ const CategoriesTable = () => {
 
   return (
     <>
-      <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+      <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
         {/* Header */}
-        <div className="flex flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between md:px-6 xl:px-7.5">
-          <div className="flex items-center gap-3">
-            <h4 className="text-xl font-semibold text-black dark:text-white">
-              Danh Sách Danh Mục
-            </h4>
-            <span className="inline-flex items-center justify-center rounded-full bg-primary px-2.5 py-0.5 text-sm font-medium text-white">
-              {totalCategories}
-            </span>
-          </div>
+        <div className="border-b border-gray-200 p-5 dark:border-gray-800 lg:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                Danh Sách Danh Mục
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Tổng số: {totalCategories} danh mục
+              </p>
+            </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {/* Search */}
             <div className="relative flex items-center gap-2">
               <input
@@ -171,7 +172,7 @@ const CategoriesTable = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="w-full rounded-lg border border-stroke bg-transparent py-2 pl-10 pr-4 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+                className="w-full rounded-lg border border-gray-300 bg-transparent py-2 pl-10 pr-4 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800"
               />
               <span className="absolute left-3 top-1/2 -translate-y-1/2">
                 <svg className="fill-body" width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -181,7 +182,7 @@ const CategoriesTable = () => {
               </span>
               <button
                 onClick={handleSearch}
-                className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-opacity-90"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
               >
                 Tìm
               </button>
@@ -195,7 +196,7 @@ const CategoriesTable = () => {
                 setFilterStatus(value === 'all' ? undefined : value === 'active');
                 setCurrentPage(1);
               }}
-              className="rounded-lg border border-stroke bg-transparent px-4 py-2 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+              className="rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800"
             >
               <option value="all">Tất cả trạng thái</option>
               <option value="active">Đang hoạt động</option>
@@ -205,7 +206,7 @@ const CategoriesTable = () => {
             {/* Add Button */}
             <button
               onClick={openAddModal}
-              className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-blue-600 px-5 py-2.5 text-center font-semibold text-white shadow-md hover:bg-blue-700 hover:shadow-xl transition-all"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M10 4.167V15.833" strokeLinecap="round" strokeLinejoin="round"/>
@@ -214,29 +215,30 @@ const CategoriesTable = () => {
               Thêm Danh Mục
             </button>
           </div>
+          </div>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full table-auto">
             <thead>
-              <tr className="bg-gray-2 text-left dark:bg-meta-4">
-                <th className="px-4 py-4 font-medium text-black dark:text-white xl:pl-7.5">
+              <tr className="border-b border-gray-200 dark:border-gray-800">
+                <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400 xl:pl-7.5">
                   Tên Danh Mục
                 </th>
-                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                   Danh Mục Cha
                 </th>
-                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                   Số Sản Phẩm
                 </th>
-                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                   Thứ Tự
                 </th>
-                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                   Trạng Thái
                 </th>
-                <th className="px-4 py-4 font-medium text-black dark:text-white">
+                <th className="px-5 py-4 text-right text-sm font-medium text-gray-500 dark:text-gray-400">
                   Thao Tác
                 </th>
               </tr>

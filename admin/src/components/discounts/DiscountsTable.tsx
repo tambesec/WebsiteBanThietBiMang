@@ -52,14 +52,15 @@ export default function DiscountsTable() {
   const [editingDiscount, setEditingDiscount] = useState<Discount | null>(null);
   const [formData, setFormData] = useState({
     code: "",
-    type: "percentage",
-    value: "",
-    min_order_value: "",
-    max_discount: "",
-    usage_limit: "",
-    start_date: "",
-    end_date: "",
-    is_active: 1,
+    description: "",
+    discount_type: "percentage",
+    discount_value: "",
+    min_order_amount: "",
+    max_discount_amount: "",
+    max_uses: "",
+    max_uses_per_user: "1",
+    starts_at: "",
+    ends_at: "",
   });
 
   const fetchDiscounts = async () => {
@@ -134,18 +135,19 @@ export default function DiscountsTable() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const payload = {
-      ...formData,
-      value: parseFloat(formData.value),
-      min_order_value: formData.min_order_value
-        ? parseFloat(formData.min_order_value)
-        : null,
-      max_discount: formData.max_discount
-        ? parseFloat(formData.max_discount)
-        : null,
-      usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
-      end_date: formData.end_date || null,
+    const payload: any = {
+      code: formData.code,
+      discount_type: formData.discount_type,
+      discount_value: parseFloat(formData.discount_value),
+      starts_at: new Date(formData.starts_at).toISOString(),
+      ends_at: new Date(formData.ends_at).toISOString(),
     };
+
+    if (formData.description) payload.description = formData.description;
+    if (formData.min_order_amount) payload.min_order_amount = parseFloat(formData.min_order_amount);
+    if (formData.max_discount_amount) payload.max_discount_amount = parseFloat(formData.max_discount_amount);
+    if (formData.max_uses) payload.max_uses = parseInt(formData.max_uses);
+    if (formData.max_uses_per_user) payload.max_uses_per_user = parseInt(formData.max_uses_per_user);
 
     try {
       const token = localStorage.getItem("admin_token");
@@ -209,14 +211,15 @@ export default function DiscountsTable() {
     setEditingDiscount(discount);
     setFormData({
       code: discount.code,
-      type: discount.type,
-      value: discount.value.toString(),
-      min_order_value: discount.min_order_value?.toString() || "",
-      max_discount: discount.max_discount?.toString() || "",
-      usage_limit: discount.usage_limit?.toString() || "",
-      start_date: discount.start_date.split("T")[0],
-      end_date: discount.end_date ? discount.end_date.split("T")[0] : "",
-      is_active: discount.is_active,
+      description: "",
+      discount_type: discount.type,
+      discount_value: discount.value.toString(),
+      min_order_amount: discount.min_order_value?.toString() || "",
+      max_discount_amount: discount.max_discount?.toString() || "",
+      max_uses: discount.usage_limit?.toString() || "",
+      max_uses_per_user: "1",
+      starts_at: discount.start_date.split("T")[0],
+      ends_at: discount.end_date ? discount.end_date.split("T")[0] : "",
     });
     setShowModal(true);
   };
@@ -225,14 +228,15 @@ export default function DiscountsTable() {
     setEditingDiscount(null);
     setFormData({
       code: "",
-      type: "percentage",
-      value: "",
-      min_order_value: "",
-      max_discount: "",
-      usage_limit: "",
-      start_date: "",
-      end_date: "",
-      is_active: 1,
+      description: "",
+      discount_type: "percentage",
+      discount_value: "",
+      min_order_amount: "",
+      max_discount_amount: "",
+      max_uses: "",
+      max_uses_per_user: "1",
+      starts_at: "",
+      ends_at: "",
     });
   };
 
@@ -485,61 +489,84 @@ export default function DiscountsTable() {
                 />
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Loại giảm giá
+                    Loại giảm giá <span className="ml-1 text-red-500">*</span>
                   </label>
                   <select
-                    value={formData.type}
+                    value={formData.discount_type}
                     onChange={(e) =>
-                      setFormData({ ...formData, type: e.target.value })
+                      setFormData({ ...formData, discount_type: e.target.value })
                     }
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+                    className="h-11 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                     required
                   >
                     <option value="percentage">Phần trăm (%)</option>
-                    <option value="fixed">Số tiền cố định (₫)</option>
+                    <option value="fixed_amount">Số tiền cố định (₫)</option>
+                    <option value="free_shipping">Miễn phí vận chuyển</option>
                   </select>
                 </div>
               </div>
+
+              <Input
+                label="Mô tả"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                placeholder="Mô tả về mã giảm giá (tùy chọn)"
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="Giá trị"
                   type="number"
-                  value={formData.value}
+                  value={formData.discount_value}
                   onChange={(e) =>
-                    setFormData({ ...formData, value: e.target.value })
+                    setFormData({ ...formData, discount_value: e.target.value })
                   }
+                  placeholder={formData.discount_type === 'percentage' ? '0-100' : 'Số tiền VND'}
                   required
                 />
                 <Input
                   label="Giá trị đơn tối thiểu"
                   type="number"
-                  value={formData.min_order_value}
+                  value={formData.min_order_amount}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      min_order_value: e.target.value,
+                      min_order_amount: e.target.value,
                     })
                   }
+                  placeholder="VND (tùy chọn)"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <Input
                   label="Giảm tối đa"
                   type="number"
-                  value={formData.max_discount}
+                  value={formData.max_discount_amount}
                   onChange={(e) =>
-                    setFormData({ ...formData, max_discount: e.target.value })
+                    setFormData({ ...formData, max_discount_amount: e.target.value })
                   }
+                  placeholder="VND (tùy chọn)"
                 />
                 <Input
-                  label="Giới hạn sử dụng"
+                  label="Tổng lượt dùng"
                   type="number"
-                  value={formData.usage_limit}
+                  value={formData.max_uses}
                   onChange={(e) =>
-                    setFormData({ ...formData, usage_limit: e.target.value })
+                    setFormData({ ...formData, max_uses: e.target.value })
                   }
+                  placeholder="Không giới hạn"
+                />
+                <Input
+                  label="Lượt dùng/người"
+                  type="number"
+                  value={formData.max_uses_per_user}
+                  onChange={(e) =>
+                    setFormData({ ...formData, max_uses_per_user: e.target.value })
+                  }
+                  placeholder="1"
                 />
               </div>
 
@@ -547,39 +574,21 @@ export default function DiscountsTable() {
                 <Input
                   label="Ngày bắt đầu"
                   type="date"
-                  value={formData.start_date}
+                  value={formData.starts_at}
                   onChange={(e) =>
-                    setFormData({ ...formData, start_date: e.target.value })
+                    setFormData({ ...formData, starts_at: e.target.value })
                   }
                   required
                 />
                 <Input
                   label="Ngày kết thúc"
                   type="date"
-                  value={formData.end_date}
+                  value={formData.ends_at}
                   onChange={(e) =>
-                    setFormData({ ...formData, end_date: e.target.value })
+                    setFormData({ ...formData, ends_at: e.target.value })
                   }
+                  required
                 />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active === 1}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        is_active: e.target.checked ? 1 : 0,
-                      })
-                    }
-                    className="rounded"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Kích hoạt ngay
-                  </span>
-                </label>
               </div>
 
               <div className="flex justify-end gap-2">

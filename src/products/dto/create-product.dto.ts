@@ -166,4 +166,14 @@ export class CreateProductDto {
   @IsOptional()
   @MaxLength(500)
   meta_description?: string;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Product active status (1 = active, 0 = inactive)',
+  })
+  @IsInt()
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  is_active?: number;
 }

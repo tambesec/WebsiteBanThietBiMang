@@ -29,11 +29,11 @@ const PromoBanner = () => {
           </div>
 
           <Image
-            src="/images/promo/promo-01.png"
-            alt="promo img"
-            className="absolute bottom-0 right-4 lg:right-26 -z-1"
-            width={274}
-            height={350}
+            src="https://res.cloudinary.com/diysxuomq/image/upload/v1766584086/cisco_switch_flkejt.png"
+            alt="Cisco Catalyst Switch"
+            className="absolute top-1/2 -translate-y-1/2 right-4 lg:right-16 -z-1"
+            width={380}
+            height={280}
           />
         </div>
 
@@ -41,8 +41,8 @@ const PromoBanner = () => {
           {/* <!-- promo banner small --> */}
           <div className="relative z-1 overflow-hidden rounded-lg bg-[#DBF4F3] py-10 xl:py-16 px-4 sm:px-7.5 xl:px-10">
             <Image
-              src="/images/promo/promo-02.png"
-              alt="promo img"
+              src="https://res.cloudinary.com/diysxuomq/image/upload/v1766584345/fgt_gmw34y.png"
+              alt="Fortinet FortiGate Firewall"
               className="absolute top-1/2 -translate-y-1/2 left-3 sm:left-10 -z-1"
               width={241}
               height={241}
@@ -73,8 +73,8 @@ const PromoBanner = () => {
           {/* <!-- promo banner small --> */}
           <div className="relative z-1 overflow-hidden rounded-lg bg-[#FFECE1] py-10 xl:py-16 px-4 sm:px-7.5 xl:px-10">
             <Image
-              src="/images/promo/promo-03.png"
-              alt="promo img"
+              src="https://res.cloudinary.com/diysxuomq/image/upload/v1766583894/iu_uqjwj0.png"
+              alt="Ubiquiti UniFi 6 Access Point"
               className="absolute top-1/2 -translate-y-1/2 right-3 sm:right-8.5 -z-1"
               width={200}
               height={200}

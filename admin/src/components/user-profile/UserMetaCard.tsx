@@ -11,13 +11,21 @@ import Image from "next/image";
 export default function UserMetaCard() {
   const { user } = useAdminAuth();
   const { isOpen, openModal, closeModal } = useModal();
+  const { isOpen: isPasswordModalOpen, openModal: openPasswordModal, closeModal: closePasswordModal } = useModal();
   
   const [formData, setFormData] = useState({
     full_name: user?.full_name || '',
     phone: user?.phone || '',
   });
+  const [passwordData, setPasswordData] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: '',
+  });
   const [loading, setLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // Reset form data when modal opens or user changes
   useEffect(() => {
@@ -30,9 +38,29 @@ export default function UserMetaCard() {
     }
   }, [isOpen, user]);
 
+  // Reset password form when password modal opens
+  useEffect(() => {
+    if (isPasswordModalOpen) {
+      setPasswordData({
+        current_password: '',
+        new_password: '',
+        confirm_password: '',
+      });
+      setPasswordError(null);
+    }
+  }, [isPasswordModalOpen]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
       ...prev,
       [name]: value
     }));
@@ -76,6 +104,69 @@ export default function UserMetaCard() {
       setError(err.message || 'Đã xảy ra lỗi khi cập nhật profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      setPasswordLoading(true);
+      setPasswordError(null);
+
+      // Validation
+      if (!passwordData.current_password) {
+        throw new Error('Vui lòng nhập mật khẩu hiện tại');
+      }
+
+      if (!passwordData.new_password) {
+        throw new Error('Vui lòng nhập mật khẩu mới');
+      }
+
+      if (passwordData.new_password.length < 8) {
+        throw new Error('Mật khẩu mới phải có ít nhất 8 ký tự');
+      }
+
+      if (passwordData.new_password !== passwordData.confirm_password) {
+        throw new Error('Mật khẩu mới và xác nhận mật khẩu không khớp');
+      }
+
+      if (passwordData.current_password === passwordData.new_password) {
+        throw new Error('Mật khẩu mới phải khác mật khẩu hiện tại');
+      }
+
+      const token = localStorage.getItem('admin_token');
+      if (!token) {
+        throw new Error('Không tìm thấy token xác thực');
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          current_password: passwordData.current_password,
+          new_password: passwordData.new_password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể đổi mật khẩu');
+      }
+
+      // Show success message
+      alert('✅ Đổi mật khẩu thành công! Vui lòng đăng nhập lại.');
+      
+      // Close modal and logout
+      closePasswordModal();
+      localStorage.removeItem('admin_token');
+      window.location.href = '/auth/signin';
+    } catch (err: any) {
+      console.error('Error changing password:', err);
+      setPasswordError(err.message || 'Đã xảy ra lỗi khi đổi mật khẩu');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -133,6 +224,31 @@ export default function UserMetaCard() {
               />
             </svg>
             Chỉnh sửa
+          </button>
+        </div>
+        
+        {/* Change Password Button */}
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+          <button
+            onClick={openPasswordModal}
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 shadow-theme-xs hover:bg-amber-100 hover:text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30 dark:hover:text-amber-300 lg:inline-flex lg:w-auto"
+          >
+            <svg
+              className="fill-current"
+              width="18"
+              height="18"
+              viewBox="0 0 18 18"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M9 2.25C6.92893 2.25 5.25 3.92893 5.25 6V7.5H4.5C3.67157 7.5 3 8.17157 3 9V14.25C3 15.0784 3.67157 15.75 4.5 15.75H13.5C14.3284 15.75 15 15.0784 15 14.25V9C15 8.17157 14.3284 7.5 13.5 7.5H12.75V6C12.75 3.92893 11.0711 2.25 9 2.25ZM11.25 7.5V6C11.25 4.75736 10.2426 3.75 9 3.75C7.75736 3.75 6.75 4.75736 6.75 6V7.5H11.25ZM9 10.5C8.58579 10.5 8.25 10.8358 8.25 11.25C8.25 11.6642 8.58579 12 9 12C9.41421 12 9.75 11.6642 9.75 11.25C9.75 10.8358 9.41421 10.5 9 10.5ZM6.75 11.25C6.75 10.0074 7.75736 9 9 9C10.2426 9 11.25 10.0074 11.25 11.25C11.25 12.4926 10.2426 13.5 9 13.5C7.75736 13.5 6.75 12.4926 6.75 11.25Z"
+                fill=""
+              />
+            </svg>
+            🔑 Đổi mật khẩu
           </button>
         </div>
       </div>
@@ -243,6 +359,111 @@ export default function UserMetaCard() {
                 disabled={loading}
               >
                 {loading ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Change Password Modal */}
+      <Modal isOpen={isPasswordModalOpen} onClose={closePasswordModal} className="max-w-[500px] m-4">
+        <div className="no-scrollbar relative w-full max-w-[500px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
+          <div className="px-2 pr-14">
+            <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
+              🔑 Đổi Mật Khẩu
+            </h4>
+            <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+              Vui lòng nhập mật khẩu hiện tại và mật khẩu mới. Sau khi đổi mật khẩu thành công, bạn sẽ cần đăng nhập lại.
+            </p>
+          </div>
+          
+          <form className="flex flex-col" onSubmit={(e) => { e.preventDefault(); handleChangePassword(); }}>
+            <div className="custom-scrollbar max-h-[400px] overflow-y-auto px-2 pb-3">
+              {passwordError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
+                  <strong>⚠️ Lỗi:</strong> {passwordError}
+                </div>
+              )}
+
+              <div className="space-y-5 mt-4">
+                <div>
+                  <Label>Mật khẩu hiện tại <span className="text-red-500">*</span></Label>
+                  <Input 
+                    type="password" 
+                    name="current_password"
+                    value={passwordData.current_password} 
+                    onChange={handlePasswordInputChange}
+                    placeholder="Nhập mật khẩu hiện tại"
+                    required
+                    autoComplete="current-password"
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                  <Label>Mật khẩu mới <span className="text-red-500">*</span></Label>
+                  <Input 
+                    type="password" 
+                    name="new_password"
+                    value={passwordData.new_password} 
+                    onChange={handlePasswordInputChange}
+                    placeholder="Nhập mật khẩu mới (tối thiểu 8 ký tự)"
+                    minLength={8}
+                    required
+                    autoComplete="new-password"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Tối thiểu 8 ký tự, nên kết hợp chữ hoa, chữ thường, số và ký tự đặc biệt
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Xác nhận mật khẩu mới <span className="text-red-500">*</span></Label>
+                  <Input 
+                    type="password" 
+                    name="confirm_password"
+                    value={passwordData.confirm_password} 
+                    onChange={handlePasswordInputChange}
+                    placeholder="Nhập lại mật khẩu mới"
+                    minLength={8}
+                    required
+                    autoComplete="new-password"
+                  />
+                  {passwordData.confirm_password && passwordData.new_password !== passwordData.confirm_password && (
+                    <p className="mt-1 text-xs text-red-500 dark:text-red-400">
+                      ⚠️ Mật khẩu xác nhận không khớp
+                    </p>
+                  )}
+                  {passwordData.confirm_password && passwordData.new_password === passwordData.confirm_password && (
+                    <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+                      ✓ Mật khẩu khớp
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-900/20 dark:border-amber-800">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    <strong>⚠️ Lưu ý:</strong> Sau khi đổi mật khẩu thành công, bạn sẽ bị đăng xuất và cần đăng nhập lại bằng mật khẩu mới.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={closePasswordModal}
+                type="button"
+                disabled={passwordLoading}
+              >
+                Hủy
+              </Button>
+              <Button 
+                size="sm" 
+                type="submit"
+                disabled={passwordLoading || (passwordData.new_password !== passwordData.confirm_password)}
+              >
+                {passwordLoading ? '⏳ Đang đổi...' : '🔐 Đổi mật khẩu'}
               </Button>
             </div>
           </form>

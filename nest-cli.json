@@ -14,7 +14,14 @@
       "admin/**",
       "docker-export/**",
       "team-package/**",
-      "*.log"
+      "*.log",
+      "*.md",
+      "swagger.json",
+      "generated/**",
+      "prisma/migrations/**",
+      ".git/**",
+      "backup.sql",
+      "*.sql"
     ]
   }
 }

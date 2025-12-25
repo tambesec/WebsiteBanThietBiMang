@@ -121,22 +121,23 @@ const ProductsTable = () => {
   };
 
   return (
-    <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
       {/* Header with Add Button */}
-      <div className="flex flex-col gap-4 px-4 py-6 md:flex-row md:items-center md:justify-between md:px-6 xl:px-7.5">
-        <div className="flex items-center gap-3">
-          <h4 className="text-xl font-semibold text-black dark:text-white">
-            Danh Sách Sản Phẩm
-          </h4>
-          <span className="inline-flex items-center justify-center rounded-full bg-primary px-2.5 py-0.5 text-sm font-medium text-white">
-            {totalProducts}
-          </span>
-        </div>
+      <div className="border-b border-gray-200 p-5 dark:border-gray-800 lg:p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Danh Sách Sản Phẩm
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Tổng số: {totalProducts} sản phẩm
+            </p>
+          </div>
 
-        {/* Add Product Button */}
-        <Link
+          {/* Add Product Button */}
+          <Link
           href="/products/add"
-          className="inline-flex items-center justify-center gap-2.5 rounded-lg bg-blue-600 px-6 py-3 text-center font-semibold text-white shadow-md hover:bg-blue-700 hover:shadow-xl transition-all"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           <svg
             className="fill-white"
@@ -163,10 +164,11 @@ const ProductsTable = () => {
           </svg>
           Thêm Sản Phẩm
         </Link>
+        </div>
       </div>
 
       {/* Filters Section */}
-      <div className="border-t border-stroke px-4 py-4 dark:border-strokedark md:px-6 xl:px-7.5">
+      <div className="border-b border-gray-200 px-5 py-4 dark:border-gray-800">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {/* Search */}
           <div className="relative flex items-center gap-2">
@@ -176,7 +178,7 @@ const ProductsTable = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={handleKeyPress}
-              className="w-full rounded-lg border border-stroke bg-transparent py-2 pl-10 pr-4 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+              className="w-full rounded-lg border border-gray-300 bg-transparent py-2 pl-10 pr-4 outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800"
             />
             <span className="absolute left-3 top-1/2 -translate-y-1/2">
               <svg className="fill-body" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -186,7 +188,7 @@ const ProductsTable = () => {
             </span>
             <button
               onClick={handleSearch}
-              className="rounded-lg bg-primary px-4 py-2 text-white hover:bg-opacity-90"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               Tìm
             </button>
@@ -199,7 +201,7 @@ const ProductsTable = () => {
               setFilterCategory(e.target.value ? Number(e.target.value) : undefined);
               setCurrentPage(1);
             }}
-            className="rounded-lg border border-stroke bg-transparent px-4 py-2 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+            className="rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800"
           >
             <option value="">Tất cả danh mục</option>
             {categories.map((cat) => (
@@ -216,7 +218,7 @@ const ProductsTable = () => {
               setFilterStatus(e.target.value === '' ? undefined : e.target.value === 'true');
               setCurrentPage(1);
             }}
-            className="rounded-lg border border-stroke bg-transparent px-4 py-2 outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input"
+            className="rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800"
           >
             <option value="">Tất cả trạng thái</option>
             <option value="true">Đang bán</option>
@@ -229,23 +231,23 @@ const ProductsTable = () => {
       <div className="overflow-x-auto">
         <table className="w-full table-auto">
           <thead>
-            <tr className="bg-gray-2 text-left dark:bg-meta-4">
-              <th className="px-4 py-4 font-medium text-black dark:text-white">
+            <tr className="border-b border-gray-200 dark:border-gray-800">
+              <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                 Sản phẩm
               </th>
-              <th className="px-4 py-4 font-medium text-black dark:text-white">
+              <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                 Danh mục
               </th>
-              <th className="px-4 py-4 font-medium text-black dark:text-white">
+              <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                 Giá
               </th>
-              <th className="px-4 py-4 font-medium text-black dark:text-white">
+              <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                 Tồn kho
               </th>
-              <th className="px-4 py-4 font-medium text-black dark:text-white">
+              <th className="px-5 py-4 text-left text-sm font-medium text-gray-500 dark:text-gray-400">
                 Trạng thái
               </th>
-              <th className="px-4 py-4 font-medium text-black dark:text-white">
+              <th className="px-5 py-4 text-right text-sm font-medium text-gray-500 dark:text-gray-400">
                 Thao tác
               </th>
             </tr>
@@ -253,22 +255,22 @@ const ProductsTable = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center">
+                <td colSpan={6} className="px-5 py-8 text-center">
                   <div className="flex items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-t-transparent"></div>
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-t-transparent"></div>
                   </div>
                 </td>
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-5 py-8 text-center text-gray-500 dark:text-gray-400">
                   Không tìm thấy sản phẩm nào
                 </td>
               </tr>
             ) : (
               products.map((product) => (
-                <tr key={product.id} className="border-b border-stroke dark:border-strokedark">
-                  <td className="px-4 py-5">
+                <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.02]">
+                  <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
                       <div className="h-16 w-16 rounded-md overflow-hidden bg-gray-100">
                         {product.primary_image ? (
@@ -290,62 +292,62 @@ const ProductsTable = () => {
                       <div className="flex flex-col">
                         <Link
                           href={`/products/edit/${product.id}`}
-                          className="font-medium text-black hover:text-primary dark:text-white"
+                          className="font-medium text-gray-800 hover:text-blue-600 dark:text-white/90"
                         >
                           {product.name}
                         </Link>
-                        <span className="text-sm text-gray-500">SKU: {product.sku}</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">SKU: {product.sku}</span>
                         <span className="text-xs text-gray-400">{product.brand}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-5">
-                    <span className="text-sm text-black dark:text-white">
+                  <td className="px-5 py-4">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       {product.category?.name || 'N/A'}
                     </span>
                   </td>
-                  <td className="px-4 py-5">
+                  <td className="px-5 py-4">
                     <div className="flex flex-col">
                       {product.sale_price && product.sale_price < product.price ? (
                         <>
-                          <span className="font-medium text-danger">
+                          <span className="font-medium text-red-600 dark:text-red-400">
                             {formatPrice(product.sale_price)}
                           </span>
-                          <span className="text-sm text-gray-500 line-through">
+                          <span className="text-sm text-gray-500 line-through dark:text-gray-400">
                             {formatPrice(product.price)}
                           </span>
                         </>
                       ) : (
-                        <span className="font-medium text-black dark:text-white">
+                        <span className="font-medium text-gray-800 dark:text-white/90">
                           {formatPrice(product.price)}
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-5">
-                    <span className={`text-sm font-medium ${product.stock_quantity < 10 ? 'text-danger' : 'text-black dark:text-white'}`}>
+                  <td className="px-5 py-4">
+                    <span className={`text-sm font-medium ${product.stock_quantity < 10 ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-white/90'}`}>
                       {product.stock_quantity}
                     </span>
                   </td>
-                  <td className="px-4 py-5">
+                  <td className="px-5 py-4">
                     <button
                       onClick={() => handleToggleActive(product.id)}
                       className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${
                         product.is_active
-                          ? 'bg-success bg-opacity-10 text-success'
-                          : 'bg-danger bg-opacity-10 text-danger'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
                       }`}
                     >
                       {product.is_active ? 'Đang bán' : 'Ngừng bán'}
                     </button>
                   </td>
-                  <td className="px-4 py-5">
-                    <div className="flex items-center gap-2">
+                  <td className="px-5 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
                       <Link
                         href={`/products/edit/${product.id}`}
-                        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90"
+                        className="rounded-md bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400"
                       >
-                        ✏️ Sửa
+                        Sửa
                       </Link>
                       <button
                         onClick={() => handleDelete(product.id)}

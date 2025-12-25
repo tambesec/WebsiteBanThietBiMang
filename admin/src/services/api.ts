@@ -46,14 +46,21 @@ apiClient.interceptors.response.use(
       const refreshToken = localStorage.getItem('admin_refresh_token');
       if (refreshToken) {
         try {
-          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
-            refresh_token: refreshToken
+          // 🔄 Call ADMIN refresh endpoint (not client endpoint)
+          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/admin/refresh`, {
+            refreshToken: refreshToken
           });
           
-          const data = response.data.data || response.data;
-          if (data.access_token) {
-            localStorage.setItem('admin_token', data.access_token);
-            originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+          const data = response.data;
+          if (data.accessToken) {
+            localStorage.setItem('admin_token', data.accessToken);
+            
+            // 🔄 TOKEN ROTATION: Update refresh_token if backend returns new one
+            if (data.refreshToken) {
+              localStorage.setItem('admin_refresh_token', data.refreshToken);
+            }
+            
+            originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
             return apiClient(originalRequest);
           }
         } catch (refreshError) {
@@ -247,20 +254,16 @@ export interface DashboardStats {
 // ==================== ADMIN AUTH API ====================
 export const adminAuthApi = {
   login: async (email: string, password: string) => {
-    const response = await apiClient.post('/api/v1/auth/login', { email, password });
+    const response = await apiClient.post('/api/v1/auth/admin/login', { email, password });
     const data = unwrap<any>(response);
     
-    // Verify admin role
-    if (data.user?.role !== 'admin') {
-      throw new Error('Access denied. Admin role required.');
+    // Backend admin endpoint already verifies role
+    // Store tokens (Backend returns camelCase)
+    if (data.accessToken) {
+      localStorage.setItem('admin_token', data.accessToken);
     }
-    
-    // Store tokens
-    if (data.access_token) {
-      localStorage.setItem('admin_token', data.access_token);
-    }
-    if (data.refresh_token) {
-      localStorage.setItem('admin_refresh_token', data.refresh_token);
+    if (data.refreshToken) {
+      localStorage.setItem('admin_refresh_token', data.refreshToken);
     }
     if (data.user) {
       localStorage.setItem('admin_user', JSON.stringify(data.user));
@@ -273,7 +276,7 @@ export const adminAuthApi = {
     const refreshToken = localStorage.getItem('admin_refresh_token');
     if (refreshToken) {
       try {
-        await apiClient.post('/api/v1/auth/logout', { refresh_token: refreshToken });
+        await apiClient.post('/api/v1/auth/admin/logout', { refreshToken });
       } catch (e) {
         console.error('Logout error:', e);
       }

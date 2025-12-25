@@ -44,4 +44,5 @@ export default () => ({
   frontend: {
     url: process.env.FRONTEND_URL || 'http://localhost:3001',
   },
+  corsOrigins: process.env.CORS_ORIGINS || '', // Comma-separated list of allowed origins
 });

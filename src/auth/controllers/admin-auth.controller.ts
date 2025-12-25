@@ -6,6 +6,7 @@ import {
   HttpStatus,
   UnauthorizedException,
   Req,
+  Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from '../auth.service';
@@ -20,6 +21,8 @@ import type { Request } from 'express';
 @ApiTags('admin-auth')
 @Controller('auth/admin')
 export class AdminAuthController {
+  private readonly logger = new Logger(AdminAuthController.name);
+  
   constructor(private readonly authService: AuthService) {}
 
   /**
@@ -71,6 +74,7 @@ export class AdminAuthController {
   /**
    * POST /auth/admin/refresh
    * Refresh admin access token using refresh token from request body
+   * 🔄 Returns BOTH access_token and refresh_token (Token Rotation)
    */
   @Public()
   @Post('refresh')
@@ -85,8 +89,9 @@ export class AdminAuthController {
 
     const result = await this.authService.refreshToken(body.refreshToken);
 
-    // Verify it's still an admin
-    const session = await this.authService.getSessionFromRefreshToken(body.refreshToken);
+    // Verify it's still an admin using NEW refresh token (if rotated)
+    const tokenToVerify = result.refresh_token || body.refreshToken;
+    const session = await this.authService.getSessionFromRefreshToken(tokenToVerify);
     if (session.user.role !== 'admin') {
       throw new UnauthorizedException('Not an admin account');
     }
@@ -94,6 +99,7 @@ export class AdminAuthController {
     return {
       message: 'Token refreshed successfully',
       accessToken: result.access_token,
+      refreshToken: result.refresh_token, // 🔄 Return new refresh token
     };
   }
 

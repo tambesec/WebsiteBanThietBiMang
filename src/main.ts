@@ -31,12 +31,6 @@ async function bootstrap() {
   const nodeEnv = configService.get<string>('nodeEnv') || 'development';
   const isProd = nodeEnv === 'production';
 
-  // 🧪 DEBUG LOGS - Keep these for production debugging
-  logger.log(`NODE_ENV (from ConfigService) = ${nodeEnv}`);
-  logger.log(`NODE_ENV (from process.env) = ${process.env.NODE_ENV}`);
-  logger.log(`isProd = ${isProd}`);
-  logger.log(`🔍 CORS mode: ${isProd ? 'PRODUCTION' : 'DEVELOPMENT'}`);
-
   // Security: Helmet middleware
   app.use(helmet());
 
@@ -59,24 +53,35 @@ async function bootstrap() {
   );
 
   // CORS Configuration
-  // Development: Allow localhost origins
-  // Production: Configure for your production domains
-  const corsOrigins = [
-    'http://localhost:3001', // Client frontend (localhost)
-    'http://localhost:3002', // Admin dashboard (localhost)
-    'http://192.168.2.5:3001', // Client frontend (LAN IP)
-    'http://192.168.2.5:3002', // Admin dashboard (LAN IP)
-    /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d{4}$/, // Allow any LAN IP
-  ];
+  // Load allowed origins from environment variable (comma-separated)
+  // Example: CORS_ORIGINS=https://yourdomain.com,https://admin.yourdomain.com
+  const corsOriginsEnv = configService.get<string>('corsOrigins');
   
-  logger.log(`🔍 CORS allowed origins: ${JSON.stringify(corsOrigins)}`);
+  let corsOrigins: (string | RegExp)[];
+  
+  if (isProd && corsOriginsEnv) {
+    // Production: Parse from environment variable
+    corsOrigins = corsOriginsEnv.split(',').map(origin => origin.trim());
+    logger.log(`🔒 CORS enabled for production origins: ${corsOrigins.join(', ')}`);
+  } else {
+    // Development: Allow localhost and LAN IPs for testing
+    corsOrigins = [
+      'http://localhost:3001',           // Client frontend
+      'http://localhost:3002',           // Admin dashboard
+      'http://127.0.0.1:3001',          // Client localhost IP
+      'http://127.0.0.1:3002',          // Admin localhost IP
+      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d{4}$/, // Any LAN IP pattern
+    ];
+    logger.log('🔓 CORS enabled for development (localhost + LAN IPs)');
+  }
   
   app.enableCors({
     origin: corsOrigins,
-    credentials: true, // Enable credentials for session/cookies
+    credentials: true,                     // Enable HTTP-only cookies
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
-    exposedHeaders: ['Authorization'],
+    exposedHeaders: ['Set-Cookie'],        // Expose Set-Cookie header for cookies
+    maxAge: 86400,                         // Preflight cache 24h (reduce OPTIONS requests)
   });
 
   // Global API prefix
@@ -103,51 +108,56 @@ async function bootstrap() {
     new TransformInterceptor(),
   );
 
-  // Swagger/OpenAPI Documentation
-  const config = new DocumentBuilder()
-    .setTitle('NetworkStore API')
-    .setDescription('E-commerce API for network equipment store')
-    .setVersion('1.0')
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('users', 'User management')
-    .addTag('products', 'Product management')
-    .addTag('orders', 'Order management')
-    .addTag('cart', 'Shopping cart')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
-      'JWT-auth', // This name will be used in @ApiBearerAuth()
-    )
-    .build();
+  // Swagger/OpenAPI Documentation - Only in development
+  if (!isProd) {
+    const config = new DocumentBuilder()
+      .setTitle('NetworkStore API')
+      .setDescription('E-commerce API for network equipment store')
+      .setVersion('1.0')
+      .addTag('auth', 'Authentication endpoints')
+      .addTag('users', 'User management')
+      .addTag('products', 'Product management')
+      .addTag('orders', 'Order management')
+      .addTag('cart', 'Shopping cart')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'JWT',
+          description: 'Enter JWT token',
+          in: 'header',
+        },
+        'JWT-auth', // This name will be used in @ApiBearerAuth()
+      )
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document, {
-    customSiteTitle: 'NetworkStore API Docs',
-    customfavIcon: 'https://nestjs.com/img/logo-small.svg',
-    customJs: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
-    ],
-    customCssUrl: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.css',
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.css',
-    ],
-  });
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document, {
+      customSiteTitle: 'NetworkStore API Docs',
+      customfavIcon: 'https://nestjs.com/img/logo-small.svg',
+      customJs: [
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
+      ],
+      customCssUrl: [
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.css',
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.css',
+      ],
+    });
+    
+    logger.log(`📚 Swagger API docs available at: http://localhost:${port}/api`);
+  } else {
+    logger.log(`🔒 Swagger disabled in production mode`);
+  }
 
   // Start server
   await app.listen(port || 3000);
 
   logger.log(`🚀 Application is running on: http://localhost:${port}/api/v1`);
-  logger.log(`📚 Swagger API docs availa (isProd: ${isProd})ble at: http://localhost:${port}/api`);
+  logger.log(`📚 Swagger API docs available at: http://localhost:${port}/api`);
   logger.log(`📝 Environment: ${nodeEnv}`);
-  logger.log(`🔐 Auth endpoints available at: http://localhost:${port}/api/v1/auth`);
 }
 
 bootstrap();

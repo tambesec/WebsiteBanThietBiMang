@@ -302,17 +302,13 @@ const ProductForm: React.FC<ProductFormProps> = ({ mode, productData }) => {
         meta_description: formData.meta_description || undefined,
         primary_image: primaryImage || undefined,
         additional_images: additionalImages.length > 0 ? additionalImages : undefined,
+        is_active: formData.is_active,
       };
 
       const { productsApi } = await import("@/lib/api-client");
 
       if (mode === "edit" && productData?.id) {
         await productsApi.productsControllerUpdate(productData.id, payload);
-        
-        // Update is_active separately if changed
-        if (productData.is_active !== formData.is_active) {
-          await productsApi.productsControllerToggleActive(productData.id);
-        }
       } else {
         // TODO: Add create product API call when ready
         await productsApi.productsControllerCreate(payload);

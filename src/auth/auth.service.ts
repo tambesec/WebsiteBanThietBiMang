@@ -95,7 +95,12 @@ export class AuthService {
     // Auto-login: Generate tokens
     const tokens = await this.generateTokens(user);
 
-    // Create session
+    // 🔒 SECURITY: Delete any old sessions (should not exist for new user, but ensure clean state)
+    await this.prisma.user_sessions.deleteMany({
+      where: { user_id: user.id },
+    });
+
+    // Create NEW session
     const expiresAt = new Date();
     expiresAt.setDate(
       expiresAt.getDate() + 
@@ -195,17 +200,24 @@ export class AuthService {
     // Generate tokens
     const tokens = await this.generateTokens(user);
 
-    // Create session
+    // 🔒 SECURITY: Delete all old sessions (1 session per user)
+    await this.prisma.user_sessions.deleteMany({
+      where: { user_id: user.id },
+    });
+
+    // Create NEW session
     const expiresAt = new Date();
-    expiresAt.setDate(
-      expiresAt.getDate() + 
-      parseInt(this.configService.get('jwt.refresh.expiresIn').replace('d', ''))
-    );
+    const refreshExpiresIn = this.configService.get('jwt.refresh.expiresIn');
+    const daysToAdd = parseInt(refreshExpiresIn.replace('d', ''));
+    
+    expiresAt.setDate(expiresAt.getDate() + daysToAdd);
+
+    const tokenHash = await this.hashToken(tokens.refresh_token);
 
     await this.prisma.user_sessions.create({
       data: {
         user_id: user.id,
-        token_hash: await this.hashToken(tokens.refresh_token),
+        token_hash: tokenHash,
         ip_address: ipAddress?.substring(0, 45),
         user_agent: userAgent?.substring(0, 255),
         expires_at: expiresAt,
@@ -297,6 +309,7 @@ export class AuthService {
 
   /**
    * Refresh access token
+   * Implements Token Rotation with Grace Period to prevent race conditions
    */
   async refreshToken(refreshToken: string) {
     try {
@@ -307,10 +320,22 @@ export class AuthService {
 
       // Check if session exists
       const tokenHash = await this.hashToken(refreshToken);
+      
+      
+      // 🔒 GRACE PERIOD: Accept both current token AND previous token (within 30s)
+      const gracePeriod = 30000; // 30 seconds
       const session = await this.prisma.user_sessions.findFirst({
         where: {
           user_id: payload.sub,
-          token_hash: tokenHash,
+          OR: [
+            // Current token
+            { token_hash: tokenHash },
+            // Previous token (if rotated within grace period)
+            {
+              previous_token_hash: tokenHash,
+              rotated_at: { gt: new Date(Date.now() - gracePeriod) }
+            }
+          ],
           expires_at: { gt: new Date() },
         },
         include: {
@@ -318,7 +343,26 @@ export class AuthService {
         },
       });
 
+      // 🚨 SECURITY: Detect token reuse attack
       if (!session) {
+        // Check if token matches a previous_token_hash OUTSIDE grace period
+        const reuseDetection = await this.prisma.user_sessions.findFirst({
+          where: {
+            user_id: payload.sub,
+            previous_token_hash: tokenHash,
+            rotated_at: { lte: new Date(Date.now() - gracePeriod) }, // Outside grace period
+          },
+        });
+
+        if (reuseDetection) {
+          // TOKEN REUSE DETECTED - Revoke all sessions
+          this.logger.error(`[Security] Token reuse detected for user ${payload.sub}!`);
+          await this.revokeAllSessions(payload.sub, 'token_reuse_detected');
+          throw new UnauthorizedException('Token reuse detected. All sessions revoked.');
+        }
+
+        // Session not found and no reuse detected
+        this.logger.warn(`[Refresh] Invalid refresh token for user_id: ${payload.sub}`);
         throw new UnauthorizedException('Invalid refresh token');
       }
 
@@ -327,20 +371,24 @@ export class AuthService {
         throw new UnauthorizedException('Account is deactivated');
       }
 
-      // Generate new access token
+      // Generate new tokens
       const accessToken = await this.generateAccessToken(session.users);
+      const newRefreshToken = await this.generateRefreshToken(session.users);
+      const newTokenHash = await this.hashToken(newRefreshToken);
 
-      // Optional: Rotate refresh token for better security
-      // Uncomment if you want to rotate refresh tokens on each refresh
-      // const newRefreshToken = await this.generateRefreshToken(session.users);
-      // await this.prisma.user_sessions.update({
-      //   where: { id: session.id },
-      //   data: { token_hash: await this.hashToken(newRefreshToken) },
-      // });
-      // return { access_token: accessToken, refresh_token: newRefreshToken };
+      // 🔄 TOKEN ROTATION with Grace Period
+      await this.prisma.user_sessions.update({
+        where: { id: session.id },
+        data: {
+          previous_token_hash: session.token_hash, // Keep old token valid for 30s
+          token_hash: newTokenHash,                 // Set new token
+          rotated_at: new Date(),                   // Mark rotation time
+        },
+      });
 
       return {
         access_token: accessToken,
+        refresh_token: newRefreshToken,
       };
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -600,6 +648,22 @@ export class AuthService {
   }
 
   /**
+   * Generate refresh token only
+   */
+  private async generateRefreshToken(user: users) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    return this.jwtService.signAsync(payload, {
+      secret: this.configService.get('jwt.refresh.secret'),
+      expiresIn: this.configService.get('jwt.refresh.expiresIn'),
+    });
+  }
+
+  /**
    * Hash password using bcrypt
    */
   private async hashPassword(password: string): Promise<string> {
@@ -726,6 +790,22 @@ export class AuthService {
   }
 
   /**
+   * Revoke all sessions for a user (used when token reuse detected)
+   */
+  private async revokeAllSessions(userId: number, reason: string) {
+    const deletedCount = await this.prisma.user_sessions.deleteMany({
+      where: { user_id: userId },
+    });
+
+    await this.logSecurityEvent(userId, 'all_sessions_revoked', undefined, {
+      reason,
+      deleted_count: deletedCount.count,
+    });
+
+    this.logger.warn(`[Security] All sessions revoked for user ${userId}: ${reason}`);
+  }
+
+  /**
    * Forgot password - Generate reset token and send email
    */
   async forgotPassword(email: string, ipAddress?: string) {
@@ -800,11 +880,6 @@ export class AuthService {
     // await this.emailService.sendPasswordResetEmail(user.email, resetUrl);
     
     this.logger.log(`Password reset requested for: ${user.email}`);
-
-    // For development, log the token (REMOVE IN PRODUCTION)
-    if (process.env.NODE_ENV === 'development') {
-      this.logger.debug(`Reset token for ${email}: ${resetToken}`);
-    }
 
     return response;
   }
@@ -981,7 +1056,12 @@ export class AuthService {
       // Generate JWT tokens
       const tokens = await this.generateTokens(user);
 
-      // Create session in database
+      // 🔒 SECURITY: Delete old sessions (1 session per user)
+      await this.prisma.user_sessions.deleteMany({
+        where: { user_id: user.id },
+      });
+
+      // Create NEW session in database
       const expiresAt = new Date();
       expiresAt.setDate(
         expiresAt.getDate() + 
@@ -1103,7 +1183,12 @@ export class AuthService {
     // Generate JWT tokens
     const tokens = await this.generateTokens(user);
 
-    // Create session in database
+    // 🔒 SECURITY: Delete old sessions (1 session per user)
+    await this.prisma.user_sessions.deleteMany({
+      where: { user_id: user.id },
+    });
+
+    // Create NEW session in database
     const expiresAt = new Date();
     expiresAt.setDate(
       expiresAt.getDate() + 

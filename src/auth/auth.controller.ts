@@ -191,6 +191,7 @@ export class AuthController {
   /**
    * POST /auth/refresh
    * Refresh access token using refresh token from cookie
+   * 🔄 Returns new tokens in cookies (Token Rotation)
    */
   @Public()
   @Post('refresh')
@@ -217,6 +218,19 @@ export class AuthController {
       sameSite: 'lax',
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
+
+    // 🔄 TOKEN ROTATION with Grace Period: Set new refresh_token cookie
+    if (result.refresh_token) {
+      res.cookie('refresh_token', result.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
+      // Verify rotation succeeded using NEW token
+      await this.authService.getSessionFromRefreshToken(result.refresh_token);
+    }
 
     return { message: 'Token refreshed successfully' };
   }

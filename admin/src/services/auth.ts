@@ -13,7 +13,7 @@ export const adminAuthApi = {
    * Backend sẽ trả về user với role='admin'
    */
   login: async (email: string, password: string): Promise<AdminAuthResponse> => {
-    const response = await apiClient.post('/api/v1/auth/login', { email, password });
+    const response = await apiClient.post('/api/v1/auth/admin/login', { email, password });
     const data = unwrapResponse<AdminAuthResponse>(response);
     
     // Kiểm tra role admin
@@ -21,12 +21,12 @@ export const adminAuthApi = {
       throw new Error('Access denied. Admin role required.');
     }
     
-    // Lưu tokens
-    if (data.access_token) {
-      localStorage.setItem('admin_token', data.access_token);
+    // Lưu tokens (Backend admin trả về camelCase: accessToken, refreshToken)
+    if (data.accessToken) {
+      localStorage.setItem('admin_token', data.accessToken);
     }
-    if (data.refresh_token) {
-      localStorage.setItem('admin_refresh_token', data.refresh_token);
+    if (data.refreshToken) {
+      localStorage.setItem('admin_refresh_token', data.refreshToken);
     }
     if (data.user) {
       localStorage.setItem('admin_user', JSON.stringify(data.user));
@@ -42,7 +42,7 @@ export const adminAuthApi = {
     const refreshToken = localStorage.getItem('admin_refresh_token');
     if (refreshToken) {
       try {
-        await apiClient.post('/api/v1/auth/logout', { refresh_token: refreshToken });
+        await apiClient.post('/api/v1/auth/admin/logout', { refreshToken });
       } catch (error) {
         console.error('Logout error:', error);
       }
@@ -74,10 +74,13 @@ export const adminAuthApi = {
    * Refresh access token
    */
   refreshToken: async (refreshToken: string): Promise<AdminAuthResponse> => {
-    const response = await apiClient.post('/api/v1/auth/refresh', { refresh_token: refreshToken });
+    const response = await apiClient.post('/api/v1/auth/admin/refresh', { refreshToken });
     const data = unwrapResponse<AdminAuthResponse>(response);
-    if (data.access_token) {
-      localStorage.setItem('admin_token', data.access_token);
+    if (data.accessToken) {
+      localStorage.setItem('admin_token', data.accessToken);
+    }
+    if (data.refreshToken) {
+      localStorage.setItem('admin_refresh_token', data.refreshToken);
     }
     return data;
   },
