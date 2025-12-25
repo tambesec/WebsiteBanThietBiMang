@@ -14,7 +14,7 @@ export const adminDashboardApi = {
     startDate?: string; 
     endDate?: string;
   }): Promise<DashboardStats> => {
-    const response = await apiClient.get('/api/v1/admin/stats', { 
+    const response = await apiClient.get('/admin/stats', { 
       params 
     });
     return unwrapResponse<DashboardStats>(response);
@@ -28,7 +28,7 @@ export const adminDashboardApi = {
     endDate?: string;
     period?: 'day' | 'week' | 'month';
   }): Promise<RevenueChartData[]> => {
-    const response = await apiClient.get('/api/v1/admin/revenue', { 
+    const response = await apiClient.get('/admin/revenue', { 
       params 
     });
     return unwrapResponse<RevenueChartData[]>(response);
@@ -41,7 +41,7 @@ export const adminDashboardApi = {
     startDate?: string; 
     endDate?: string;
   }): Promise<OrdersChartData[]> => {
-    const response = await apiClient.get('/api/v1/admin/orders', { 
+    const response = await apiClient.get('/admin/orders', { 
       params 
     });
     return unwrapResponse<OrdersChartData[]>(response);
@@ -51,7 +51,7 @@ export const adminDashboardApi = {
    * Lấy danh sách users mới
    */
   getRecentUsers: async (limit: number = 10): Promise<any[]> => {
-    const response = await apiClient.get('/api/v1/admin/users', { params: { limit } });
+    const response = await apiClient.get('/admin/users', { params: { limit } });
     return unwrapResponse<any[]>(response);
   },
 };

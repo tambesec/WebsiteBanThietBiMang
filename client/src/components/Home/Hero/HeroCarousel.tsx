@@ -55,7 +55,7 @@ const HeroCarousal = () => {
 
           <div>
             <Image
-              src="/images/hero/hero-01.png"
+              src="https://res.cloudinary.com/diysxuomq/image/upload/v1766674132/rt_asus_ocs2ch.png"
               alt="router wifi 6"
               width={351}
               height={358}
@@ -96,7 +96,7 @@ const HeroCarousal = () => {
 
           <div>
             <Image
-              src="/images/hero/hero-01.png"
+              src="https://res.cloudinary.com/diysxuomq/image/upload/v1766674132/rt_asus_ocs2ch.png"
               alt="mesh wifi system"
               width={351}
               height={358}

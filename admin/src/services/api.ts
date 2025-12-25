@@ -254,7 +254,7 @@ export interface DashboardStats {
 // ==================== ADMIN AUTH API ====================
 export const adminAuthApi = {
   login: async (email: string, password: string) => {
-    const response = await apiClient.post('/api/v1/auth/admin/login', { email, password });
+    const response = await apiClient.post('/auth/admin/login', { email, password });
     const data = unwrap<any>(response);
     
     // Backend admin endpoint already verifies role
@@ -276,7 +276,7 @@ export const adminAuthApi = {
     const refreshToken = localStorage.getItem('admin_refresh_token');
     if (refreshToken) {
       try {
-        await apiClient.post('/api/v1/auth/admin/logout', { refreshToken });
+        await apiClient.post('/auth/admin/logout', { refreshToken });
       } catch (e) {
         console.error('Logout error:', e);
       }
@@ -287,12 +287,12 @@ export const adminAuthApi = {
   },
 
   getMe: async (): Promise<User> => {
-    const response = await apiClient.get('/api/v1/auth/profile');
+    const response = await apiClient.get('/auth/profile');
     return unwrap<User>(response);
   },
 
   changePassword: async (currentPassword: string, newPassword: string) => {
-    await apiClient.post('/api/v1/auth/change-password', {
+    await apiClient.post('/auth/change-password', {
       current_password: currentPassword,
       new_password: newPassword,
     });
@@ -307,7 +307,7 @@ export const adminProductsApi = {
     is_active?: boolean;
     is_featured?: boolean;
   }): Promise<PaginatedResponse<Product>> => {
-    const response = await apiClient.get('/api/v1/products', { params });
+    const response = await apiClient.get('/products', { params });
     const data = unwrap<any>(response);
     return {
       data: data.products || data.data || [],
@@ -316,12 +316,12 @@ export const adminProductsApi = {
   },
 
   getById: async (id: number): Promise<Product> => {
-    const response = await apiClient.get(`/api/v1/products/${id}`);
+    const response = await apiClient.get(`/products/${id}`);
     return unwrap<Product>(response);
   },
 
   getBySlug: async (slug: string): Promise<Product> => {
-    const response = await apiClient.get(`/api/v1/products/slug/${slug}`);
+    const response = await apiClient.get(`/products/slug/${slug}`);
     return unwrap<Product>(response);
   },
 
@@ -343,31 +343,31 @@ export const adminProductsApi = {
     meta_title?: string;
     meta_description?: string;
   }): Promise<Product> => {
-    const response = await apiClient.post('/api/v1/products', productData);
+    const response = await apiClient.post('/products', productData);
     return unwrap<Product>(response);
   },
 
   update: async (id: number, productData: Partial<Product>): Promise<Product> => {
-    const response = await apiClient.patch(`/api/v1/products/${id}`, productData);
+    const response = await apiClient.patch(`/products/${id}`, productData);
     return unwrap<Product>(response);
   },
 
   delete: async (id: number): Promise<void> => {
-    await apiClient.delete(`/api/v1/products/${id}`);
+    await apiClient.delete(`/products/${id}`);
   },
 
   updateStock: async (id: number, quantity: number): Promise<Product> => {
-    const response = await apiClient.patch(`/api/v1/products/${id}/stock`, { quantity });
+    const response = await apiClient.patch(`/products/${id}/stock`, { quantity });
     return unwrap<Product>(response);
   },
 
   toggleFeatured: async (id: number): Promise<Product> => {
-    const response = await apiClient.patch(`/api/v1/products/${id}/toggle-featured`);
+    const response = await apiClient.patch(`/products/${id}/toggle-featured`);
     return unwrap<Product>(response);
   },
 
   getFilterOptions: async () => {
-    const response = await apiClient.get('/api/v1/products/filters/options');
+    const response = await apiClient.get('/products/filters/options');
     return unwrap<any>(response);
   },
 };
@@ -378,7 +378,7 @@ export const adminCategoriesApi = {
     parent_id?: number;
     is_active?: boolean;
   }): Promise<PaginatedResponse<Category>> => {
-    const response = await apiClient.get('/api/v1/categories', { params });
+    const response = await apiClient.get('/categories', { params });
     const data = unwrap<any>(response);
     // Categories might return array directly or wrapped
     const categories = Array.isArray(data) ? data : (data.categories || data.data || []);
@@ -389,12 +389,12 @@ export const adminCategoriesApi = {
   },
 
   getTree: async (): Promise<Category[]> => {
-    const response = await apiClient.get('/api/v1/categories/tree');
+    const response = await apiClient.get('/categories/tree');
     return unwrap<Category[]>(response);
   },
 
   getById: async (id: number): Promise<Category> => {
-    const response = await apiClient.get(`/api/v1/categories/${id}`);
+    const response = await apiClient.get(`/categories/${id}`);
     return unwrap<Category>(response);
   },
 
@@ -406,21 +406,21 @@ export const adminCategoriesApi = {
     display_order?: number;
     is_active?: boolean;
   }): Promise<Category> => {
-    const response = await apiClient.post('/api/v1/categories', categoryData);
+    const response = await apiClient.post('/categories', categoryData);
     return unwrap<Category>(response);
   },
 
   update: async (id: number, categoryData: Partial<Category>): Promise<Category> => {
-    const response = await apiClient.patch(`/api/v1/categories/${id}`, categoryData);
+    const response = await apiClient.patch(`/categories/${id}`, categoryData);
     return unwrap<Category>(response);
   },
 
   delete: async (id: number): Promise<void> => {
-    await apiClient.delete(`/api/v1/categories/${id}`);
+    await apiClient.delete(`/categories/${id}`);
   },
 
   reorder: async (categories: { id: number; display_order: number }[]): Promise<void> => {
-    await apiClient.post('/api/v1/categories/reorder', { categories });
+    await apiClient.post('/categories/reorder', { categories });
   },
 };
 
@@ -431,7 +431,7 @@ export const adminOrdersApi = {
     payment_status?: string;
     user_id?: number;
   }): Promise<PaginatedResponse<Order>> => {
-    const response = await apiClient.get('/api/v1/orders/admin/all', { params });
+    const response = await apiClient.get('/orders/admin/all', { params });
     const data = unwrap<any>(response);
     return {
       data: data.orders || data.data || [],
@@ -440,12 +440,12 @@ export const adminOrdersApi = {
   },
 
   getById: async (id: number): Promise<Order> => {
-    const response = await apiClient.get(`/api/v1/orders/${id}`);
+    const response = await apiClient.get(`/orders/${id}`);
     return unwrap<Order>(response);
   },
 
   getByOrderNumber: async (orderNumber: string): Promise<Order> => {
-    const response = await apiClient.get(`/api/v1/orders/number/${orderNumber}`);
+    const response = await apiClient.get(`/orders/number/${orderNumber}`);
     return unwrap<Order>(response);
   },
 
@@ -454,12 +454,12 @@ export const adminOrdersApi = {
     note?: string;
     tracking_number?: string;
   }): Promise<Order> => {
-    const response = await apiClient.patch(`/api/v1/orders/${id}/status`, statusData);
+    const response = await apiClient.patch(`/orders/${id}/status`, statusData);
     return unwrap<Order>(response);
   },
 
   getStatistics: async () => {
-    const response = await apiClient.get('/api/v1/orders/admin/statistics');
+    const response = await apiClient.get('/orders/admin/statistics');
     return unwrap<any>(response);
   },
 };
@@ -472,7 +472,7 @@ export const adminReviewsApi = {
     is_approved?: boolean;
     rating?: number;
   }): Promise<PaginatedResponse<Review>> => {
-    const response = await apiClient.get('/api/v1/reviews', { params });
+    const response = await apiClient.get('/reviews', { params });
     const data = unwrap<any>(response);
     return {
       data: data.reviews || data.data || [],
@@ -481,44 +481,44 @@ export const adminReviewsApi = {
   },
 
   getById: async (id: number): Promise<Review> => {
-    const response = await apiClient.get(`/api/v1/reviews/${id}`);
+    const response = await apiClient.get(`/reviews/${id}`);
     return unwrap<Review>(response);
   },
 
   approve: async (id: number): Promise<Review> => {
-    const response = await apiClient.post(`/api/v1/reviews/${id}/approve`);
+    const response = await apiClient.post(`/reviews/${id}/approve`);
     return unwrap<Review>(response);
   },
 
   reject: async (id: number): Promise<Review> => {
-    const response = await apiClient.post(`/api/v1/reviews/${id}/reject`);
+    const response = await apiClient.post(`/reviews/${id}/reject`);
     return unwrap<Review>(response);
   },
 
   addReply: async (id: number, reply: string): Promise<Review> => {
-    const response = await apiClient.post(`/api/v1/reviews/${id}/reply`, { reply });
+    const response = await apiClient.post(`/reviews/${id}/reply`, { reply });
     return unwrap<Review>(response);
   },
 
   delete: async (id: number): Promise<void> => {
-    await apiClient.delete(`/api/v1/reviews/${id}`);
+    await apiClient.delete(`/reviews/${id}`);
   },
 };
 
 // ==================== ADMIN DASHBOARD API ====================
 export const adminDashboardApi = {
   getStats: async (params?: { period?: 'day' | 'week' | 'month' | 'year' }): Promise<DashboardStats> => {
-    const response = await apiClient.get('/api/v1/dashboard/stats', { params });
+    const response = await apiClient.get('/dashboard/stats', { params });
     return unwrap<DashboardStats>(response);
   },
 
   getRevenueChart: async (params?: { period?: 'day' | 'week' | 'month' | 'year' }) => {
-    const response = await apiClient.get('/api/v1/dashboard/revenue', { params });
+    const response = await apiClient.get('/dashboard/revenue', { params });
     return unwrap<any>(response);
   },
 
   getOrdersChart: async (params?: { period?: 'day' | 'week' | 'month' | 'year' }) => {
-    const response = await apiClient.get('/api/v1/dashboard/orders-chart', { params });
+    const response = await apiClient.get('/dashboard/orders-chart', { params });
     return unwrap<any>(response);
   },
 };
@@ -526,7 +526,7 @@ export const adminDashboardApi = {
 // ==================== ADMIN DISCOUNTS API ====================
 export const adminDiscountsApi = {
   getAll: async (params?: PaginationParams & { is_active?: boolean }) => {
-    const response = await apiClient.get('/api/v1/discounts', { params });
+    const response = await apiClient.get('/discounts', { params });
     const data = unwrap<any>(response);
     return {
       data: data.discounts || data.data || [],
@@ -535,7 +535,7 @@ export const adminDiscountsApi = {
   },
 
   getById: async (id: number) => {
-    const response = await apiClient.get(`/api/v1/discounts/${id}`);
+    const response = await apiClient.get(`/discounts/${id}`);
     return unwrap<any>(response);
   },
 
@@ -552,21 +552,21 @@ export const adminDiscountsApi = {
     ends_at: string;
     is_active?: boolean;
   }) => {
-    const response = await apiClient.post('/api/v1/discounts', discountData);
+    const response = await apiClient.post('/discounts', discountData);
     return unwrap<any>(response);
   },
 
   update: async (id: number, discountData: any) => {
-    const response = await apiClient.patch(`/api/v1/discounts/${id}`, discountData);
+    const response = await apiClient.patch(`/discounts/${id}`, discountData);
     return unwrap<any>(response);
   },
 
   delete: async (id: number) => {
-    await apiClient.delete(`/api/v1/discounts/${id}`);
+    await apiClient.delete(`/discounts/${id}`);
   },
 
   validate: async (code: string, orderAmount: number) => {
-    const response = await apiClient.post('/api/v1/discounts/validate', { code, order_amount: orderAmount });
+    const response = await apiClient.post('/discounts/validate', { code, order_amount: orderAmount });
     return unwrap<any>(response);
   },
 };

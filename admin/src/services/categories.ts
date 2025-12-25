@@ -11,7 +11,7 @@ export const adminCategoriesApi = {
    * Lấy danh sách danh mục
    */
   getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Category>> => {
-    const response = await apiClient.get('/api/v1/admin/categories', { params });
+    const response = await apiClient.get('/admin/categories', { params });
     return unwrapResponse<PaginatedResponse<Category>>(response);
   },
 
@@ -27,7 +27,7 @@ export const adminCategoriesApi = {
    * Tạo danh mục mới
    */
   create: async (categoryData: Partial<Category>): Promise<Category> => {
-    const response = await apiClient.post('/api/v1/admin/categories', categoryData);
+    const response = await apiClient.post('/admin/categories', categoryData);
     return unwrapResponse<Category>(response);
   },
 
@@ -50,7 +50,7 @@ export const adminCategoriesApi = {
    * Sắp xếp lại thứ tự danh mục
    */
   reorder: async (categories: { id: string; order: number }[]): Promise<void> => {
-    await apiClient.post('/api/v1/admin/categories/reorder', { categories });
+    await apiClient.post('/admin/categories/reorder', { categories });
   },
 
   /**
