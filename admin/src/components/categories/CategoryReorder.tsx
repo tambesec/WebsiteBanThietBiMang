@@ -78,14 +78,14 @@ const CategoryReorder = () => {
         id: cat.id,
         display_order: index + 1,
       }));
-
+      
       // API expects { categories: [...] } structure
       await categoriesApi.categoriesControllerReorder({ categories: reorderedCategories });
+      
       alert('Đã lưu thứ tự mới!');
       fetchCategories();
     } catch (error: any) {
-      console.error('Failed to save order:', error);
-      alert(error.response?.data?.message || 'Có lỗi xảy ra!');
+      alert(error.response?.data?.message || error.message || 'Có lỗi xảy ra!');
     } finally {
       setSaving(false);
     }
@@ -113,14 +113,14 @@ const CategoryReorder = () => {
           <div className="flex gap-2">
             <button
               onClick={handleReset}
-              className="rounded border border-stroke px-4 py-2 text-sm font-medium hover:shadow-1 dark:border-strokedark"
+              className="rounded border border-stroke bg-white px-4 py-2 text-sm font-medium text-black hover:shadow-1 dark:border-strokedark dark:bg-boxdark dark:text-white"
             >
               Đặt Lại
             </button>
             <button
               onClick={handleSaveOrder}
               disabled={saving}
-              className="rounded bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-opacity-90 disabled:opacity-50"
+              className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {saving ? 'Đang lưu...' : 'Lưu Thứ Tự'}
             </button>

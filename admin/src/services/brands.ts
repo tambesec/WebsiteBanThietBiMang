@@ -11,7 +11,7 @@ export const adminBrandsApi = {
    * Lấy danh sách thương hiệu
    */
   getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Brand>> => {
-    const response = await apiClient.get('/admin/brands', { params });
+    const response = await apiClient.get('/api/v1/admin/brands', { params });
     return unwrapResponse<PaginatedResponse<Brand>>(response);
   },
 
@@ -27,7 +27,7 @@ export const adminBrandsApi = {
    * Tạo thương hiệu mới
    */
   create: async (brandData: Partial<Brand>): Promise<Brand> => {
-    const response = await apiClient.post('/admin/brands', brandData);
+    const response = await apiClient.post('/api/v1/admin/brands', brandData);
     return unwrapResponse<Brand>(response);
   },
 
