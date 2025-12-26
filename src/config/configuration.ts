@@ -30,6 +30,7 @@ export default () => ({
     bcryptRounds: getInt(process.env.BCRYPT_ROUNDS, 10),
     maxLoginAttempts: getInt(process.env.MAX_LOGIN_ATTEMPTS, 5),
     lockDurationMinutes: getInt(process.env.LOCK_DURATION_MINUTES, 30),
+    failedLoginWindowMinutes: getInt(process.env.FAILED_LOGIN_WINDOW_MINUTES, 15),
     passwordHistoryCount: getInt(process.env.PASSWORD_HISTORY_COUNT, 5),
   },
   throttle: {

@@ -22,6 +22,7 @@ export class AuthService {
   private readonly bcryptRounds: number;
   private readonly maxLoginAttempts: number;
   private readonly lockDurationMinutes: number;
+  private readonly failedLoginWindowMinutes: number;
   private readonly passwordHistoryCount: number;
 
   constructor(
@@ -32,6 +33,7 @@ export class AuthService {
     this.bcryptRounds = this.configService.get<number>('security.bcryptRounds') || 10;
     this.maxLoginAttempts = this.configService.get<number>('security.maxLoginAttempts') || 5;
     this.lockDurationMinutes = this.configService.get<number>('security.lockDurationMinutes') || 30;
+    this.failedLoginWindowMinutes = this.configService.get<number>('security.failedLoginWindowMinutes') || 15;
     this.passwordHistoryCount = this.configService.get<number>('security.passwordHistoryCount') || 5;
   }
 
@@ -680,6 +682,8 @@ export class AuthService {
 
   /**
    * Handle failed login attempt
+   * Uses time window: counts failed attempts within X minutes from security_logs
+   * IMPORTANT: Only counts failed attempts AFTER the last successful login (if any)
    */
   private async handleFailedLogin(userId: number, ipAddress?: string) {
     const user = await this.prisma.users.findUnique({
@@ -690,36 +694,50 @@ export class AuthService {
       return;
     }
 
-    const newFailedAttempts = user.failed_login_attempts + 1;
+    // Log the failed attempt first
+    await this.logSecurityEvent(userId, 'login_failed', ipAddress);
 
-    if (newFailedAttempts >= this.maxLoginAttempts) {
+    // Calculate time window start (X minutes ago)
+    const windowStart = new Date();
+    windowStart.setMinutes(windowStart.getMinutes() - this.failedLoginWindowMinutes);
+
+    // Use the MORE RECENT of: window start OR last successful login
+    // This ensures failed attempts are reset after a successful login
+    const countSince = user.last_login && user.last_login > windowStart
+      ? user.last_login
+      : windowStart;
+
+    const recentFailedAttempts = await this.prisma.security_logs.count({
+      where: {
+        user_id: userId,
+        event_type: 'login_failed',
+        created_at: { gte: countSince },
+      },
+    });
+
+    // Update failed_login_attempts in users table (for reference)
+    await this.prisma.users.update({
+      where: { id: userId },
+      data: { failed_login_attempts: recentFailedAttempts },
+    });
+
+    if (recentFailedAttempts >= this.maxLoginAttempts) {
       // Lock account
       const lockedUntil = new Date();
       lockedUntil.setMinutes(lockedUntil.getMinutes() + this.lockDurationMinutes);
 
       await this.prisma.users.update({
         where: { id: userId },
-        data: {
-          failed_login_attempts: newFailedAttempts,
-          locked_until: lockedUntil,
-        },
+        data: { locked_until: lockedUntil },
       });
 
       await this.logSecurityEvent(userId, 'account_locked', ipAddress, {
-        attempts: newFailedAttempts,
+        attempts: recentFailedAttempts,
+        window_minutes: this.failedLoginWindowMinutes,
         locked_until: lockedUntil,
       });
 
-      this.logger.warn(`Account locked: User ID ${userId}`);
-    } else {
-      await this.prisma.users.update({
-        where: { id: userId },
-        data: { failed_login_attempts: newFailedAttempts },
-      });
-
-      await this.logSecurityEvent(userId, 'login_failed', ipAddress, {
-        attempts: newFailedAttempts,
-      });
+      this.logger.warn(`Account locked: User ID ${userId} (${recentFailedAttempts} failed attempts in ${this.failedLoginWindowMinutes} minutes)`);
     }
   }
 
