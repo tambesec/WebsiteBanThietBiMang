@@ -1,9 +1,9 @@
 "use client";
-import React from "react";
-import shopData from "@/components/Shop/shopData";
+import React, { useState, useEffect } from "react";
 import ProductItem from "@/components/Common/ProductItem";
 import Image from "next/image";
-import Link from "next/link";
+import { productsApi } from "@/lib/api-client";
+import type { Product } from "@/components/Shop/shopData";
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import { useCallback, useRef } from "react";
@@ -12,6 +12,53 @@ import "swiper/css";
 
 const RecentlyViewdItems = () => {
   const sliderRef = useRef(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRecentProducts = async () => {
+      try {
+        const response: any = await productsApi.productsControllerFindAll(
+          1, // page
+          4, // limit
+          undefined, // search
+          undefined, // category_id
+          undefined, // min_price
+          undefined, // max_price
+          undefined, // brand
+          'created_at', // sort_by
+          'desc' // sort_order
+        );
+        
+        // Backend: { data: { products: [...], pagination: {...} } }
+        const result = response.data?.data || response.data;
+        const items = result?.products || [];
+        if (!Array.isArray(items)) {
+          console.error('Invalid response format:', response.data);
+          return;
+        }
+        const mappedProducts: Product[] = items.map((p: any) => ({
+          id: p.id,
+          title: p.name,
+          price: p.compare_at_price || p.price, // Giá niêm yết (cao hơn) - hiển thị gạch ngang
+          discountedPrice: p.price, // Giá bán thực tế (thấp hơn) - hiển thị rõ ràng
+          reviews: p.review_count || 0,
+          imgs: {
+            thumbnails: p.primary_image ? [p.primary_image] : ["/images/products/product-01.png"],
+            previews: p.primary_image ? [p.primary_image] : ["/images/products/product-01.png"]
+          }
+        }));
+        
+        setProducts(mappedProducts);
+      } catch (error) {
+        console.error("Failed to load products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecentProducts();
+  }, []);
 
   const handlePrev = useCallback(() => {
     if (!sliderRef.current) return;
@@ -22,6 +69,16 @@ const RecentlyViewdItems = () => {
     if (!sliderRef.current) return;
     sliderRef.current.swiper.slideNext();
   }, []);
+
+  if (loading) {
+    return (
+      <section className="overflow-hidden pt-17.5">
+        <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0 pb-15 border-b border-gray-3">
+          <div className="text-center py-10">Đang tải...</div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="overflow-hidden pt-17.5">
@@ -89,7 +146,7 @@ const RecentlyViewdItems = () => {
             spaceBetween={20}
             className="justify-between"
           >
-            {shopData.map((item, key) => (
+            {products.map((item, key) => (
               <SwiperSlide key={key}>
                 <ProductItem item={item} />
               </SwiperSlide>

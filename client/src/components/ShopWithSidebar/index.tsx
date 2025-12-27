@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Breadcrumb from "../Common/Breadcrumb";
 import CustomSelect from "./CustomSelect";
 import CategoryDropdown from "./CategoryDropdown";
@@ -7,14 +8,66 @@ import GenderDropdown from "./GenderDropdown";
 import SizeDropdown from "./SizeDropdown";
 import ColorsDropdwon from "./ColorsDropdwon";
 import PriceDropdown from "./PriceDropdown";
-import shopData from "../Shop/shopData";
 import SingleGridItem from "../Shop/SingleGridItem";
 import SingleListItem from "../Shop/SingleListItem";
+import type { Product } from "@/components/Shop/shopData";
+import { ProductsApi, CategoriesApi } from "@/generated-api";
+import { generatedApiAxios } from "@/lib/api-client";
 
 const ShopWithSidebar = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const [productStyle, setProductStyle] = useState("grid");
   const [productSidebar, setProductSidebar] = useState(false);
   const [stickyMenu, setStickyMenu] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [sortBy, setSortBy] = useState<string>("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [selectedCategory, setSelectedCategory] = useState<number | undefined>();
+  const [priceRange, setPriceRange] = useState<{ min?: number; max?: number }>({});
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedBrand, setSelectedBrand] = useState<string | undefined>();
+
+  // Initialize state from URL params and update when URL changes
+  useEffect(() => {
+    const search = searchParams.get("search");
+    const categoryIdParam = searchParams.get("category_id");
+    const categorySlugParam = searchParams.get("category");
+    const brand = searchParams.get("brand");
+    const minPrice = searchParams.get("min_price");
+    const maxPrice = searchParams.get("max_price");
+    const sortParam = searchParams.get("sort_by");
+    const orderParam = searchParams.get("sort_order");
+    const pageParam = searchParams.get("page");
+
+    // Update all state from URL params
+    setSearchQuery(search || "");
+    
+    // Handle category - if slug provided, we'll find ID after categories load
+    if (categoryIdParam) {
+      setSelectedCategory(parseInt(categoryIdParam));
+    } else if (categorySlugParam) {
+      // Store slug temporarily, will be resolved to ID after categories load
+      setSelectedCategory(undefined); // Will be set in next effect
+    } else {
+      setSelectedCategory(undefined);
+    }
+    
+    setSelectedBrand(brand || undefined);
+    setPriceRange({
+      min: minPrice ? parseInt(minPrice) : undefined,
+      max: maxPrice ? parseInt(maxPrice) : undefined,
+    });
+    setSortBy(sortParam || "created_at");
+    setSortOrder((orderParam as "asc" | "desc") || "desc");
+    setCurrentPage(pageParam ? parseInt(pageParam) : 1);
+  }, [searchParams]); // Re-run when searchParams changes
 
   const handleStickyMenu = () => {
     if (window.scrollY >= 80) {
@@ -25,43 +78,160 @@ const ShopWithSidebar = () => {
   };
 
   const options = [
-    { label: "Sản Phẩm Mới Nhất", value: "0" },
-    { label: "Bán Chạy Nhất", value: "1" },
-    { label: "Sản Phẩm Cũ", value: "2" },
+    { label: "Sản Phẩm Mới Nhất", value: "created_at-desc" },
+    { label: "Bán Chạy Nhất", value: "sold-desc" },
+    { label: "Sản Phẩm Cũ", value: "created_at-asc" },
+    { label: "Giá: Thấp đến Cao", value: "price-asc" },
+    { label: "Giá: Cao đến Thấp", value: "price-desc" },
   ];
 
-  const categories = [
-    {
-      name: "Router WiFi",
-      products: 25,
-      isRefined: true,
-    },
-    {
-      name: "Switch Mạng",
-      products: 18,
-      isRefined: false,
-    },
-    {
-      name: "Access Point",
-      products: 15,
-      isRefined: false,
-    },
-    {
-      name: "Modem",
-      products: 12,
-      isRefined: false,
-    },
-    {
-      name: "Card Mạng",
-      products: 20,
-      isRefined: false,
-    },
-    {
-      name: "Dây Cáp Mạng",
-      products: 30,
-      isRefined: false,
-    },
-  ];
+  const handleSortChange = (value: string) => {
+    const [field, order] = value.split("-");
+    setSortBy(field);
+    setSortOrder(order as "asc" | "desc");
+    setCurrentPage(1);
+    
+    // Update URL params
+    updateURLParams({
+      sort_by: field,
+      sort_order: order,
+      page: "1"
+    });
+  };
+
+  // Function to change page and update URL
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    updateURLParams({
+      page: newPage.toString()
+    });
+  };
+
+  // Function to update URL params
+  const updateURLParams = (params: Record<string, string | undefined>) => {
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
+    
+    // Update with new params
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== "" && value !== null) {
+        current.set(key, value);
+      } else {
+        current.delete(key);
+      }
+    });
+
+    const search = current.toString();
+    const query = search ? `?${search}` : "";
+    router.push(`/shop${query}`, { scroll: false });
+  };
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categoriesApi = new CategoriesApi(undefined, undefined, generatedApiAxios);
+        const response: any = await categoriesApi.categoriesControllerFindAll(
+          undefined, // search
+          undefined, // parentId
+          true, // isActive - only active categories
+          true, // includeProductsCount
+          undefined, // sortBy
+          undefined, // sortOrder
+          1, // page
+          50 // limit
+        );
+        // Backend: { data: { categories: [...], pagination: {...} } }
+        const result = response.data?.data || response.data;
+        const items = result?.categories || [];
+        setCategories(items.map((cat: any) => ({
+          id: cat.id,
+          name: cat.name,
+          slug: cat.slug,
+          products: cat.product_count || 0,
+          isRefined: selectedCategory === cat.id
+        })));
+      } catch (error) {
+        console.error("Failed to load categories:", error);
+      }
+    };
+    fetchCategories();
+  }, [selectedCategory]);
+  
+  // Separate effect to resolve category slug to ID
+  useEffect(() => {
+    const categorySlugParam = searchParams.get("category");
+    const categoryIdParam = searchParams.get("category_id");
+    
+    // Only resolve slug if:
+    // 1. We have a slug param
+    // 2. No ID param exists
+    // 3. Categories are loaded
+    // 4. No category is currently selected
+    if (categorySlugParam && !categoryIdParam && categories.length > 0 && !selectedCategory) {
+      const matchedCategory = categories.find((cat: any) => cat.slug === categorySlugParam);
+      if (matchedCategory) {
+        setSelectedCategory(matchedCategory.id);
+        // Update URL to use category_id instead of slug
+        updateURLParams({
+          category: undefined,
+          category_id: matchedCategory.id.toString()
+        });
+      }
+    }
+  }, [categories, searchParams]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      try {
+        const productsApi = new ProductsApi(undefined, undefined, generatedApiAxios);
+        const response: any = await productsApi.productsControllerFindAll(
+          searchQuery || undefined, // search
+          selectedCategory, // categoryId
+          selectedBrand, // brand
+          priceRange.min, // minPrice
+          priceRange.max, // maxPrice
+          undefined, // isFeatured
+          true, // isActive - only active products
+          sortBy as any, // sortBy
+          sortOrder as any, // sortOrder
+          currentPage, // page
+          12 // limit
+        );
+        
+        // Backend: { data: { products: [...], pagination: {...} } }
+        const result = response.data?.data || response.data;
+        const items = result?.products || [];
+        const pagination = result?.pagination;
+        if (!Array.isArray(items)) {
+          console.error('Invalid response format:', response.data);
+          setProducts([]);
+          setTotalPages(1);
+          return;
+        }
+        const mappedProducts: Product[] = items.map((p: any) => ({
+          id: p.id,
+          title: p.name,
+          price: p.compare_at_price || p.price, // Giá niêm yết (cao hơn) - hiển thị gạch ngang
+          discountedPrice: p.price, // Giá bán thực tế (thấp hơn) - hiển thị rõ ràng
+          reviews: p.review_count || 0,
+          imgs: {
+            thumbnails: p.primary_image ? [p.primary_image] : ["/images/products/product-01.png"],
+            previews: p.primary_image ? [p.primary_image] : ["/images/products/product-01.png"]
+          }
+        }));
+        
+        setProducts(mappedProducts);
+        setTotalPages(pagination?.total_pages || 1);
+        setTotalProducts(pagination?.total || 0);
+      } catch (error) {
+        console.error("Failed to load products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [currentPage, sortBy, sortOrder, selectedCategory, priceRange, searchQuery, selectedBrand]);
 
   const brands = [
     {
@@ -90,7 +260,7 @@ const ShopWithSidebar = () => {
     window.addEventListener("scroll", handleStickyMenu);
 
     // closing sidebar while clicking outside
-    function handleClickOutside(event) {
+    function handleClickOutside(event: any) {
       if (!event.target.closest(".sidebar-content")) {
         setProductSidebar(false);
       }
@@ -160,18 +330,114 @@ const ShopWithSidebar = () => {
                   <div className="bg-white shadow-1 rounded-lg py-4 px-5">
                     <div className="flex items-center justify-between">
                       <p>Bộ lọc:</p>
-                      <button className="text-blue">Xóa tất cả</button>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setSelectedCategory(undefined);
+                          setSelectedBrand(undefined);
+                          setPriceRange({});
+                          setSearchQuery("");
+                          setCurrentPage(1);
+                          // Clear all URL params
+                          router.push('/shop', { scroll: false });
+                        }}
+                        className="text-blue hover:underline"
+                      >
+                        Xóa tất cả
+                      </button>
                     </div>
+                    {(selectedCategory || selectedBrand || priceRange.min || priceRange.max || searchQuery) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {searchQuery && (
+                          <span className="inline-flex items-center gap-1 bg-blue/10 text-blue px-2 py-1 rounded text-sm">
+                            Tìm: {searchQuery}
+                            <button onClick={() => {
+                              setSearchQuery("");
+                              updateURLParams({ search: undefined });
+                            }} className="hover:text-dark">×</button>
+                          </span>
+                        )}
+                        {selectedCategory && (
+                          <span className="inline-flex items-center gap-1 bg-blue/10 text-blue px-2 py-1 rounded text-sm">
+                            {categories.find(c => c.id === selectedCategory)?.name || `Danh mục #${selectedCategory}`}
+                            <button onClick={() => {
+                              setSelectedCategory(undefined);
+                              updateURLParams({ category_id: undefined, category: undefined });
+                            }} className="hover:text-dark">×</button>
+                          </span>
+                        )}
+                        {selectedBrand && (
+                          <span className="inline-flex items-center gap-1 bg-blue/10 text-blue px-2 py-1 rounded text-sm">
+                            {selectedBrand}
+                            <button onClick={() => {
+                              setSelectedBrand(undefined);
+                              updateURLParams({ brand: undefined });
+                            }} className="hover:text-dark">×</button>
+                          </span>
+                        )}
+                        {(priceRange.min || priceRange.max) && (
+                          <span className="inline-flex items-center gap-1 bg-blue/10 text-blue px-2 py-1 rounded text-sm">
+                            Giá: {priceRange.min?.toLocaleString() || '0'} - {priceRange.max?.toLocaleString() || '∞'}
+                            <button onClick={() => {
+                              setPriceRange({});
+                              updateURLParams({ min_price: undefined, max_price: undefined });
+                            }} className="hover:text-dark">×</button>
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* <!-- category box --> */}
-                  <CategoryDropdown categories={categories} />
+                  <CategoryDropdown 
+                    categories={categories}
+                    selectedCategory={selectedCategory}
+                    onSelectCategory={(id) => {
+                      const newCategory = id === selectedCategory ? undefined : id;
+                      setSelectedCategory(newCategory);
+                      setCurrentPage(1);
+                      
+                      // Update URL params - clear both slug and id
+                      updateURLParams({
+                        category_id: newCategory?.toString(),
+                        category: undefined, // Clear slug
+                        page: "1"
+                      });
+                    }}
+                  />
 
                   {/* <!-- brand box --> */}
-                  <GenderDropdown genders={brands} />
+                  <GenderDropdown 
+                    genders={brands}
+                    selectedBrand={selectedBrand}
+                    onSelectBrand={(brand) => {
+                      const newBrand = brand === selectedBrand ? undefined : brand;
+                      setSelectedBrand(newBrand);
+                      setCurrentPage(1);
+                      
+                      // Update URL params
+                      updateURLParams({
+                        brand: newBrand,
+                        page: "1"
+                      });
+                    }}
+                  />
 
                   {/* // <!-- price range box --> */}
-                  <PriceDropdown />
+                  <PriceDropdown 
+                    priceRange={priceRange}
+                    onPriceChange={(range) => {
+                      setPriceRange(range);
+                      setCurrentPage(1);
+                      
+                      // Update URL params
+                      updateURLParams({
+                        min_price: range.min?.toString(),
+                        max_price: range.max?.toString(),
+                        page: "1"
+                      });
+                    }}
+                  />
                 </div>
               </form>
             </div>
@@ -179,15 +445,108 @@ const ShopWithSidebar = () => {
 
             {/* // <!-- Content Start --> */}
             <div className="xl:max-w-[870px] w-full">
+              {/* Active Filters Display */}
+              {(searchQuery || selectedCategory || selectedBrand || priceRange.min || priceRange.max) && (
+                <div className="rounded-lg bg-white shadow-1 p-4 mb-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-sm font-medium text-dark">Đang lọc:</span>
+                    
+                    {searchQuery && (
+                      <button
+                        onClick={() => {
+                          setSearchQuery("");
+                          updateURLParams({ search: undefined, page: "1" });
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-blue/10 text-blue rounded-md hover:bg-blue hover:text-white transition-colors duration-200"
+                      >
+                        <span className="text-sm">Tìm kiếm: "{searchQuery}"</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                    
+                    {selectedCategory && (
+                      <button
+                        onClick={() => {
+                          setSelectedCategory(undefined);
+                          updateURLParams({ category_id: undefined, page: "1" });
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-blue/10 text-blue rounded-md hover:bg-blue hover:text-white transition-colors duration-200"
+                      >
+                        <span className="text-sm">Danh mục: {categories.find(c => c.id === selectedCategory)?.name}</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                    
+                    {selectedBrand && (
+                      <button
+                        onClick={() => {
+                          setSelectedBrand(undefined);
+                          updateURLParams({ brand: undefined, page: "1" });
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-blue/10 text-blue rounded-md hover:bg-blue hover:text-white transition-colors duration-200"
+                      >
+                        <span className="text-sm">Thương hiệu: {selectedBrand}</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                    
+                    {(priceRange.min || priceRange.max) && (
+                      <button
+                        onClick={() => {
+                          setPriceRange({});
+                          updateURLParams({ min_price: undefined, max_price: undefined, page: "1" });
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-blue/10 text-blue rounded-md hover:bg-blue hover:text-white transition-colors duration-200"
+                      >
+                        <span className="text-sm">
+                          Giá: {priceRange.min?.toLocaleString() || 0}₫ - {priceRange.max?.toLocaleString() || "∞"}₫
+                        </span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSelectedCategory(undefined);
+                        setSelectedBrand(undefined);
+                        setPriceRange({});
+                        setSortBy("created_at");
+                        setSortOrder("desc");
+                        setCurrentPage(1);
+                        router.push("/shop");
+                      }}
+                      className="ml-auto text-sm text-gray-5 hover:text-blue transition-colors duration-200"
+                    >
+                      Xóa tất cả bộ lọc
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <div className="rounded-lg bg-white shadow-1 pl-3 pr-2.5 py-2.5 mb-6">
                 <div className="flex items-center justify-between">
                   {/* <!-- top bar left --> */}
                   <div className="flex flex-wrap items-center gap-4">
-                    <CustomSelect options={options} />
+                    <CustomSelect 
+                      options={options}
+                      onChange={handleSortChange}
+                    />
 
                     <p>
-                      Hiển thị <span className="text-dark">9 trong số 50</span>{" "}
-                      sản phẩm
+                      {"Hiển thị "}
+                      <span className="text-dark">
+                        {products.length} {"trong số"} {totalProducts}
+                      </span>
+                      {" sản phẩm"}
                     </p>
                   </div>
 
@@ -273,21 +632,25 @@ const ShopWithSidebar = () => {
               </div>
 
               {/* <!-- Products Grid Tab Content Start --> */}
-              <div
-                className={`${
-                  productStyle === "grid"
-                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-7.5 gap-y-9"
-                    : "flex flex-col gap-7.5"
-                }`}
-              >
-                {shopData.map((item, key) =>
-                  productStyle === "grid" ? (
-                    <SingleGridItem item={item} key={key} />
-                  ) : (
-                    <SingleListItem item={item} key={key} />
-                  )
-                )}
-              </div>
+              {loading ? (
+                <div className="text-center py-10">Đang tải...</div>
+              ) : (
+                <div
+                  className={`${
+                    productStyle === "grid"
+                      ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-7.5 gap-y-9"
+                      : "flex flex-col gap-7.5"
+                  }`}
+                >
+                  {products.map((item, key) =>
+                    productStyle === "grid" ? (
+                      <SingleGridItem item={item} key={key} />
+                    ) : (
+                      <SingleListItem item={item} key={key} />
+                    )
+                  )}
+                </div>
+              )}
               {/* <!-- Products Grid Tab Content End --> */}
 
               {/* <!-- Products Pagination Start --> */}
@@ -299,8 +662,9 @@ const ShopWithSidebar = () => {
                         id="paginationLeft"
                         aria-label="button for pagination left"
                         type="button"
-                        disabled
-                        className="flex items-center justify-center w-8 h-9 ease-out duration-200 rounded-[3px disabled:text-gray-4"
+                        disabled={currentPage === 1}
+                        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                        className="flex items-center justify-center w-8 h-9 ease-out duration-200 rounded-[3px] disabled:text-gray-4 disabled:cursor-not-allowed"
                       >
                         <svg
                           className="fill-current"
@@ -318,75 +682,73 @@ const ShopWithSidebar = () => {
                       </button>
                     </li>
 
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] bg-blue text-white hover:text-white hover:bg-blue"
-                      >
-                        1
-                      </a>
-                    </li>
+                    {/* First page */}
+                    {currentPage > 3 && (
+                      <li>
+                        <button
+                          onClick={() => handlePageChange(1)}
+                          className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
+                        >
+                          1
+                        </button>
+                      </li>
+                    )}
 
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        2
-                      </a>
-                    </li>
+                    {/* Dots before current pages */}
+                    {currentPage > 4 && (
+                      <li>
+                        <span className="flex py-1.5 px-3.5">...</span>
+                      </li>
+                    )}
 
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        3
-                      </a>
-                    </li>
+                    {/* Pages around current page */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        // Show current page and 2 pages before/after
+                        return page >= currentPage - 2 && page <= currentPage + 2;
+                      })
+                      .map(page => (
+                        <li key={page}>
+                          <button
+                            onClick={() => handlePageChange(page)}
+                            className={`flex py-1.5 px-3.5 duration-200 rounded-[3px] ${
+                              page === currentPage
+                                ? "bg-blue text-white"
+                                : "hover:text-white hover:bg-blue"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </li>
+                      ))}
 
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        4
-                      </a>
-                    </li>
+                    {/* Dots after current pages */}
+                    {currentPage < totalPages - 3 && (
+                      <li>
+                        <span className="flex py-1.5 px-3.5">...</span>
+                      </li>
+                    )}
 
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        5
-                      </a>
-                    </li>
-
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        ...
-                      </a>
-                    </li>
-
-                    <li>
-                      <a
-                        href="#"
-                        className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
-                      >
-                        10
-                      </a>
-                    </li>
+                    {/* Last page */}
+                    {currentPage < totalPages - 2 && (
+                      <li>
+                        <button
+                          onClick={() => handlePageChange(totalPages)}
+                          className="flex py-1.5 px-3.5 duration-200 rounded-[3px] hover:text-white hover:bg-blue"
+                        >
+                          {totalPages}
+                        </button>
+                      </li>
+                    )}
 
                     <li>
                       <button
-                        id="paginationLeft"
-                        aria-label="button for pagination left"
+                        id="paginationRight"
+                        aria-label="button for pagination right"
                         type="button"
-                        className="flex items-center justify-center w-8 h-9 ease-out duration-200 rounded-[3px] hover:text-white hover:bg-blue disabled:text-gray-4"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                        className="flex items-center justify-center w-8 h-9 ease-out duration-200 rounded-[3px] hover:text-white hover:bg-blue disabled:text-gray-4 disabled:cursor-not-allowed"
                       >
                         <svg
                           className="fill-current"

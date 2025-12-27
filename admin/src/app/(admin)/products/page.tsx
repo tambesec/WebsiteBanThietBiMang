@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import ProductsTable from "@/components/ecommerce/ProductsTable";
+import ProductsTable from "@/components/products/ProductsTable";
 import PageBreadCrumb from "@/components/common/PageBreadCrumb";
 
 export const metadata: Metadata = {

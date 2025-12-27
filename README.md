@@ -1,428 +1,309 @@
-# Website Bán Thiết Bị Mạng - Full Stack E-commerce Platform
+# 🛒 NetworkStore API
 
-## 🚀 Tổng quan dự án
+**E-commerce REST API** for network equipment store built with **NestJS**, **Prisma**, and **MySQL**.
 
-Đây là dự án website bán thiết bị mạng hoàn chỉnh (Router, Switch, Access Point, Firewall) với 3 phần chính:
-- **Backend Server (NestJS)**: API RESTful với bảo mật cao
-- **Client Frontend (Next.js)**: Giao diện người dùng e-commerce
-- **Admin Dashboard (Next.js)**: Quản trị sản phẩm, đơn hàng, người dùng
-
-## ⚡ Cài đặt nhanh
-
-### Cài tất cả dependencies một lần (Khuyến nghị)
-
-**Windows (PowerShell):**
-```powershell
-.\install-all.ps1
-```
-
-**Linux/Mac:**
-```bash
-chmod +x install-all.sh
-./install-all.sh
-```
-
-Script này sẽ tự động cài đặt dependencies cho cả 3 ứng dụng (Server, Client, Admin).
-
-### Hoặc cài thủ công từng ứng dụng
-
-```bash
-# Backend Server
-cd server
-npm install
-
-# Client Frontend
-cd ../client
-npm install
-
-# Admin Dashboard
-cd ../admin
-npm install
-```
-
-## 📁 Cấu trúc dự án
-
-```
-WebBanThietBiMang/
-├── server/                    # Backend NestJS
-│   ├── prisma/
-│   │   ├── schema.prisma     # Database schema
-│   │   └── seed.ts           # Sample data seed
-│   ├── src/
-│   │   ├── modules/          # Feature modules
-│   │   │   ├── auth/         # JWT authentication
-│   │   │   ├── products/     # Product management
-│   │   │   ├── cart/         # Shopping cart
-│   │   │   ├── orders/       # Order processing
-│   │   │   ├── brands/       # Brand aggregation
-│   │   │   └── categories/   # Category hierarchy
-│   │   ├── middleware/       # Custom middleware
-│   │   └── main.ts           # App entry point
-│   ├── API_DOCUMENTATION.md  # API docs
-│   └── DEPLOYMENT_GUIDE.md   # Production deployment
-│
-├── client/                   # Client Next.js
-│   ├── src/
-│   │   ├── app/              # Next.js 13+ App Router
-│   │   ├── components/       # UI components
-│   │   ├── contexts/         # React contexts (Auth)
-│   │   ├── redux/            # Redux store & slices
-│   │   └── services/         # API service layer
-│   └── .env.local            # Environment variables
-│
-└── admin/                    # Admin Next.js
-    ├── src/
-    │   ├── app/              # Admin pages
-    │   ├── components/       # Admin UI components
-    │   └── services/         # Admin API service
-    └── .env.local            # Admin environment
-
-```
-
-## 🛠️ Công nghệ sử dụng
-
-### Backend (NestJS)
-- **Framework**: NestJS 10.3.0 + TypeScript
-- **Database**: MySQL 8.0+ với Prisma ORM 5.11.0
-- **Authentication**: JWT (access token 7 days + refresh token)
-- **Security**: 
-  - Helmet (HTTP security headers)
-  - Throttler (rate limiting: 10 requests/60s)
-  - bcryptjs (password hashing)
-  - RBAC (Role-Based Access Control)
-  - Input validation (class-validator)
-  - SQL injection prevention (Prisma)
-- **Documentation**: Swagger UI
-- **Performance**: Compression middleware
-
-### Frontend (Client & Admin)
-- **Framework**: Next.js 14+ (App Router)
-- **UI**: React 18+ với TypeScript
-- **State Management**: Redux Toolkit
-- **API Client**: Axios với interceptors
-- **Styling**: Tailwind CSS
-- **Auth**: Custom AuthContext với JWT
-
-## ⚙️ Cài đặt và Chạy
-
-### 1. Backend Server
-
-```powershell
-# Di chuyển vào thư mục server
-cd server
-
-# Cài đặt dependencies
-npm install
-
-# Tạo file .env từ template
-cp .env.example .env
-
-# Cập nhật .env với thông tin database:
-DATABASE_URL="mysql://username:password@localhost:3306/network_store"
-JWT_SECRET="your-super-secret-jwt-key-change-in-production"
-JWT_REFRESH_SECRET="your-super-secret-refresh-key-change-in-production"
-
-# Chạy migration để tạo database schema
-npx prisma migrate dev
-
-# Seed database với dữ liệu mẫu
-npx prisma db seed
-
-# Chạy development server
-npm run dev
-```
-
-Backend sẽ chạy tại: **http://localhost:5000**
-Swagger docs: **http://localhost:5000/docs**
-
-### 2. Client Frontend
-
-```powershell
-# Di chuyển vào thư mục client
-cd client
-
-# Cài đặt dependencies
-npm install
-
-# Tạo file .env.local
-# Nội dung:
-NEXT_PUBLIC_API_URL=http://localhost:5000
-NEXT_PUBLIC_SITE_URL=http://localhost:5173
-
-# Chạy development server
-npm run dev
-```
-
-Client sẽ chạy tại: **http://localhost:5173**
-
-### 3. Admin Dashboard
-
-```powershell
-# Di chuyển vào thư mục admin
-cd admin
-
-# Cài đặt dependencies
-npm install
-
-# Tạo file .env.local
-# Nội dung:
-NEXT_PUBLIC_API_URL=http://localhost:5000
-
-# Chạy development server
-npm run dev
-```
-
-Admin sẽ chạy tại: **http://localhost:3000**
-
-## 🔐 Dữ liệu mẫu sau khi seed
-
-### Tài khoản người dùng
-
-#### Admin Account
-- Email: `admin@nettechpro.com`
-- Password: `admin123`
-- Role: `admin`
-- Quyền: Quản lý toàn bộ hệ thống
-
-#### Test User Account
-- Email: `user@example.com`
-- Password: `user123`
-- Role: `user`
-- Quyền: Mua hàng, quản lý đơn hàng cá nhân
-
-### Sản phẩm (5 sản phẩm mẫu)
-
-1. **TP-Link Archer AX3000 WiFi 6 Router**
-   - Giá: 2,990,000 VNĐ
-   - Tồn kho: 50 chiếc
-   - Danh mục: Router
-
-2. **Cisco Catalyst 2960 24-Port Switch**
-   - Giá: 15,900,000 VNĐ
-   - Tồn kho: 20 chiếc
-   - Danh mục: Switch
-
-3. **Ubiquiti UniFi AP AC Pro**
-   - Giá: 4,590,000 VNĐ
-   - Tồn kho: 35 chiếc
-   - Danh mục: Access Point
-
-4. **Fortinet FortiGate 60F Firewall**
-   - Giá: 24,900,000 VNĐ
-   - Tồn kho: 10 chiếc
-   - Danh mục: Firewall
-
-5. **D-Link DGS-1210-28 Smart Switch**
-   - Giá: 8,900,000 VNĐ
-   - Tồn kho: 15 chiếc
-   - Danh mục: Switch
-
-### Danh mục (4 categories)
-- Router
-- Switch
-- Access Point
-- Firewall
-
-### Phương thức thanh toán (5 methods)
-- COD (Thanh toán khi nhận hàng)
-- Bank Transfer (Chuyển khoản ngân hàng)
-- Credit Card (Thẻ tín dụng)
-- Momo (Ví điện tử Momo)
-- ZaloPay (Ví điện tử ZaloPay)
-
-### Phương thức vận chuyển (3 methods)
-1. **Standard Shipping**: 30,000 VNĐ + 5,000 VNĐ/kg (3 ngày)
-2. **Express Shipping**: 60,000 VNĐ + 10,000 VNĐ/kg (1 ngày)
-3. **Same Day Delivery**: 100,000 VNĐ + 15,000 VNĐ/kg (trong ngày)
-
-### Mã giảm giá
-- Code: **WELCOME10**
-- Giảm: 10%
-- Đơn tối thiểu: 1,000,000 VNĐ
-- Số lần sử dụng: 100
-
-## 🔌 API Endpoints
-
-### Authentication
-- `POST /api/v1/auth/register` - Đăng ký tài khoản mới
-- `POST /api/v1/auth/login` - Đăng nhập
-- `POST /api/v1/auth/refresh` - Refresh token
-- `POST /api/v1/auth/change-password` - Đổi mật khẩu
-- `GET /api/v1/auth/profile` - Lấy thông tin user
-
-### Products
-- `GET /api/products` - Lấy danh sách sản phẩm (public, paginated, filterable)
-- `GET /api/products/:id` - Lấy chi tiết sản phẩm (public)
-- `POST /api/products` - Tạo sản phẩm mới (admin only)
-- `PUT /api/products/:id` - Cập nhật sản phẩm (admin only)
-- `DELETE /api/products/:id` - Xóa sản phẩm (admin only, soft delete)
-- `POST /api/products/items` - Tạo SKU cho sản phẩm (admin only)
-
-### Cart
-- `GET /api/cart` - Lấy giỏ hàng hiện tại (authenticated)
-- `POST /api/cart/items` - Thêm sản phẩm vào giỏ (authenticated)
-- `PUT /api/cart/items/:id` - Cập nhật số lượng (authenticated)
-- `DELETE /api/cart/items/:id` - Xóa sản phẩm khỏi giỏ (authenticated)
-- `DELETE /api/cart` - Xóa toàn bộ giỏ hàng (authenticated)
-
-### Orders
-- `POST /api/orders` - Tạo đơn hàng từ giỏ (authenticated, uses transaction)
-- `GET /api/orders/my-orders` - Lấy đơn hàng của user (authenticated)
-- `GET /api/orders` - Lấy tất cả đơn hàng (admin only)
-- `GET /api/orders/:id` - Chi tiết đơn hàng (owner or admin)
-- `PUT /api/orders/:id/status` - Cập nhật trạng thái (admin only)
-
-### Brands
-- `GET /api/brands` - Lấy danh sách thương hiệu (aggregated from products)
-- `GET /api/brands/:name` - Chi tiết thương hiệu và sản phẩm
-
-### Categories
-- `GET /api/categories` - Lấy tất cả danh mục
-- `GET /api/categories/tree` - Lấy cây danh mục với parent-child
-- `GET /api/categories/:id` - Chi tiết danh mục
-- `POST /api/categories` - Tạo danh mục mới (admin only)
-- `PUT /api/categories/:id` - Cập nhật danh mục (admin only)
-- `DELETE /api/categories/:id` - Xóa danh mục (admin only, prevents if has products/children)
-
-Chi tiết đầy đủ xem tại: `server/API_DOCUMENTATION.md`
-
-## 🔒 Bảo mật
-
-### Backend Security Features
-1. **Helmet**: HTTP security headers (XSS, clickjacking, etc.)
-2. **Throttler**: Rate limiting 10 requests/60 seconds
-3. **JWT**: Access token (7 days) + Refresh token
-4. **bcryptjs**: Password hashing với salt
-5. **RBAC**: Role-based authorization (admin, user)
-6. **Input Validation**: class-validator với DTO whitelist
-7. **SQL Injection**: Prisma parameterized queries
-8. **User Isolation**: Users only access their own data
-9. **Soft Delete**: Data preservation for audit
-10. **CORS**: Configured allowed origins
-
-### Frontend Security
-1. **Token Storage**: localStorage with auto-refresh
-2. **Request Interceptor**: Auto-attach Bearer token
-3. **Response Interceptor**: Handle 401 (redirect to login)
-4. **Protected Routes**: AuthContext guards
-5. **HTTPS**: Production deployment with SSL/TLS
-
-## 🧪 Testing
-
-### Test Authentication
-```powershell
-# Login với PowerShell
-$body = @{email='user@example.com'; password='user123'} | ConvertTo-Json
-$response = Invoke-RestMethod -Uri 'http://localhost:5000/api/v1/auth/login' -Method POST -Body $body -ContentType 'application/json'
-$response.data
-```
-
-### Test Products API
-```powershell
-# Get all products
-$response = Invoke-RestMethod -Uri 'http://localhost:5000/api/products?page=1&limit=5' -Method GET
-$response.data.data
-```
-
-### Test Cart (requires authentication)
-```powershell
-# Login first to get token
-$loginResponse = Invoke-RestMethod -Uri 'http://localhost:5000/api/v1/auth/login' -Method POST -Body (@{email='user@example.com'; password='user123'} | ConvertTo-Json) -ContentType 'application/json'
-$token = $loginResponse.data.accessToken
-
-# Add item to cart (productItemId=1 là SKU của TP-Link AX3000)
-$headers = @{Authorization="Bearer $token"}
-$body = @{productItemId=1; quantity=2} | ConvertTo-Json
-Invoke-RestMethod -Uri 'http://localhost:5000/api/cart/items' -Method POST -Body $body -ContentType 'application/json' -Headers $headers
-```
-
-## 📦 Deployment
-
-### Production Checklist
-- [ ] Update `JWT_SECRET` và `JWT_REFRESH_SECRET` với giá trị bảo mật
-- [ ] Configure CORS với domain production
-- [ ] Enable HTTPS/SSL
-- [ ] Configure firewall rules
-- [ ] Setup PM2 cho process management
-- [ ] Configure nginx reverse proxy
-- [ ] Setup monitoring (Sentry, New Relic)
-- [ ] Configure backup strategy
-- [ ] Setup CI/CD pipeline
-- [ ] Configure rate limiting thích hợp
-- [ ] Review security headers (Helmet config)
-
-Chi tiết deployment xem tại: `server/DEPLOYMENT_GUIDE.md`
-
-## 🐳 Docker Deployment
-
-```powershell
-# Build and run với Docker Compose
-cd server
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop containers
-docker-compose down
-```
-
-## 📊 Database Schema
-
-Prisma schema với 26+ models:
-- `SiteUser` - User accounts với role-based access
-- `Role` - User roles (admin, user)
-- `Product` - Product catalog với category, brand
-- `ProductItem` - SKU/variants với giá, tồn kho
-- `ProductImage` - Product images
-- `Category` - Hierarchical categories
-- `Cart` - Shopping carts
-- `CartItem` - Items trong cart
-- `ShopOrder` - Orders với transaction support
-- `OrderLine` - Order line items
-- `OrderStatus` - Order status (Pending, Processing, Shipped, Delivered, Cancelled)
-- `OrderHistory` - Audit trail cho order status changes
-- `Address` - User addresses
-- `PaymentMethod` - Payment methods (COD, Bank, Card, Momo, ZaloPay)
-- `ShippingMethod` - Shipping methods với pricing
-- `Discount` - Discount codes với validation
-- Và nhiều hơn...
-
-## 🚀 Roadmap
-
-- [x] Backend NestJS với 6 modules
-- [x] Authentication với JWT + Refresh tokens
-- [x] Products, Cart, Orders với full CRUD
-- [x] Security middleware (Helmet, Throttler)
-- [x] API Documentation
-- [x] Deployment Guide
-- [x] Database seed script
-- [x] Client API integration
-- [x] Auth Context
-- [ ] Redux integration với backend
-- [ ] Product listing page
-- [ ] Cart functionality
-- [ ] Checkout flow
-- [ ] Admin dashboard integration
-- [ ] Reviews module
-- [ ] User management module
-- [ ] Email notifications
-- [ ] Payment gateway integration
-- [ ] Search optimization
-- [ ] Performance optimization
-
-## 📝 License
-
-ISC License
-
-## 👥 Contributors
-
-- Full-stack developer: [Your Name]
-
-## 📧 Support
-
-For support, email: support@nettechpro.com
+[![NestJS](https://img.shields.io/badge/NestJS-v11-E0234E?logo=nestjs)](https://nestjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-5.22-2D3748?logo=prisma)](https://www.prisma.io/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql)](https://www.mysql.com/)
 
 ---
 
-**Developed with ❤️ for Network Equipment E-commerce**
+## 🚀 Features
+
+### 🔐 **Authentication & Authorization**
+- ✅ **Email/Password Authentication** - Traditional registration and login
+- ✅ **Google OAuth2** - One-click login with Google account
+- ✅ **JWT-based Authorization** - Secure access and refresh tokens
+- ✅ **Role-based Access Control** - Customer and Admin roles
+- ✅ **Account Security** - Lockout after failed attempts, password history
+- ✅ **Session Management** - Track and revoke active sessions
+
+### 🛡️ **Security Features**
+- ✅ **AES-256-GCM Encryption** - OAuth tokens encrypted at rest
+- ✅ **Bcrypt Password Hashing** - Industry standard with configurable rounds
+- ✅ **Rate Limiting** - Protection against brute force attacks
+- ✅ **CORS Protection** - Configurable cross-origin policies
+- ✅ **Helmet Security Headers** - XSS, clickjacking protection
+- ✅ **Input Validation** - All endpoints validated with class-validator
+- ✅ **Security Audit Logging** - Comprehensive event tracking
+
+### 📊 **Database Schema**
+13 tables covering complete e-commerce functionality:
+- Users & Authentication (users, oauth_accounts, user_sessions)
+- Products & Categories (products, categories, product_images, product_reviews)
+- Shopping Cart (shopping_carts, cart_items)
+- Orders & Payments (orders, order_items, order_statuses, order_history)
+- Addresses & Shipping (addresses)
+- Discounts (discount_codes, discount_usage)
+- Security (security_logs, password_history, verification_tokens)
+
+### 📖 **API Documentation**
+- ✅ **Swagger/OpenAPI** - Interactive API documentation
+- ✅ **JWT Bearer Auth** - Try endpoints directly in Swagger UI
+
+---
+
+## 📋 Description
+
+NetworkStore API provides a complete backend solution for e-commerce applications with enterprise-grade security and scalability.
+
+## ⚡ Quick Start
+
+### 1. Install Dependencies
+```bash
+npm install
+```
+
+### 2. Configure Environment
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+### 3. Setup Database
+```bash
+# Generate Prisma Client
+npx prisma generate
+
+# Push schema to database
+npx prisma db push
+```
+
+### 4. Start Development Server
+```bash
+npm run start:dev
+```
+
+**API will be available at**: `http://localhost:3000/api/v1`  
+**Swagger Documentation**: `http://localhost:3000/api`
+
+---
+
+## 🔐 OAuth2 Setup (Optional)
+
+For Google OAuth authentication:
+
+```bash
+# Run automated setup
+chmod +x setup-oauth.sh
+./setup-oauth.sh
+```
+
+Or follow manual setup in [OAUTH_SETUP_GUIDE.md](./OAUTH_SETUP_GUIDE.md)
+
+---
+
+## 🛠️ Available Scripts
+
+```bash
+# Development
+npm run start:dev      # Start with hot-reload
+
+# Production
+npm run build          # Build for production
+npm run start:prod     # Start production server
+
+# Testing
+npm run test           # Run unit tests
+npm run test:e2e       # Run e2e tests
+npm run test:cov       # Generate coverage report
+
+# Database
+npx prisma generate    # Generate Prisma Client
+npx prisma db push     # Push schema changes
+npx prisma studio      # Open Prisma Studio GUI
+
+# Code Quality
+npm run lint           # Lint code
+npm run format         # Format code with Prettier
+npm audit              # Check for vulnerabilities
+```
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [QUICKSTART.md](./QUICKSTART.md) | Quick start guide (Vietnamese) |
+| [AUTH_DOCUMENTATION.md](./AUTH_DOCUMENTATION.md) | Authentication API endpoints |
+| [OAUTH_SETUP_GUIDE.md](./OAUTH_SETUP_GUIDE.md) | Google OAuth2 setup guide |
+| [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) | Security measures and audit |
+
+---
+
+## 🔒 Security
+
+### Implemented Security Measures
+
+- ✅ **JWT Authentication** - Access and refresh tokens
+- ✅ **OAuth2 Google** - Secure third-party authentication
+- ✅ **Password Security** - Bcrypt hashing, history tracking
+- ✅ **Account Lockout** - After 5 failed attempts
+- ✅ **Rate Limiting** - 10 requests per minute
+- ✅ **Token Encryption** - AES-256-GCM for OAuth tokens
+- ✅ **Security Logging** - All auth events tracked
+- ✅ **Input Validation** - All endpoints validated
+- ✅ **CORS Protection** - Configurable origins
+- ✅ **Helmet Headers** - XSS, clickjacking protection
+
+### Security Recommendations
+
+```bash
+# Generate secure secrets
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+
+# Run security audit
+npm audit
+
+# Check for vulnerabilities
+npm outdated
+```
+
+**Important**: Read [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) before deploying to production.
+
+---
+
+## 🏗️ Architecture
+
+```
+src/
+├── auth/                   # Authentication module
+│   ├── strategies/        # Passport strategies (JWT, Google)
+│   ├── guards/            # Auth guards (JWT, Roles)
+│   ├── decorators/        # Custom decorators
+│   └── dto/               # Data transfer objects
+├── common/                 # Shared resources
+│   ├── filters/           # Exception filters
+│   └── interceptors/      # Response interceptors
+├── config/                 # Configuration
+├── prisma/                 # Database service
+└── main.ts                 # Application entry point
+
+prisma/
+└── schema.prisma          # Database schema (13 tables)
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Coverage report
+npm run test:cov
+
+# Watch mode
+npm run test:watch
+```
+
+---
+
+## 🚀 Deployment
+
+### Pre-deployment Checklist
+
+- [ ] Update all secrets in `.env`
+- [ ] Enable HTTPS
+- [ ] Configure CORS for production domain
+- [ ] Setup database backup
+- [ ] Enable database encryption at rest
+- [ ] Configure monitoring and alerts
+- [ ] Review security audit report
+- [ ] Test OAuth flow in production environment
+
+### Environment Variables
+
+Required for production:
+```env
+DATABASE_URL=mysql://user:pass@host:3306/db
+JWT_ACCESS_SECRET=<generated-secret>
+JWT_REFRESH_SECRET=<generated-secret>
+ENCRYPTION_KEY=<generated-secret>
+GOOGLE_CLIENT_ID=<from-google-console>
+GOOGLE_CLIENT_SECRET=<from-google-console>
+GOOGLE_CALLBACK_URL=https://yourdomain.com/api/v1/auth/google/callback
+FRONTEND_URL=https://yourdomain.com
+NODE_ENV=production
+```
+
+---
+
+## 📊 API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/register` - Register new user
+- `POST /api/v1/auth/login` - Login with email/password
+- `GET /api/v1/auth/google` - Login with Google
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/logout` - Logout user
+- `GET /api/v1/auth/profile` - Get user profile
+- `POST /api/v1/auth/change-password` - Change password
+- `GET /api/v1/auth/oauth/accounts` - Get linked OAuth accounts
+- `DELETE /api/v1/auth/oauth/:provider` - Unlink OAuth provider
+
+**Full API documentation available at**: `http://localhost:3000/api`
+
+---
+
+## 🛣️ Roadmap
+
+- [x] Authentication system (Email/Password)
+- [x] OAuth2 Google integration
+- [x] Security features (encryption, rate limiting)
+- [ ] Products management module
+- [ ] Shopping cart module
+- [ ] Orders & checkout module
+- [ ] Payment integration (Stripe/PayPal)
+- [ ] Admin dashboard
+- [ ] Email notifications
+- [ ] Product reviews & ratings
+- [ ] Advanced search & filters
+- [ ] Image upload & CDN
+- [ ] Analytics & reporting
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our contributing guidelines first.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is [MIT licensed](LICENSE).
+
+---
+
+## 🙏 Acknowledgments
+
+- Built with [NestJS](https://nestjs.com/) - Progressive Node.js framework
+- [Prisma](https://www.prisma.io/) - Next-generation ORM
+- [Passport](http://www.passportjs.org/) - Authentication middleware
+- Security best practices from [OWASP](https://owasp.org/)
+
+---
+
+## 📞 Support
+
+For issues and questions:
+- 📧 Email: support@networkstore.com
+- 🔒 Security issues: security@networkstore.com
+- 📖 Documentation: See docs folder
+
+---
+
+**Made with ❤️ for secure e-commerce**

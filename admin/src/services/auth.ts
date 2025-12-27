@@ -1,5 +1,6 @@
 /**
  * Admin Authentication API Service
+ * Sử dụng chung API auth với client, admin chỉ là role khác
  */
 
 import { apiClient } from './client';
@@ -8,19 +9,46 @@ import { User, AdminAuthResponse } from './types';
 
 export const adminAuthApi = {
   /**
-   * Đăng nhập admin
+   * Đăng nhập admin (sử dụng chung endpoint với client)
+   * Backend sẽ trả về user với role='admin'
    */
   login: async (email: string, password: string): Promise<AdminAuthResponse> => {
-    const response = await apiClient.post('/api/v1/admin/auth/login', { email, password });
-    return unwrapResponse<AdminAuthResponse>(response);
+    const response = await apiClient.post('/api/v1/auth/admin/login', { email, password });
+    const data = unwrapResponse<AdminAuthResponse>(response);
+    
+    // Kiểm tra role admin
+    if (data.user && data.user.role !== 'admin') {
+      throw new Error('Access denied. Admin role required.');
+    }
+    
+    // Lưu tokens (Backend admin trả về camelCase: accessToken, refreshToken)
+    if (data.accessToken) {
+      localStorage.setItem('admin_token', data.accessToken);
+    }
+    if (data.refreshToken) {
+      localStorage.setItem('admin_refresh_token', data.refreshToken);
+    }
+    if (data.user) {
+      localStorage.setItem('admin_user', JSON.stringify(data.user));
+    }
+    
+    return data;
   },
 
   /**
    * Đăng xuất admin
    */
   logout: async (): Promise<void> => {
-    await apiClient.post('/api/v1/admin/auth/logout');
+    const refreshToken = localStorage.getItem('admin_refresh_token');
+    if (refreshToken) {
+      try {
+        await apiClient.post('/api/v1/auth/admin/logout', { refreshToken });
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    }
     localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_refresh_token');
     localStorage.removeItem('admin_user');
   },
 
@@ -28,45 +56,31 @@ export const adminAuthApi = {
    * Lấy thông tin admin hiện tại
    */
   getMe: async (): Promise<User> => {
-    const response = await apiClient.get('/api/v1/admin/auth/me');
+    const response = await apiClient.get('/api/v1/auth/profile');
     return unwrapResponse<User>(response);
   },
 
   /**
    * Đổi mật khẩu admin
    */
-  changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
-    await apiClient.post('/api/v1/admin/auth/change-password', { 
-      oldPassword, 
-      newPassword 
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    await apiClient.post('/api/v1/auth/change-password', { 
+      current_password: currentPassword, 
+      new_password: newPassword 
     });
-  },
-
-  /**
-   * Cập nhật thông tin profile admin
-   */
-  updateProfile: async (profileData: {
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    avatar?: string;
-  }): Promise<User> => {
-    const response = await apiClient.put('/api/v1/admin/auth/profile', profileData);
-    const data = unwrapResponse<User>(response);
-    // Cập nhật localStorage
-    const adminUser = JSON.parse(localStorage.getItem('admin_user') || '{}');
-    localStorage.setItem('admin_user', JSON.stringify({ ...adminUser, ...data }));
-    return data;
   },
 
   /**
    * Refresh access token
    */
   refreshToken: async (refreshToken: string): Promise<AdminAuthResponse> => {
-    const response = await apiClient.post('/api/v1/admin/auth/refresh', { refreshToken });
+    const response = await apiClient.post('/api/v1/auth/admin/refresh', { refreshToken });
     const data = unwrapResponse<AdminAuthResponse>(response);
     if (data.accessToken) {
       localStorage.setItem('admin_token', data.accessToken);
+    }
+    if (data.refreshToken) {
+      localStorage.setItem('admin_refresh_token', data.refreshToken);
     }
     return data;
   },

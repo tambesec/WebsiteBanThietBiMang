@@ -1,14 +1,15 @@
 /**
  * API Service cho Admin Dashboard
- * Kết nối với backend API tại http://localhost:5000 (dev) hoặc https://api.nettechpro.me (production)
+ * Backend sử dụng role-based access control - Admin dùng chung endpoint với client
+ * Các endpoint cần auth sẽ check role='admin' từ JWT token
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-// API Base URL - tự động lấy từ environment variable hoặc mặc định localhost
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+// API Base URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-// Tạo axios instance với config mặc định
+// Tạo axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
@@ -18,7 +19,7 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor - thêm token vào header
+// Request interceptor - thêm admin token
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('admin_token');
@@ -32,140 +33,197 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor - xử lý lỗi
+// Response interceptor - xử lý lỗi và unwrap response
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
+    
+    // Xử lý 401 - Token hết hạn, thử refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      const refreshToken = localStorage.getItem('admin_refresh_token');
+      if (refreshToken) {
+        try {
+          // 🔄 Call ADMIN refresh endpoint (not client endpoint)
+          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/admin/refresh`, {
+            refreshToken: refreshToken
+          });
+          
+          const data = response.data;
+          if (data.accessToken) {
+            localStorage.setItem('admin_token', data.accessToken);
+            
+            // 🔄 TOKEN ROTATION: Update refresh_token if backend returns new one
+            if (data.refreshToken) {
+              localStorage.setItem('admin_refresh_token', data.refreshToken);
+            }
+            
+            originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+            return apiClient(originalRequest);
+          }
+        } catch (refreshError) {
+          // Refresh failed
+          localStorage.removeItem('admin_token');
+          localStorage.removeItem('admin_refresh_token');
+          localStorage.removeItem('admin_user');
+          window.location.href = '/auth/signin';
+          return Promise.reject(refreshError);
+        }
+      }
+      
       localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_refresh_token');
       localStorage.removeItem('admin_user');
-      window.location.href = '/signin';
+      window.location.href = '/auth/signin';
     }
+    
     return Promise.reject(error);
   }
 );
 
+// Helper to unwrap response
+const unwrap = <T>(response: any): T => {
+  return response.data.data || response.data;
+};
+
 // ==================== TYPES ====================
 export interface Product {
-  id: string;
+  id: number;
   name: string;
   slug: string;
-  description: string;
+  brand?: string;
+  model?: string;
+  description?: string;
   price: number;
-  salePrice?: number;
-  images: string[];
-  category: string;
-  categoryName?: string;
-  brand: string;
-  brandName?: string;
-  stock: number;
-  rating: number;
-  reviews: number;
-  specifications?: Record<string, string>;
-  tags?: string[];
-  isActive: boolean;
-  isFeatured: boolean;
-  createdAt: string;
-  updatedAt: string;
+  compare_at_price?: number;
+  sku: string;
+  stock_quantity: number;
+  category_id: number;
+  category?: Category;
+  specifications?: string;
+  primary_image?: string;
+  images?: ProductImage[];
+  is_active: boolean;
+  is_featured: boolean;
+  warranty_months: number;
+  meta_title?: string;
+  meta_description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductImage {
+  id: number;
+  product_id: number;
+  image_url: string;
+  alt_text?: string;
+  display_order: number;
 }
 
 export interface Category {
-  id: string;
+  id: number;
+  parent_id?: number;
   name: string;
   slug: string;
   description?: string;
-  image?: string;
-  parentId?: string;
-  order: number;
-  isActive: boolean;
-  productsCount?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Brand {
-  id: string;
-  name: string;
-  slug: string;
-  logo?: string;
-  description?: string;
-  website?: string;
-  isActive: boolean;
-  productsCount?: number;
-  createdAt: string;
-  updatedAt: string;
+  image_url?: string;
+  display_order: number;
+  is_active: boolean;
+  children?: Category[];
+  products_count?: number;
 }
 
 export interface User {
-  id: string;
+  id: number;
   email: string;
-  fullName: string;
+  full_name: string;
   phone?: string;
-  avatar?: string;
   role: 'customer' | 'admin';
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  is_active: boolean;
+  is_email_verified: boolean;
+  last_login?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Order {
-  id: string;
-  userId: string;
+  id: number;
+  order_number: string;
+  user_id: number;
   user?: User;
-  items: {
-    productId: string;
-    product: Product;
-    quantity: number;
-    price: number;
-  }[];
-  totalAmount: number;
-  shippingAddress: {
-    fullName: string;
-    phone: string;
-    address: string;
-    city: string;
-    district: string;
-    ward: string;
-  };
-  billingAddress?: {
-    fullName: string;
-    phone: string;
-    address: string;
-    city: string;
-    district: string;
-    ward: string;
-  };
-  paymentMethod: 'cod' | 'bank_transfer' | 'momo' | 'vnpay';
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
-  shippingMethod: 'standard' | 'express';
-  shippingFee: number;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  note?: string;
-  adminNote?: string;
-  createdAt: string;
-  updatedAt: string;
+  status_id: number;
+  status?: OrderStatus;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  shipping_address: string;
+  shipping_city: string;
+  shipping_district?: string;
+  shipping_ward?: string;
+  payment_method: string;
+  payment_status: 'unpaid' | 'paid' | 'refunded';
+  shipping_method: string;
+  subtotal: number;
+  shipping_fee: number;
+  discount_amount: number;
+  discount_code?: string;
+  tax_amount: number;
+  total_amount: number;
+  customer_note?: string;
+  admin_note?: string;
+  items?: OrderItem[];
+  created_at: string;
+  updated_at: string;
 }
 
-export interface AdminUser {
-  id: string;
-  email: string;
-  fullName: string;
-  role: 'admin' | 'super_admin';
-  avatar?: string;
-  permissions?: string[];
+export interface OrderStatus {
+  id: number;
+  name: string;
+  description?: string;
+  display_order: number;
+  color?: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  user: AdminUser;
+export interface OrderItem {
+  id: number;
+  order_id: number;
+  product_id: number;
+  product_name: string;
+  product_sku: string;
+  product_image?: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+}
+
+export interface Review {
+  id: number;
+  product_id: number;
+  user_id: number;
+  order_id?: number;
+  rating: number;
+  title?: string;
+  comment?: string;
+  images?: string;
+  is_verified_purchase: boolean;
+  is_approved: boolean;
+  helpful_count: number;
+  admin_reply?: string;
+  replied_at?: string;
+  created_at: string;
+  updated_at: string;
+  user?: User;
+  product?: Product;
 }
 
 export interface PaginationParams {
   page?: number;
   limit?: number;
   search?: string;
-  sort?: string;
-  order?: 'asc' | 'desc';
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
 }
 
 export interface PaginatedResponse<T> {
@@ -174,675 +232,342 @@ export interface PaginatedResponse<T> {
     page: number;
     limit: number;
     total: number;
-    totalPages: number;
+    total_pages: number;
   };
 }
 
 export interface DashboardStats {
-  totalRevenue: number;
-  totalOrders: number;
-  totalProducts: number;
-  totalUsers: number;
-  revenueGrowth: number;
-  ordersGrowth: number;
-  productsGrowth: number;
-  usersGrowth: number;
-  recentOrders: Order[];
-  topProducts: Product[];
-}
-
-export interface Review {
-  id: string;
-  userId: string;
-  user?: User;
-  productId: string;
-  product?: Product;
-  rating: number;
-  comment: string;
-  images?: string[];
-  isVerified: boolean;
-  adminReply?: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Address {
-  id: string;
-  userId: string;
-  fullName: string;
-  phone: string;
-  address: string;
-  city: string;
-  district: string;
-  ward: string;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AnalyticsData {
-  revenue: {
-    daily: { date: string; amount: number }[];
-    weekly: { week: string; amount: number }[];
-    monthly: { month: string; amount: number }[];
-    yearly: { year: string; amount: number }[];
+  overview: {
+    total_revenue: number;
+    total_orders: number;
+    total_products: number;
+    total_customers: number;
+    pending_orders: number;
+    low_stock_products: number;
   };
-  orders: {
-    byStatus: { status: string; count: number }[];
-    byPaymentMethod: { method: string; count: number }[];
-    trend: { date: string; count: number }[];
-  };
-  products: {
-    topSelling: { productId: string; name: string; sold: number }[];
-    lowStock: Product[];
-    outOfStock: Product[];
-  };
-  customers: {
-    new: number;
-    returning: number;
-    topSpenders: { userId: string; name: string; totalSpent: number }[];
-  };
-}
-
-export interface ShippingMethod {
-  id: string;
-  name: string;
-  code: string;
-  basePrice: number;
-  pricePerKg?: number;
-  estimatedDays?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PaymentMethod {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  logo?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Discount {
-  id: string;
-  code: string;
-  description: string;
-  discountType: 'percentage' | 'fixed';
-  discountValue: number;
-  minOrderAmount?: number;
-  maxUses?: number;
-  usedCount: number;
-  startsAt: string;
-  endsAt: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  revenue_by_period: Array<{ period: string; revenue: number }>;
+  orders_by_status: Array<{ status: string; count: number }>;
+  top_products: Array<{ product: Product; total_sold: number; revenue: number }>;
+  recent_orders: Order[];
 }
 
 // ==================== ADMIN AUTH API ====================
 export const adminAuthApi = {
-  login: async (email: string, password: string): Promise<AuthResponse> => {
-    const response = await apiClient.post('/api/v1/admin/auth/login', { email, password });
-    localStorage.setItem('admin_token', response.data.token);
-    localStorage.setItem('admin_user', JSON.stringify(response.data.user));
-    return response.data;
+  login: async (email: string, password: string) => {
+    const response = await apiClient.post('/api/v1/auth/admin/login', { email, password });
+    const data = unwrap<any>(response);
+    
+    // Backend admin endpoint already verifies role
+    // Store tokens (Backend returns camelCase)
+    if (data.accessToken) {
+      localStorage.setItem('admin_token', data.accessToken);
+    }
+    if (data.refreshToken) {
+      localStorage.setItem('admin_refresh_token', data.refreshToken);
+    }
+    if (data.user) {
+      localStorage.setItem('admin_user', JSON.stringify(data.user));
+    }
+    
+    return data;
   },
 
-  logout: async (): Promise<void> => {
-    await apiClient.post('/api/v1/admin/auth/logout');
+  logout: async () => {
+    const refreshToken = localStorage.getItem('admin_refresh_token');
+    if (refreshToken) {
+      try {
+        await apiClient.post('/api/v1/auth/admin/logout', { refreshToken });
+      } catch (e) {
+        console.error('Logout error:', e);
+      }
+    }
     localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_refresh_token');
     localStorage.removeItem('admin_user');
   },
 
-  getMe: async (): Promise<AdminUser> => {
-    const response = await apiClient.get('/api/v1/admin/auth/me');
-    return response.data;
+  getMe: async (): Promise<User> => {
+    const response = await apiClient.get('/api/v1/auth/profile');
+    return unwrap<User>(response);
   },
 
-  changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
-    await apiClient.post('/api/v1/admin/auth/change-password', { 
-      oldPassword, 
-      newPassword 
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    await apiClient.post('/api/v1/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
     });
-  },
-
-  updateProfile: async (profileData: Partial<AdminUser>): Promise<AdminUser> => {
-    const response = await apiClient.put('/api/v1/admin/auth/profile', profileData);
-    return response.data;
-  },
-
-  refreshToken: async (): Promise<AuthResponse> => {
-    const response = await apiClient.post('/api/v1/admin/auth/refresh-token');
-    if (response.data.token) {
-      localStorage.setItem('admin_token', response.data.token);
-      localStorage.setItem('admin_user', JSON.stringify(response.data.user));
-    }
-    return response.data;
   },
 };
 
 // ==================== ADMIN PRODUCTS API ====================
 export const adminProductsApi = {
-  getAll: async (params?: PaginationParams & { 
-    category?: string; 
+  getAll: async (params?: PaginationParams & {
+    category_id?: number;
     brand?: string;
-    isActive?: boolean;
-    isFeatured?: boolean;
+    is_active?: boolean;
+    is_featured?: boolean;
   }): Promise<PaginatedResponse<Product>> => {
-    const response = await apiClient.get('/api/v1/admin/products', { params });
-    return response.data;
+    const response = await apiClient.get('/api/v1/products', { params });
+    const data = unwrap<any>(response);
+    return {
+      data: data.products || data.data || [],
+      pagination: data.pagination || { page: 1, limit: 10, total: 0, total_pages: 1 },
+    };
   },
 
-  getById: async (id: string): Promise<Product> => {
-    const response = await apiClient.get(`/api/admin/products/${id}`);
-    return response.data;
+  getById: async (id: number): Promise<Product> => {
+    const response = await apiClient.get(`/api/v1/products/${id}`);
+    return unwrap<Product>(response);
   },
 
-  create: async (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'slug' | 'rating' | 'reviews'>): Promise<Product> => {
-    const response = await apiClient.post('/api/v1/admin/products', productData);
-    return response.data;
+  getBySlug: async (slug: string): Promise<Product> => {
+    const response = await apiClient.get(`/api/v1/products/slug/${slug}`);
+    return unwrap<Product>(response);
   },
 
-  update: async (id: string, productData: Partial<Product>): Promise<Product> => {
-    const response = await apiClient.put(`/api/admin/products/${id}`, productData);
-    return response.data;
+  create: async (productData: {
+    name: string;
+    category_id: number;
+    price: number;
+    sku: string;
+    brand?: string;
+    model?: string;
+    description?: string;
+    compare_at_price?: number;
+    stock_quantity?: number;
+    specifications?: string;
+    primary_image?: string;
+    is_active?: boolean;
+    is_featured?: boolean;
+    warranty_months?: number;
+    meta_title?: string;
+    meta_description?: string;
+  }): Promise<Product> => {
+    const response = await apiClient.post('/api/v1/products', productData);
+    return unwrap<Product>(response);
   },
 
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/admin/products/${id}`);
+  update: async (id: number, productData: Partial<Product>): Promise<Product> => {
+    const response = await apiClient.patch(`/api/v1/products/${id}`, productData);
+    return unwrap<Product>(response);
   },
 
-  bulkDelete: async (ids: string[]): Promise<void> => {
-    await apiClient.post('/api/v1/admin/products/bulk-delete', { ids });
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/v1/products/${id}`);
   },
 
-  updateStock: async (id: string, stock: number): Promise<Product> => {
-    const response = await apiClient.patch(`/api/admin/products/${id}/stock`, { stock });
-    return response.data;
+  updateStock: async (id: number, quantity: number): Promise<Product> => {
+    const response = await apiClient.patch(`/api/v1/products/${id}/stock`, { quantity });
+    return unwrap<Product>(response);
   },
 
-  toggleActive: async (id: string): Promise<Product> => {
-    const response = await apiClient.patch(`/api/admin/products/${id}/toggle-active`);
-    return response.data;
+  toggleFeatured: async (id: number): Promise<Product> => {
+    const response = await apiClient.patch(`/api/v1/products/${id}/toggle-featured`);
+    return unwrap<Product>(response);
   },
 
-  toggleFeatured: async (id: string): Promise<Product> => {
-    const response = await apiClient.patch(`/api/admin/products/${id}/toggle-featured`);
-    return response.data;
-  },
-
-  uploadImages: async (id: string, images: File[]): Promise<string[]> => {
-    const formData = new FormData();
-    images.forEach((image) => {
-      formData.append('images', image);
-    });
-    const response = await apiClient.post(`/api/admin/products/${id}/images`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
-  },
-
-  getStatistics: async (): Promise<{
-    total: number;
-    active: number;
-    inactive: number;
-    lowStock: number;
-    outOfStock: number;
-  }> => {
-    const response = await apiClient.get('/api/v1/admin/products/statistics');
-    return response.data;
-  },
-
-  getLowStock: async (threshold: number = 10): Promise<Product[]> => {
-    const response = await apiClient.get('/api/v1/admin/products/low-stock', { 
-      params: { threshold } 
-    });
-    return response.data;
-  },
-
-  bulkUpdateStatus: async (ids: string[], isActive: boolean): Promise<void> => {
-    await apiClient.post('/api/v1/admin/products/bulk-update-status', { ids, isActive });
-  },
-
-  bulkUpdatePrice: async (updates: { id: string; price?: number; salePrice?: number }[]): Promise<void> => {
-    await apiClient.post('/api/v1/admin/products/bulk-update-price', { updates });
+  getFilterOptions: async () => {
+    const response = await apiClient.get('/api/v1/products/filters/options');
+    return unwrap<any>(response);
   },
 };
 
 // ==================== ADMIN CATEGORIES API ====================
 export const adminCategoriesApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Category>> => {
-    const response = await apiClient.get('/api/v1/admin/categories', { params });
-    return response.data;
+  getAll: async (params?: PaginationParams & {
+    parent_id?: number;
+    is_active?: boolean;
+  }): Promise<PaginatedResponse<Category>> => {
+    const response = await apiClient.get('/api/v1/categories', { params });
+    const data = unwrap<any>(response);
+    // Categories might return array directly or wrapped
+    const categories = Array.isArray(data) ? data : (data.categories || data.data || []);
+    return {
+      data: categories,
+      pagination: data.pagination || { page: 1, limit: 100, total: categories.length, total_pages: 1 },
+    };
   },
 
-  getById: async (id: string): Promise<Category> => {
-    const response = await apiClient.get(`/api/admin/categories/${id}`);
-    return response.data;
+  getTree: async (): Promise<Category[]> => {
+    const response = await apiClient.get('/api/v1/categories/tree');
+    return unwrap<Category[]>(response);
   },
 
-  create: async (categoryData: Omit<Category, 'id' | 'createdAt' | 'updatedAt' | 'slug' | 'productsCount'>): Promise<Category> => {
-    const response = await apiClient.post('/api/v1/admin/categories', categoryData);
-    return response.data;
+  getById: async (id: number): Promise<Category> => {
+    const response = await apiClient.get(`/api/v1/categories/${id}`);
+    return unwrap<Category>(response);
   },
 
-  update: async (id: string, categoryData: Partial<Category>): Promise<Category> => {
-    const response = await apiClient.put(`/api/admin/categories/${id}`, categoryData);
-    return response.data;
+  create: async (categoryData: {
+    name: string;
+    parent_id?: number;
+    description?: string;
+    image_url?: string;
+    display_order?: number;
+    is_active?: boolean;
+  }): Promise<Category> => {
+    const response = await apiClient.post('/api/v1/categories', categoryData);
+    return unwrap<Category>(response);
   },
 
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/admin/categories/${id}`);
+  update: async (id: number, categoryData: Partial<Category>): Promise<Category> => {
+    const response = await apiClient.patch(`/api/v1/categories/${id}`, categoryData);
+    return unwrap<Category>(response);
   },
 
-  reorder: async (categories: { id: string; order: number }[]): Promise<void> => {
-    await apiClient.post('/api/v1/admin/categories/reorder', { categories });
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/v1/categories/${id}`);
   },
 
-  toggleActive: async (id: string): Promise<Category> => {
-    const response = await apiClient.patch(`/api/admin/categories/${id}/toggle-active`);
-    return response.data;
-  },
-};
-
-// ==================== ADMIN BRANDS API ====================
-export const adminBrandsApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<Brand>> => {
-    const response = await apiClient.get('/api/v1/admin/brands', { params });
-    return response.data;
-  },
-
-  getById: async (id: string): Promise<Brand> => {
-    const response = await apiClient.get(`/api/admin/brands/${id}`);
-    return response.data;
-  },
-
-  create: async (brandData: Omit<Brand, 'id' | 'createdAt' | 'updatedAt' | 'slug' | 'productsCount'>): Promise<Brand> => {
-    const response = await apiClient.post('/api/v1/admin/brands', brandData);
-    return response.data;
-  },
-
-  update: async (id: string, brandData: Partial<Brand>): Promise<Brand> => {
-    const response = await apiClient.put(`/api/admin/brands/${id}`, brandData);
-    return response.data;
-  },
-
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/admin/brands/${id}`);
-  },
-
-  toggleActive: async (id: string): Promise<Brand> => {
-    const response = await apiClient.patch(`/api/admin/brands/${id}/toggle-active`);
-    return response.data;
+  reorder: async (categories: { id: number; display_order: number }[]): Promise<void> => {
+    await apiClient.post('/api/v1/categories/reorder', { categories });
   },
 };
 
 // ==================== ADMIN ORDERS API ====================
 export const adminOrdersApi = {
-  getAll: async (params?: PaginationParams & { 
-    status?: string;
-    paymentStatus?: string;
-    paymentMethod?: string;
-    userId?: string;
+  getAll: async (params?: PaginationParams & {
+    status_id?: number;
+    payment_status?: string;
+    user_id?: number;
   }): Promise<PaginatedResponse<Order>> => {
-    const response = await apiClient.get('/api/v1/admin/orders', { params });
-    return response.data;
+    const response = await apiClient.get('/api/v1/orders/admin/all', { params });
+    const data = unwrap<any>(response);
+    return {
+      data: data.orders || data.data || [],
+      pagination: data.pagination || { page: 1, limit: 20, total: 0, total_pages: 1 },
+    };
   },
 
-  getById: async (id: string): Promise<Order> => {
-    const response = await apiClient.get(`/api/admin/orders/${id}`);
-    return response.data;
+  getById: async (id: number): Promise<Order> => {
+    const response = await apiClient.get(`/api/v1/orders/${id}`);
+    return unwrap<Order>(response);
   },
 
-  updateStatus: async (id: string, status: Order['status'], note?: string): Promise<Order> => {
-    const response = await apiClient.patch(`/api/admin/orders/${id}/status`, { 
-      status, 
-      adminNote: note 
-    });
-    return response.data;
+  getByOrderNumber: async (orderNumber: string): Promise<Order> => {
+    const response = await apiClient.get(`/api/v1/orders/number/${orderNumber}`);
+    return unwrap<Order>(response);
   },
 
-  updatePaymentStatus: async (id: string, paymentStatus: Order['paymentStatus']): Promise<Order> => {
-    const response = await apiClient.patch(`/api/admin/orders/${id}/payment-status`, { 
-      paymentStatus 
-    });
-    return response.data;
+  updateStatus: async (id: number, statusData: {
+    status_id: number;
+    note?: string;
+    tracking_number?: string;
+  }): Promise<Order> => {
+    const response = await apiClient.patch(`/api/v1/orders/${id}/status`, statusData);
+    return unwrap<Order>(response);
   },
 
-  addNote: async (id: string, note: string): Promise<Order> => {
-    const response = await apiClient.post(`/api/admin/orders/${id}/notes`, { note });
-    return response.data;
-  },
-
-  cancel: async (id: string, reason: string): Promise<Order> => {
-    const response = await apiClient.post(`/api/admin/orders/${id}/cancel`, { reason });
-    return response.data;
-  },
-
-  getStatistics: async (period?: 'day' | 'week' | 'month' | 'year'): Promise<{
-    total: number;
-    pending: number;
-    processing: number;
-    shipped: number;
-    delivered: number;
-    cancelled: number;
-    totalRevenue: number;
-    averageOrderValue: number;
-  }> => {
-    const response = await apiClient.get('/api/v1/admin/orders/statistics', { params: { period } });
-    return response.data;
-  },
-
-  getRevenueByPeriod: async (startDate: string, endDate: string): Promise<{
-    labels: string[];
-    data: number[];
-  }> => {
-    const response = await apiClient.get('/api/v1/admin/orders/revenue', { 
-      params: { startDate, endDate } 
-    });
-    return response.data;
-  },
-
-  exportOrders: async (params?: { 
-    startDate?: string; 
-    endDate?: string; 
-    status?: string; 
-    format?: 'csv' | 'excel' 
-  }): Promise<Blob> => {
-    const response = await apiClient.get('/api/v1/admin/orders/export', { 
-      params,
-      responseType: 'blob'
-    });
-    return response.data;
-  },
-
-  bulkUpdateStatus: async (ids: string[], status: Order['status']): Promise<void> => {
-    await apiClient.post('/api/v1/admin/orders/bulk-update-status', { ids, status });
-  },
-};
-
-// ==================== ADMIN USERS API ====================
-export const adminUsersApi = {
-  getAll: async (params?: PaginationParams & { 
-    role?: string;
-    isActive?: boolean;
-  }): Promise<PaginatedResponse<User>> => {
-    const response = await apiClient.get('/api/v1/admin/users', { params });
-    return response.data;
-  },
-
-  getById: async (id: string): Promise<User> => {
-    const response = await apiClient.get(`/api/admin/users/${id}`);
-    return response.data;
-  },
-
-  create: async (userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'> & { password: string }): Promise<User> => {
-    const response = await apiClient.post('/api/v1/admin/users', userData);
-    return response.data;
-  },
-
-  update: async (id: string, userData: Partial<User>): Promise<User> => {
-    const response = await apiClient.put(`/api/admin/users/${id}`, userData);
-    return response.data;
-  },
-
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/admin/users/${id}`);
-  },
-
-  toggleActive: async (id: string): Promise<User> => {
-    const response = await apiClient.patch(`/api/admin/users/${id}/toggle-active`);
-    return response.data;
-  },
-
-  resetPassword: async (id: string, newPassword: string): Promise<void> => {
-    await apiClient.post(`/api/admin/users/${id}/reset-password`, { newPassword });
-  },
-};
-
-// ==================== ADMIN DASHBOARD API ====================
-export const adminDashboardApi = {
-  getStats: async (period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<DashboardStats> => {
-    const response = await apiClient.get('/api/v1/admin/dashboard/stats', { 
-      params: { period } 
-    });
-    return response.data;
-  },
-
-  getRevenueChart: async (period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<{
-    labels: string[];
-    data: number[];
-  }> => {
-    const response = await apiClient.get('/api/v1/admin/dashboard/revenue-chart', { 
-      params: { period } 
-    });
-    return response.data;
-  },
-
-  getOrdersChart: async (period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<{
-    labels: string[];
-    data: number[];
-  }> => {
-    const response = await apiClient.get('/api/v1/admin/dashboard/orders-chart', { 
-      params: { period } 
-    });
-    return response.data;
-  },
-
-  getAnalytics: async (startDate?: string, endDate?: string): Promise<AnalyticsData> => {
-    const response = await apiClient.get('/api/v1/admin/dashboard/analytics', { 
-      params: { startDate, endDate } 
-    });
-    return response.data;
-  },
-
-  getTopProducts: async (limit: number = 10, period?: string): Promise<Product[]> => {
-    const response = await apiClient.get('/api/v1/admin/dashboard/top-products', { 
-      params: { limit, period } 
-    });
-    return response.data;
-  },
-
-  getTopCustomers: async (limit: number = 10, period?: string): Promise<User[]> => {
-    const response = await apiClient.get('/api/v1/admin/dashboard/top-customers', { 
-      params: { limit, period } 
-    });
-    return response.data;
-  },
-
-  getLowStockAlert: async (): Promise<Product[]> => {
-    const response = await apiClient.get('/api/v1/admin/dashboard/low-stock-alert');
-    return response.data;
-  },
-
-  getRecentActivities: async (limit: number = 20): Promise<{
-    id: string;
-    type: 'order' | 'product' | 'user' | 'review';
-    description: string;
-    timestamp: string;
-  }[]> => {
-    const response = await apiClient.get('/api/v1/admin/dashboard/recent-activities', { 
-      params: { limit } 
-    });
-    return response.data;
+  getStatistics: async () => {
+    const response = await apiClient.get('/api/v1/orders/admin/statistics');
+    return unwrap<any>(response);
   },
 };
 
 // ==================== ADMIN REVIEWS API ====================
 export const adminReviewsApi = {
-  getAll: async (params?: PaginationParams & { 
-    productId?: string;
-    userId?: string;
+  getAll: async (params?: PaginationParams & {
+    product_id?: number;
+    user_id?: number;
+    is_approved?: boolean;
     rating?: number;
-    status?: 'pending' | 'approved' | 'rejected';
   }): Promise<PaginatedResponse<Review>> => {
-    const response = await apiClient.get('/api/v1/admin/reviews', { params });
-    return response.data;
+    const response = await apiClient.get('/api/v1/reviews', { params });
+    const data = unwrap<any>(response);
+    return {
+      data: data.reviews || data.data || [],
+      pagination: data.pagination || { page: 1, limit: 20, total: 0, total_pages: 1 },
+    };
   },
 
-  getById: async (id: string): Promise<Review> => {
-    const response = await apiClient.get(`/api/v1/admin/reviews/${id}`);
-    return response.data;
+  getById: async (id: number): Promise<Review> => {
+    const response = await apiClient.get(`/api/v1/reviews/${id}`);
+    return unwrap<Review>(response);
   },
 
-  updateStatus: async (id: string, status: 'approved' | 'rejected'): Promise<Review> => {
-    const response = await apiClient.patch(`/api/v1/admin/reviews/${id}/status`, { status });
-    return response.data;
+  approve: async (id: number): Promise<Review> => {
+    const response = await apiClient.post(`/api/v1/reviews/${id}/approve`);
+    return unwrap<Review>(response);
   },
 
-  addReply: async (id: string, reply: string): Promise<Review> => {
-    const response = await apiClient.post(`/api/v1/admin/reviews/${id}/reply`, { reply });
-    return response.data;
+  reject: async (id: number): Promise<Review> => {
+    const response = await apiClient.post(`/api/v1/reviews/${id}/reject`);
+    return unwrap<Review>(response);
   },
 
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/admin/reviews/${id}`);
+  addReply: async (id: number, reply: string): Promise<Review> => {
+    const response = await apiClient.post(`/api/v1/reviews/${id}/reply`, { reply });
+    return unwrap<Review>(response);
   },
 
-  bulkUpdateStatus: async (ids: string[], status: 'approved' | 'rejected'): Promise<void> => {
-    await apiClient.post('/api/v1/admin/reviews/bulk-update-status', { ids, status });
-  },
-
-  bulkDelete: async (ids: string[]): Promise<void> => {
-    await apiClient.post('/api/v1/admin/reviews/bulk-delete', { ids });
-  },
-};
-
-// ==================== ADMIN SHIPPING METHODS API ====================
-export const adminShippingMethodsApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<ShippingMethod>> => {
-    const response = await apiClient.get('/api/v1/admin/shipping-methods', { params });
-    return response.data;
-  },
-
-  getById: async (id: string): Promise<ShippingMethod> => {
-    const response = await apiClient.get(`/api/v1/admin/shipping-methods/${id}`);
-    return response.data;
-  },
-
-  create: async (data: Omit<ShippingMethod, 'id' | 'createdAt' | 'updatedAt'>): Promise<ShippingMethod> => {
-    const response = await apiClient.post('/api/v1/admin/shipping-methods', data);
-    return response.data;
-  },
-
-  update: async (id: string, data: Partial<ShippingMethod>): Promise<ShippingMethod> => {
-    const response = await apiClient.put(`/api/v1/admin/shipping-methods/${id}`, data);
-    return response.data;
-  },
-
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/admin/shipping-methods/${id}`);
-  },
-
-  toggleActive: async (id: string): Promise<ShippingMethod> => {
-    const response = await apiClient.patch(`/api/v1/admin/shipping-methods/${id}/toggle-active`);
-    return response.data;
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/v1/reviews/${id}`);
   },
 };
 
-// ==================== ADMIN PAYMENT METHODS API ====================
-export const adminPaymentMethodsApi = {
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<PaymentMethod>> => {
-    const response = await apiClient.get('/api/v1/admin/payment-methods', { params });
-    return response.data;
+// ==================== ADMIN DASHBOARD API ====================
+export const adminDashboardApi = {
+  getStats: async (params?: { period?: 'day' | 'week' | 'month' | 'year' }): Promise<DashboardStats> => {
+    const response = await apiClient.get('/api/v1/dashboard/stats', { params });
+    return unwrap<DashboardStats>(response);
   },
 
-  getById: async (id: string): Promise<PaymentMethod> => {
-    const response = await apiClient.get(`/api/v1/admin/payment-methods/${id}`);
-    return response.data;
+  getRevenueChart: async (params?: { period?: 'day' | 'week' | 'month' | 'year' }) => {
+    const response = await apiClient.get('/api/v1/dashboard/revenue', { params });
+    return unwrap<any>(response);
   },
 
-  create: async (data: Omit<PaymentMethod, 'id' | 'createdAt' | 'updatedAt'>): Promise<PaymentMethod> => {
-    const response = await apiClient.post('/api/v1/admin/payment-methods', data);
-    return response.data;
-  },
-
-  update: async (id: string, data: Partial<PaymentMethod>): Promise<PaymentMethod> => {
-    const response = await apiClient.put(`/api/v1/admin/payment-methods/${id}`, data);
-    return response.data;
-  },
-
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/admin/payment-methods/${id}`);
-  },
-
-  toggleActive: async (id: string): Promise<PaymentMethod> => {
-    const response = await apiClient.patch(`/api/v1/admin/payment-methods/${id}/toggle-active`);
-    return response.data;
+  getOrdersChart: async (params?: { period?: 'day' | 'week' | 'month' | 'year' }) => {
+    const response = await apiClient.get('/api/v1/dashboard/orders-chart', { params });
+    return unwrap<any>(response);
   },
 };
 
 // ==================== ADMIN DISCOUNTS API ====================
 export const adminDiscountsApi = {
-  getAll: async (params?: PaginationParams & { 
-    isActive?: boolean;
-    discountType?: 'percentage' | 'fixed';
-  }): Promise<PaginatedResponse<Discount>> => {
-    const response = await apiClient.get('/api/v1/admin/discounts', { params });
-    return response.data;
+  getAll: async (params?: PaginationParams & { is_active?: boolean }) => {
+    const response = await apiClient.get('/api/v1/discounts', { params });
+    const data = unwrap<any>(response);
+    return {
+      data: data.discounts || data.data || [],
+      pagination: data.pagination || { page: 1, limit: 20, total: 0, total_pages: 1 },
+    };
   },
 
-  getById: async (id: string): Promise<Discount> => {
-    const response = await apiClient.get(`/api/v1/admin/discounts/${id}`);
-    return response.data;
+  getById: async (id: number) => {
+    const response = await apiClient.get(`/api/v1/discounts/${id}`);
+    return unwrap<any>(response);
   },
 
-  create: async (data: Omit<Discount, 'id' | 'usedCount' | 'createdAt' | 'updatedAt'>): Promise<Discount> => {
-    const response = await apiClient.post('/api/v1/admin/discounts', data);
-    return response.data;
+  create: async (discountData: {
+    code: string;
+    description?: string;
+    discount_type: 'percentage' | 'fixed_amount';
+    discount_value: number;
+    min_order_amount?: number;
+    max_discount_amount?: number;
+    max_uses?: number;
+    max_uses_per_user?: number;
+    starts_at: string;
+    ends_at: string;
+    is_active?: boolean;
+  }) => {
+    const response = await apiClient.post('/api/v1/discounts', discountData);
+    return unwrap<any>(response);
   },
 
-  update: async (id: string, data: Partial<Discount>): Promise<Discount> => {
-    const response = await apiClient.put(`/api/v1/admin/discounts/${id}`, data);
-    return response.data;
+  update: async (id: number, discountData: any) => {
+    const response = await apiClient.patch(`/api/v1/discounts/${id}`, discountData);
+    return unwrap<any>(response);
   },
 
-  delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/v1/admin/discounts/${id}`);
+  delete: async (id: number) => {
+    await apiClient.delete(`/api/v1/discounts/${id}`);
   },
 
-  toggleActive: async (id: string): Promise<Discount> => {
-    const response = await apiClient.patch(`/api/v1/admin/discounts/${id}/toggle-active`);
-    return response.data;
-  },
-
-  getUsageStats: async (id: string): Promise<{
-    totalUses: number;
-    totalDiscount: number;
-    orders: Order[];
-  }> => {
-    const response = await apiClient.get(`/api/v1/admin/discounts/${id}/usage-stats`);
-    return response.data;
-  },
-};
-
-// ==================== ADMIN UPLOAD API ====================
-export const adminUploadApi = {
-  uploadImage: async (file: File, type: 'product' | 'category' | 'brand' | 'user' = 'product'): Promise<string> => {
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('type', type);
-    const response = await apiClient.post('/api/v1/admin/upload/image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data.url;
-  },
-
-  uploadImages: async (files: File[], type: 'product' | 'category' | 'brand' = 'product'): Promise<string[]> => {
-    const formData = new FormData();
-    files.forEach((file) => {
-      formData.append('images', file);
-    });
-    formData.append('type', type);
-    const response = await apiClient.post('/api/v1/admin/upload/images', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data.urls;
+  validate: async (code: string, orderAmount: number) => {
+    const response = await apiClient.post('/api/v1/discounts/validate', { code, order_amount: orderAmount });
+    return unwrap<any>(response);
   },
 };
 
@@ -851,16 +576,11 @@ const adminApi = {
   auth: adminAuthApi,
   products: adminProductsApi,
   categories: adminCategoriesApi,
-  brands: adminBrandsApi,
   orders: adminOrdersApi,
-  users: adminUsersApi,
-  dashboard: adminDashboardApi,
   reviews: adminReviewsApi,
-  shippingMethods: adminShippingMethodsApi,
-  paymentMethods: adminPaymentMethodsApi,
+  dashboard: adminDashboardApi,
   discounts: adminDiscountsApi,
-  upload: adminUploadApi,
-  client: apiClient, // Export axios instance
+  client: apiClient,
 };
 
 export default adminApi;

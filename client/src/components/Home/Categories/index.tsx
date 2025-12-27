@@ -1,7 +1,6 @@
 "use client";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { useCallback, useRef, useEffect } from "react";
-import data from "./categoryData";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
 
 // Import Swiper styles
@@ -11,6 +10,8 @@ import SingleItem from "./SingleItem";
 
 const Categories = () => {
   const sliderRef = useRef(null);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const handlePrev = useCallback(() => {
     if (!sliderRef.current) return;
@@ -20,6 +21,39 @@ const Categories = () => {
   const handleNext = useCallback(() => {
     if (!sliderRef.current) return;
     sliderRef.current.swiper.slideNext();
+  }, []);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories?is_active=true&sort_by=display_order&sort_order=asc`
+        );
+        
+        if (!response.ok) throw new Error("Failed to fetch categories");
+        
+        const result = await response.json();
+        const data = result.data || result;
+        
+        // Map backend data to frontend format
+        const categoriesData = (data.categories || []).map((cat: any) => ({
+          id: cat.id,
+          title: cat.name,
+          slug: cat.slug,
+          img: cat.image_url || "/images/categories/categories-01.png", // Use image_url from backend
+        }));
+        
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        // Set empty array on error
+        setCategories([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -116,30 +150,40 @@ const Categories = () => {
             </div>
           </div>
 
-          <Swiper
-            ref={sliderRef}
-            slidesPerView={6}
-            breakpoints={{
-              // when window width is >= 640px
-              0: {
-                slidesPerView: 2,
-              },
-              1000: {
-                slidesPerView: 4,
-                // spaceBetween: 4,
-              },
-              // when window width is >= 768px
-              1200: {
-                slidesPerView: 6,
-              },
-            }}
-          >
-            {data.map((item, key) => (
-              <SwiperSlide key={key}>
-                <SingleItem item={item} />
-              </SwiperSlide>
-            ))}
-          </Swiper>
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="text-gray-500">Đang tải danh mục...</div>
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="text-gray-500">Không có danh mục nào</div>
+            </div>
+          ) : (
+            <Swiper
+              ref={sliderRef}
+              slidesPerView={6}
+              breakpoints={{
+                // when window width is >= 640px
+                0: {
+                  slidesPerView: 2,
+                },
+                1000: {
+                  slidesPerView: 4,
+                  // spaceBetween: 4,
+                },
+                // when window width is >= 768px
+                1200: {
+                  slidesPerView: 6,
+                },
+              }}
+            >
+              {categories.map((item, key) => (
+                <SwiperSlide key={key}>
+                  <SingleItem item={item} />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          )}
         </div>
       </div>
     </section>

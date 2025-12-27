@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
@@ -7,6 +8,7 @@ import Input from "../form/input/InputField";
 import Label from "../form/Label";
 
 export default function UserInfoCard() {
+  const { user } = useAdminAuth();
   const { isOpen, openModal, closeModal } = useModal();
   const handleSave = () => {
     // Handle save logic here
@@ -24,19 +26,19 @@ export default function UserInfoCard() {
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-7 2xl:gap-x-32">
             <div>
               <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                Họ
+                Họ tên
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                Musharof
+                {user?.full_name || 'Admin User'}
               </p>
             </div>
 
             <div>
               <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                Tên
+                Vai trò
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                Chowdhury
+                {user?.role === 'admin' ? 'Administrator' : 'User'}
               </p>
             </div>
 
@@ -45,7 +47,7 @@ export default function UserInfoCard() {
                 Địa chỉ Email
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                randomuser@pimjo.com
+                {user?.email || 'admin@networkstore.com'}
               </p>
             </div>
 
@@ -54,16 +56,16 @@ export default function UserInfoCard() {
                 Số điện thoại
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                +09 363 398 46
+                {user?.phone || 'Chưa cập nhật'}
               </p>
             </div>
 
             <div>
               <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                Bio
+                Trạng thái
               </p>
               <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                Team Manager
+                {user?.is_active ? 'Đang hoạt động' : 'Không hoạt động'}
               </p>
             </div>
           </div>
@@ -146,29 +148,24 @@ export default function UserInfoCard() {
                 </h5>
 
                 <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
-                  <div className="col-span-2 lg:col-span-1">
-                    <Label>Họ</Label>
-                    <Input type="text" defaultValue="Musharof" />
-                  </div>
-
-                  <div className="col-span-2 lg:col-span-1">
-                    <Label>Tên</Label>
-                    <Input type="text" defaultValue="Chowdhury" />
+                  <div className="col-span-2">
+                    <Label>Họ tên đầy đủ</Label>
+                    <Input type="text" defaultValue={user?.full_name || ''} />
                   </div>
 
                   <div className="col-span-2 lg:col-span-1">
                     <Label>Địa chỉ Email</Label>
-                    <Input type="text" defaultValue="randomuser@pimjo.com" />
+                    <Input type="email" defaultValue={user?.email || ''} readOnly />
                   </div>
 
                   <div className="col-span-2 lg:col-span-1">
                     <Label>Số điện thoại</Label>
-                    <Input type="text" defaultValue="+09 363 398 46" />
+                    <Input type="text" defaultValue={user?.phone || ''} />
                   </div>
 
                   <div className="col-span-2">
-                    <Label>Bio</Label>
-                    <Input type="text" defaultValue="Team Manager" />
+                    <Label>Vai trò</Label>
+                    <Input type="text" defaultValue={user?.role === 'admin' ? 'Administrator' : 'User'} readOnly />
                   </div>
                 </div>
               </div>

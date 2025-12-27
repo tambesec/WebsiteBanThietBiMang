@@ -4,14 +4,17 @@ interface InputProps {
   type?: "text" | "number" | "email" | "password" | "date" | "time" | string;
   id?: string;
   name?: string;
+  label?: string; // Label for the input
   placeholder?: string;
   defaultValue?: string | number;
+  value?: string | number; // Controlled value
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   className?: string;
   min?: string;
   max?: string;
   step?: number;
   disabled?: boolean;
+  required?: boolean; // Required field
   success?: boolean;
   error?: boolean;
   hint?: string; // Optional hint text
@@ -21,14 +24,17 @@ const Input: FC<InputProps> = ({
   type = "text",
   id,
   name,
+  label,
   placeholder,
   defaultValue,
+  value,
   onChange,
   className = "",
   min,
   max,
   step,
   disabled = false,
+  required = false,
   success = false,
   error = false,
   hint,
@@ -49,17 +55,30 @@ const Input: FC<InputProps> = ({
 
   return (
     <div className="relative">
+      {/* Label */}
+      {label && (
+        <label
+          htmlFor={id}
+          className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          {label}
+          {required && <span className="ml-1 text-red-500">*</span>}
+        </label>
+      )}
+
       <input
         type={type}
         id={id}
         name={name}
         placeholder={placeholder}
         defaultValue={defaultValue}
+        value={value}
         onChange={onChange}
         min={min}
         max={max}
         step={step}
         disabled={disabled}
+        required={required}
         className={inputClasses}
       />
 

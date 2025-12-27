@@ -3,16 +3,18 @@ import React, { useState, useEffect } from "react";
 import Breadcrumb from "../Common/Breadcrumb";
 import Image from "next/image";
 import AddressModal from "./AddressModal";
+import AddressList from "./AddressList";
 import Orders from "../Orders";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { authApi } from "@/services/api";
+import { authApi, ordersApi } from "@/lib/api-client";
 
 const MyAccount = () => {
   const { user, logout, isLoading, updateUser } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [addressModal, setAddressModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
@@ -23,6 +25,11 @@ const MyAccount = () => {
     oldPassword: "",
     newPassword: "",
     confirmPassword: "",
+  });
+  const [orderStats, setOrderStats] = useState({
+    total: 0,
+    completed: 0,
+    processing: 0,
   });
 
   // Redirect if not authenticated
@@ -35,6 +42,11 @@ const MyAccount = () => {
   // Update formData when user changes
   useEffect(() => {
     if (user) {
+      console.log('[MyAccount] User OAuth status:', {
+        isOAuthUser: user.isOAuthUser,
+        oauthProviders: user.oauthProviders,
+        email: user.email,
+      });
       setFormData({
         firstName: user.firstName || "",
         lastName: user.lastName || "",
@@ -44,16 +56,82 @@ const MyAccount = () => {
     }
   }, [user]);
 
+  // Fetch order statistics
+  useEffect(() => {
+    const fetchOrderStats = async () => {
+      try {
+        // Call API with proper parameters matching backend
+        const response = await ordersApi.ordersControllerFindAll(
+          'all', // status
+          undefined, // search
+          'created_at', // sort_by
+          'desc', // sort_order
+          1, // page
+          1000 // limit
+        );
+        
+        const result = response.data?.data || response.data;
+        const orders = result?.orders || [];
+        
+        // Calculate statistics
+        const total = orders.length;
+        const completed = orders.filter((o: any) => o.status?.id === 5).length; // status 5 = delivered
+        const processing = orders.filter((o: any) => [2, 3, 4].includes(o.status?.id)).length; // processing/shipped
+        
+        setOrderStats({ total, completed, processing });
+      } catch (err) {
+        console.error('Error fetching order stats:', err);
+      }
+    };
+
+    if (user) {
+      fetchOrderStats();
+    }
+  }, [user]);
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue"></div>
+          <p className="mt-4 text-gray-600">Đang kiểm tra đăng nhập...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if no user (will redirect)
+  if (!user) {
+    return null;
+  }
+
   const handleLogout = async () => {
+    if (isLoggingOut) return; // Prevent multiple clicks
+    setIsLoggingOut(true);
     try {
       await logout();
     } catch (error) {
       console.error("Logout error:", error);
+      setIsLoggingOut(false);
     }
   };
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if any data has changed
+    const hasChanged = 
+      formData.firstName !== (user?.firstName || '') ||
+      formData.lastName !== (user?.lastName || '') ||
+      formData.email !== (user?.email || '') ||
+      formData.phone !== (user?.phone || '');
+    
+    if (!hasChanged) {
+      alert('Không có thông tin nào thay đổi!');
+      return;
+    }
+    
     try {
       const updatedUser = await updateUser({
         firstName: formData.firstName,
@@ -80,11 +158,23 @@ const MyAccount = () => {
     }
 
     try {
-      await authApi.changePassword(passwordData.oldPassword, passwordData.newPassword);
+      if (user?.hasPassword === false) {
+        // User without password (OAuth): Set password (no old password required)
+        await authApi.authControllerSetPassword({ 
+          new_password: passwordData.newPassword 
+        });
+        alert('Đặt mật khẩu thành công! Bây giờ bạn có thể đăng nhập bằng email/password.');
+      } else {
+        // User with password: Change password (old password required)
+        await authApi.authControllerChangePassword({ 
+          current_password: passwordData.oldPassword, 
+          new_password: passwordData.newPassword 
+        });
+        alert('Đổi mật khẩu thành công!');
+      }
       setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
-      alert('Đổi mật khẩu thành công!');
     } catch (error: any) {
-      alert(error.response?.data?.message || error.message || 'Có lỗi xảy ra khi đổi mật khẩu');
+      alert(error.response?.data?.message || error.message || 'Có lỗi xảy ra');
     }
   };
 
@@ -115,8 +205,10 @@ const MyAccount = () => {
           <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-8">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
               <div className="relative group">
-                <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-blue-100">
-                  <Image src="/images/users/user-04.jpg" alt="user" width={96} height={96} className="object-cover" />
+                <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-blue-100 bg-gradient-to-br from-blue to-blue-dark flex items-center justify-center">
+                  <span className="text-3xl font-bold text-white">
+                    {(user.firstName?.[0] || user.username?.[0] || 'U').toUpperCase()}
+                  </span>
                 </div>
                 <button className="absolute bottom-0 right-0 bg-blue text-white p-2 rounded-full shadow-lg hover:bg-blue-dark transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,41 +220,32 @@ const MyAccount = () => {
               
               <div className="flex-1 text-center sm:text-left">
                 <h2 className="font-bold text-2xl sm:text-3xl text-dark mb-2">
-                  {user.fullName || user.username || `${user.firstName} ${user.lastName}`.trim() || "Người dùng"}
+                  {user.username || `${user.firstName || ''} ${user.lastName || ''}`.trim() || "Người dùng"}
                 </h2>
-                <p className="text-dark-5 mb-4">
-                  Thành viên từ {user.createdAt ? formatDate(user.createdAt) : "Tháng 9, 2020"}
-                </p>
+                {user.createdAt && (
+                  <p className="text-dark-5 mb-4">
+                    Thành viên từ {formatDate(user.createdAt)}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                  <span className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-full text-sm font-medium">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    Email đã xác thực
-                  </span>
+                  {user.email && (
+                    <span className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-dark-5 rounded-full text-sm font-medium">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                      </svg>
+                      {user.email}
+                    </span>
+                  )}
                   {user.phone && (
-                    <span className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-sm font-medium">
+                    <span className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-dark-5 rounded-full text-sm font-medium">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                       </svg>
-                      SĐT đã xác thực
+                      {user.phone}
                     </span>
                   )}
                 </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button className="p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" title="Thông báo">
-                  <svg className="w-5 h-5 text-dark-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                </button>
-                <button className="p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" title="Cài đặt">
-                  <svg className="w-5 h-5 text-dark-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </button>
               </div>
             </div>
           </div>
@@ -238,12 +321,13 @@ const MyAccount = () => {
 
                     <button
                       onClick={handleLogout}
-                      className="flex items-center rounded-xl gap-3 py-3.5 px-4 font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-all duration-200"
+                      disabled={isLoggingOut}
+                      className="flex items-center rounded-xl gap-3 py-3.5 px-4 font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-5 h-5 fill-current flex-shrink-0" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm11 4.414l-4.293 4.293a1 1 0 01-1.414 0L4 7.414 5.414 6l3.293 3.293L13.586 4.586 15 6z" clipRule="evenodd" />
                       </svg>
-                      Đăng Xuất
+                      {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng Xuất'}
                     </button>
                   </nav>
                 </div>
@@ -257,7 +341,7 @@ const MyAccount = () => {
                 <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
                   <div className="mb-6">
                     <h3 className="text-2xl font-bold text-dark mb-2">
-                      Xin chào {user.fullName || user.username || user.firstName || "bạn"}!
+                      Xin chào {user.username || user.firstName || "bạn"}!
                     </h3>
                     <p className="text-dark-5">
                       Từ bảng điều khiển tài khoản, bạn có thể xem đơn hàng gần đây, quản lý địa chỉ giao hàng và thanh toán, 
@@ -273,7 +357,7 @@ const MyAccount = () => {
                             <path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <span className="text-3xl font-bold text-blue">24</span>
+                        <span className="text-3xl font-bold text-blue">{orderStats.total}</span>
                       </div>
                       <h4 className="font-semibold text-dark mb-1">Tổng Đơn Hàng</h4>
                       <p className="text-sm text-dark-5">Tất cả các đơn hàng</p>
@@ -286,7 +370,7 @@ const MyAccount = () => {
                             <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <span className="text-3xl font-bold text-green-600">18</span>
+                        <span className="text-3xl font-bold text-green-600">{orderStats.completed}</span>
                       </div>
                       <h4 className="font-semibold text-dark mb-1">Hoàn Thành</h4>
                       <p className="text-sm text-dark-5">Đã giao thành công</p>
@@ -300,12 +384,32 @@ const MyAccount = () => {
                             <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <span className="text-3xl font-bold text-yellow-600">6</span>
+                        <span className="text-3xl font-bold text-yellow-600">{orderStats.processing}</span>
                       </div>
                       <h4 className="font-semibold text-dark mb-1">Đang Xử Lý</h4>
                       <p className="text-sm text-dark-5">Đang chuẩn bị hàng</p>
                     </div>
                   </div>
+
+                  {/* Empty State */}
+                  {orderStats.total === 0 && (
+                    <div className="mt-8 rounded-xl bg-gray-50 border-2 border-dashed border-gray-300 p-8 text-center">
+                      <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                      <h4 className="text-xl font-semibold text-dark mb-2">Chưa có đơn hàng nào</h4>
+                      <p className="text-dark-5 mb-4">Bạn chưa thực hiện đơn hàng nào. Hãy khám phá các sản phẩm của chúng tôi!</p>
+                      <a 
+                        href="/shop" 
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-blue text-white rounded-lg hover:bg-blue-dark transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        Mua sắm ngay
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -317,99 +421,7 @@ const MyAccount = () => {
               )}
 
               {/* Addresses Tab */}
-              {activeTab === "addresses" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                    <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                      <h3 className="font-bold text-xl text-dark">Địa Chỉ Giao Hàng</h3>
-                      <button
-                        onClick={() => setAddressModal(true)}
-                        className="p-2 hover:bg-blue-100 rounded-lg transition-colors"
-                      >
-                        <svg className="w-5 h-5 text-blue" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="p-6 space-y-4">
-                      <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-blue flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                        </svg>
-                        <div>
-                          <p className="font-medium text-dark">
-                            {user.fullName || user.username || `${user.firstName} ${user.lastName}`.trim() || "Người dùng"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-blue flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                        </svg>
-                        <p className="text-dark-5">{user.email}</p>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-blue flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                        </svg>
-                        <p className="text-dark-5">{user.phone || 'Chưa cập nhật'}</p>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-blue flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                        </svg>
-                        <p className="text-dark-5">{user.address || 'Chưa cập nhật địa chỉ giao hàng'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                    <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50">
-                      <h3 className="font-bold text-xl text-dark">Địa Chỉ Thanh Toán</h3>
-                      <button
-                        onClick={() => setAddressModal(true)}
-                        className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
-                      >
-                        <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="p-6 space-y-4">
-                      <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                        </svg>
-                        <div>
-                          <p className="font-medium text-dark">
-                            {user.fullName || user.username || `${user.firstName} ${user.lastName}`.trim() || "Người dùng"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                        </svg>
-                        <p className="text-dark-5">{user.email}</p>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                        </svg>
-                        <p className="text-dark-5">{user.phone || 'Chưa cập nhật'}</p>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                        </svg>
-                        <p className="text-dark-5">{user.billingAddress || user.address || 'Chưa cập nhật địa chỉ thanh toán'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {activeTab === "addresses" && <AddressList />}
 
               {/* Account Details Tab */}
               {activeTab === "account-details" && (
@@ -446,13 +458,20 @@ const MyAccount = () => {
                     <div>
                       <label className="block mb-2.5 font-medium text-dark">
                         Email <span className="text-red">*</span>
+                        {user?.isOAuthUser && (
+                          <span className="ml-2 text-xs text-orange-500 font-normal">
+                            (Được quản lý bởi {user.oauthProviders?.join(', ')} - Không thể thay đổi)
+                          </span>
+                        )}
                       </label>
                       <input
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        className="rounded-lg border border-gray-300 bg-gray-50 w-full py-3 px-4 outline-none transition-all focus:border-blue focus:ring-2 focus:ring-blue/20"
+                        disabled={user?.isOAuthUser}
+                        className="rounded-lg border border-gray-300 bg-gray-50 w-full py-3 px-4 outline-none transition-all focus:border-blue focus:ring-2 focus:ring-blue/20 disabled:bg-gray-200 disabled:cursor-not-allowed disabled:text-gray-500"
+                        title={user?.isOAuthUser ? 'Email được quản lý bởi OAuth provider và không thể thay đổi' : ''}
                       />
                     </div>
 
@@ -482,18 +501,41 @@ const MyAccount = () => {
 
                   <div className="border-t border-gray-200 my-8"></div>
 
-                  <h3 className="text-2xl font-bold text-dark mb-6">Thay Đổi Mật Khẩu</h3>
-                  <form onSubmit={handlePasswordChange} className="space-y-6">
-                    <div>
-                      <label className="block mb-2.5 font-medium text-dark">Mật khẩu cũ</label>
-                      <input
-                        type="password"
-                        name="oldPassword"
-                        value={passwordData.oldPassword}
-                        onChange={(e) => setPasswordData({...passwordData, oldPassword: e.target.value})}
-                        className="rounded-lg border border-gray-300 bg-gray-50 w-full py-3 px-4 outline-none transition-all focus:border-blue focus:ring-2 focus:ring-blue/20"
-                      />
+                  <h3 className="text-2xl font-bold text-dark mb-6">
+                    {user?.hasPassword === false ? 'Đặt Mật Khẩu' : 'Thay Đổi Mật Khẩu'}
+                  </h3>
+                  
+                  {user?.isOAuthUser && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                      <div className="flex items-start gap-3">
+                        <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        <div>
+                          <h4 className="font-semibold text-blue-900 mb-1">Tài khoản liên kết với {user.oauthProviders?.join(', ')}</h4>
+                          <p className="text-sm text-blue-800">
+                            {user.hasPassword === false
+                              ? 'Tài khoản của bạn hiện chỉ dùng OAuth để đăng nhập. Bạn có thể đặt mật khẩu để đăng nhập bằng email/password.'
+                              : 'Email của bạn đã được xác thực qua OAuth provider và không thể thay đổi. Nếu muốn đổi email, vui lòng unlink OAuth provider trước.'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
+                  )}
+                  
+                  <form onSubmit={handlePasswordChange} className="space-y-6">
+                    {user?.hasPassword !== false && (
+                      <div>
+                        <label className="block mb-2.5 font-medium text-dark">Mật khẩu cũ</label>
+                        <input
+                          type="password"
+                          name="oldPassword"
+                          value={passwordData.oldPassword}
+                          onChange={(e) => setPasswordData({...passwordData, oldPassword: e.target.value})}
+                          className="rounded-lg border border-gray-300 bg-gray-50 w-full py-3 px-4 outline-none transition-all focus:border-blue focus:ring-2 focus:ring-blue/20"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block mb-2.5 font-medium text-dark">Mật khẩu mới</label>
                       <input
@@ -522,7 +564,7 @@ const MyAccount = () => {
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                       </svg>
-                      Đổi Mật Khẩu
+                      {user?.hasPassword === false ? 'Đặt Mật Khẩu' : 'Đổi Mật Khẩu'}
                     </button>
                   </form>
                 </div>
@@ -532,7 +574,7 @@ const MyAccount = () => {
         </div>
       </section>
 
-      <AddressModal isOpen={addressModal} closeModal={() => setAddressModal(false)} />
+      <AddressModal isOpen={addressModal} closeModal={() => setAddressModal(false)} onSave={() => {}} />
     </>
   );
 };

@@ -9,13 +9,16 @@ import Image from "next/image";
 import { usePreviewSlider } from "@/app/context/PreviewSliderContext";
 import { resetQuickView } from "@/redux/features/quickView-slice";
 import { updateproductDetails } from "@/redux/features/product-details";
+import { useCart } from "@/contexts/CartContext";
 
 const QuickViewModal = () => {
   const { isModalOpen, closeModal } = useModalContext();
   const { openPreviewModal } = usePreviewSlider();
   const [quantity, setQuantity] = useState(1);
+  const [isAdding, setIsAdding] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
+  const { addToCart } = useCart();
 
   // get the product data
   const product = useAppSelector((state) => state.quickViewReducer.value);
@@ -29,16 +32,24 @@ const QuickViewModal = () => {
     openPreviewModal();
   };
 
-  // add to cart
-  const handleAddToCart = () => {
-    dispatch(
-      addItemToCart({
-        ...product,
-        quantity,
-      })
-    );
-
-    closeModal();
+  // add to cart - Sync với backend API
+  const handleAddToCart = async () => {
+    setIsAdding(true);
+    try {
+      await addToCart(product.id, quantity);
+      dispatch(
+        addItemToCart({
+          ...product,
+          quantity,
+        })
+      );
+      closeModal();
+    } catch (error: any) {
+      console.error('Add to cart failed:', error.message);
+      alert(error.message || 'Không thể thêm vào giỏ hàng');
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   useEffect(() => {

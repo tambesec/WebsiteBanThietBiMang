@@ -1,3 +1,5 @@
+"use client";
+import { useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -6,70 +8,60 @@ import {
   TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
-import Image from "next/image";
-
-// Define the TypeScript interface for the table rows
-interface Product {
-  id: number; // Unique identifier for each product
-  name: string; // Product name
-  variants: string; // Number of variants (e.g., "1 Variant", "2 Variants")
-  category: string; // Category of the product
-  price: string; // Price of the product (as a string with currency symbol)
-  // status: string; // Status of the product
-  image: string; // URL or path to the product image
-  status: "Delivered" | "Pending" | "Canceled"; // Status of the product
-}
-
-// Define the table data using the interface
-const tableData: Product[] = [
-  {
-    id: 1,
-    name: "MacBook Pro 13”",
-    variants: "2 Variants",
-    category: "Laptop",
-    price: "$2399.00",
-    status: "Delivered",
-    image: "/images/product/product-01.jpg", // Replace with actual image URL
-  },
-  {
-    id: 2,
-    name: "Apple Watch Ultra",
-    variants: "1 Variant",
-    category: "Watch",
-    price: "$879.00",
-    status: "Pending",
-    image: "/images/product/product-02.jpg", // Replace with actual image URL
-  },
-  {
-    id: 3,
-    name: "iPhone 15 Pro Max",
-    variants: "2 Variants",
-    category: "SmartPhone",
-    price: "$1869.00",
-    status: "Delivered",
-    image: "/images/product/product-03.jpg", // Replace with actual image URL
-  },
-  {
-    id: 4,
-    name: "iPad Pro 3rd Gen",
-    variants: "2 Variants",
-    category: "Electronics",
-    price: "$1699.00",
-    status: "Canceled",
-    image: "/images/product/product-04.jpg", // Replace with actual image URL
-  },
-  {
-    id: 5,
-    name: "AirPods Pro 2nd Gen",
-    variants: "1 Variant",
-    category: "Accessories",
-    price: "$240.00",
-    status: "Delivered",
-    image: "/images/product/product-05.jpg", // Replace with actual image URL
-  },
-];
+import { ordersApi } from "@/lib/api-client";
+import type { OrderDto } from "@/generated-api";
 
 export default function RecentOrders() {
+  const [orders, setOrders] = useState<OrderDto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await ordersApi.ordersControllerFindAllAdmin(
+          undefined, // status
+          undefined, // search
+          'created_at', // sortBy
+          'desc', // sortOrder
+          undefined, // page
+          5 // limit
+        );
+        
+        setOrders(response.data.data?.orders || []);
+      } catch (error) {
+        console.error('Failed to fetch recent orders:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  const getStatusColor = (status: string) => {
+    const statusMap: Record<string, "success" | "warning" | "error" | "info"> = {
+      'delivered': 'success',
+      'confirmed': 'info',
+      'processing': 'warning',
+      'shipped': 'info',
+      'pending': 'warning',
+      'cancelled': 'error',
+    };
+    return statusMap[status?.toLowerCase()] || 'warning';
+  };
+
+  const getStatusText = (status: string) => {
+    const statusTextMap: Record<string, string> = {
+      'delivered': 'Đã giao',
+      'confirmed': 'Đã xác nhận',
+      'processing': 'Đang xử lý',
+      'shipped': 'Đang vận chuyển',
+      'pending': 'Chờ xử lý',
+      'cancelled': 'Đã hủy',
+    };
+    return statusTextMap[status?.toLowerCase()] || status;
+  };
+
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
       <div className="flex flex-col gap-2 mb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -123,89 +115,79 @@ export default function RecentOrders() {
           </button>
         </div>
       </div>
-      <div className="max-w-full overflow-x-auto">
-        <Table>
-          {/* Table Header */}
-          <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
-            <TableRow>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                Sản phẩm
-              </TableCell>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                Danh mục
-              </TableCell>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                Giá
-              </TableCell>
-              <TableCell
-                isHeader
-                className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-              >
-                Trạng thái
-              </TableCell>
-            </TableRow>
-          </TableHeader>
-
-          {/* Table Body */}
-
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {tableData.map((product) => (
-              <TableRow key={product.id} className="">
-                <TableCell className="py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-[50px] w-[50px] overflow-hidden rounded-md">
-                      <Image
-                        width={50}
-                        height={50}
-                        src={product.image}
-                        className="h-[50px] w-[50px]"
-                        alt={product.name}
-                      />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                        {product.name}
-                      </p>
-                      <span className="text-gray-500 text-theme-xs dark:text-gray-400">
-                        {product.variants}
-                      </span>
-                    </div>
-                  </div>
+      
+      {loading ? (
+        <div className="py-8 text-center text-gray-500">Đang tải...</div>
+      ) : orders.length === 0 ? (
+        <div className="py-8 text-center text-gray-500">Chưa có đơn hàng</div>
+      ) : (
+        <div className="max-w-full overflow-x-auto">
+          <Table>
+            <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
+              <TableRow>
+                <TableCell
+                  isHeader
+                  className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Mã đơn hàng
                 </TableCell>
-                <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                  {product.price}
+                <TableCell
+                  isHeader
+                  className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Khách hàng
                 </TableCell>
-                <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                  {product.category}
+                <TableCell
+                  isHeader
+                  className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Tổng tiền
                 </TableCell>
-                <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                  <Badge
-                    size="sm"
-                    color={
-                      product.status === "Delivered"
-                        ? "success"
-                        : product.status === "Pending"
-                        ? "warning"
-                        : "error"
-                    }
-                  >
-                    {product.status}
-                  </Badge>
+                <TableCell
+                  isHeader
+                  className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+                >
+                  Trạng thái
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+
+            <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
+              {orders.map((order) => (
+                <TableRow key={order.id} className="">
+                  <TableCell className="py-3">
+                    <p className="font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                      #{order.order_number}
+                    </p>
+                    <span className="text-gray-500 text-theme-xs dark:text-gray-400">
+                      {order.items_count} sản phẩm
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-3">
+                    <p className="font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                      {order.customer_name || 'N/A'}
+                    </p>
+                    <span className="text-gray-500 text-theme-xs dark:text-gray-400">
+                      {order.customer_email}
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-3 text-gray-800 font-medium text-theme-sm dark:text-white/90">
+                    {order.total_amount?.toLocaleString('vi-VN')}đ
+                  </TableCell>
+                  <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
+                    <Badge
+                      size="sm"
+                      color={getStatusColor(order.status?.name || order.status as string)}
+                    >
+                      {getStatusText(order.status?.name || order.status as string)}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

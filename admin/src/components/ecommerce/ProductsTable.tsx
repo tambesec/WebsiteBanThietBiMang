@@ -1,45 +1,114 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { adminProductsApi, Product } from "@/services/api";
+
+// Sample product data - sẽ thay bằng API call
+const productsData = [
+  {
+    id: 1,
+    name: "TP-Link TL-WN725N - USB WiFi Nano 150Mbps",
+    category: "USB WiFi",
+    brand: "TP-Link",
+    price: 120000,
+    salePrice: 85000,
+    stock: 150,
+    status: "active",
+    image: "/images/products/product-1-sm-1.png",
+    sold: 245,
+  },
+  {
+    id: 2,
+    name: "TP-Link Archer C6 - Router WiFi AC1200 MU-MIMO",
+    category: "Router",
+    brand: "TP-Link",
+    price: 850000,
+    salePrice: 650000,
+    stock: 85,
+    status: "active",
+    image: "/images/products/product-2-sm-1.png",
+    sold: 189,
+  },
+  {
+    id: 3,
+    name: "TP-Link TL-SG105 - Switch 5 cổng Gigabit",
+    category: "Switch",
+    brand: "TP-Link",
+    price: 550000,
+    salePrice: 450000,
+    stock: 120,
+    status: "active",
+    image: "/images/products/product-3-sm-1.png",
+    sold: 156,
+  },
+  {
+    id: 4,
+    name: "Asus RT-AX55 - Router WiFi 6 AX1800",
+    category: "Router",
+    brand: "Asus",
+    price: 1500000,
+    salePrice: 1200000,
+    stock: 45,
+    status: "active",
+    image: "/images/products/product-4-sm-1.png",
+    sold: 92,
+  },
+  {
+    id: 5,
+    name: "TP-Link EAP245 - Access Point WiFi AC1750 MU-MIMO",
+    category: "Access Point",
+    brand: "TP-Link",
+    price: 2200000,
+    salePrice: 1800000,
+    stock: 35,
+    status: "active",
+    image: "/images/products/product-5-sm-1.png",
+    sold: 67,
+  },
+  {
+    id: 6,
+    name: "Cáp mạng Cat6 UTP Commscope - 100m",
+    category: "Cáp mạng",
+    brand: "Commscope",
+    price: 1200000,
+    salePrice: 950000,
+    stock: 200,
+    status: "active",
+    image: "/images/products/product-6-sm-1.png",
+    sold: 312,
+  },
+  {
+    id: 7,
+    name: "Tenda AC10U - Router WiFi AC1200 Gigabit",
+    category: "Router",
+    brand: "Tenda",
+    price: 750000,
+    salePrice: 590000,
+    stock: 75,
+    status: "active",
+    image: "/images/products/product-7-sm-1.png",
+    sold: 134,
+  },
+  {
+    id: 8,
+    name: "Mercusys MW325R - Router WiFi N300",
+    category: "Router",
+    brand: "Mercusys",
+    price: 300000,
+    salePrice: 250000,
+    stock: 180,
+    status: "active",
+    image: "/images/products/product-8-sm-1.png",
+    sold: 276,
+  },
+];
 
 const ProductsTable = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [products] = useState(productsData);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
-  // Fetch products from API
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await adminProductsApi.getAll({
-          page,
-          limit: 10,
-          search: searchTerm || undefined,
-          category: filterCategory !== 'all' ? filterCategory : undefined,
-        });
-        setProducts(response.data);
-        setTotalPages(response.pagination.totalPages);
-      } catch (err: any) {
-        console.error('Failed to fetch products:', err);
-        setError(err.message || 'Không thể tải danh sách sản phẩm');
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [page, searchTerm, filterCategory]);
-
-  // Filter products locally (already filtered by API, but kept for client-side filtering)
+  // Filter products
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
       .toLowerCase()

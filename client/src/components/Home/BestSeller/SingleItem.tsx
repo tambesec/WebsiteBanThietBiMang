@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { Product } from "@/types/product";
 import { useModalContext } from "@/app/context/QuickViewModalContext";
 import { useDispatch } from "react-redux";
@@ -9,24 +9,39 @@ import { addItemToCart } from "@/redux/features/cart-slice";
 import Image from "next/image";
 import Link from "next/link";
 import { addItemToWishlist } from "@/redux/features/wishlist-slice";
+import { useCart } from "@/contexts/CartContext";
 
 const SingleItem = ({ item }: { item: Product }) => {
   const { openModal } = useModalContext();
   const dispatch = useDispatch<AppDispatch>();
+  const { addToCart } = useCart();
+  const [isAdding, setIsAdding] = useState(false);
 
   // update the QuickView state
   const handleQuickViewUpdate = () => {
     dispatch(updateQuickView({ ...item }));
   };
 
-  // add to cart
-  const handleAddToCart = () => {
-    dispatch(
-      addItemToCart({
-        ...item,
-        quantity: 1,
-      })
-    );
+  // add to cart - Sync với backend API
+  const handleAddToCart = async () => {
+    setIsAdding(true);
+    try {
+      // Gọi API backend
+      await addToCart(item.id, 1);
+      
+      // Vẫn update Redux cho backward compatibility
+      dispatch(
+        addItemToCart({
+          ...item,
+          quantity: 1,
+        })
+      );
+    } catch (error: any) {
+      console.error('Add to cart failed:', error.message);
+      alert(error.message || 'Không thể thêm vào giỏ hàng');
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   const handleItemToWishList = () => {
@@ -85,7 +100,7 @@ const SingleItem = ({ item }: { item: Product }) => {
           </div>
 
           <h3 className="font-medium text-dark ease-out duration-200 hover:text-blue mb-1.5 line-clamp-2 h-[3rem]">
-            <Link href="/shop-details"> {item.title} </Link>
+            <Link href={`/shop-details/${item.id}`}> {item.title} </Link>
           </h3>
 
           <span className="flex items-center justify-center gap-2 font-medium text-lg">

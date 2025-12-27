@@ -50,7 +50,7 @@ export const adminCategoriesApi = {
    * Sắp xếp lại thứ tự danh mục
    */
   reorder: async (categories: { id: string; order: number }[]): Promise<void> => {
-    await apiClient.post('/api/v1/admin/categories/reorder', { categories });
+    await apiClient.post('/api/v1/categories/reorder', { categories });
   },
 
   /**

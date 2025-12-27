@@ -30,66 +30,48 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Trang chủ",
-    subItems: [{ name: "Thương mại điện tử", path: "/", pro: false }],
+    path: "/",
   },
   {
-    icon: <CalenderIcon />,
-    name: "Lịch",
-    path: "/calendar",
+    icon: <BoxCubeIcon />,
+    name: "Sản phẩm",
+    path: "/products",
+  },
+  {
+    icon: <TableIcon />,
+    name: "Đơn hàng",
+    path: "/orders",
+  },
+  {
+    icon: <ListIcon />,
+    name: "Danh mục",
+    path: "/categories",
   },
   {
     icon: <UserCircleIcon />,
-    name: "Hồ sơ người dùng",
-    path: "/profile",
-  },
-
-  {
-    name: "Biểu mẫu",
-    icon: <ListIcon />,
-    subItems: [{ name: "Các phần tử biểu mẫu", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Bảng dữ liệu",
-    icon: <TableIcon />,
-    subItems: [{ name: "Bảng cơ bản", path: "/basic-tables", pro: false }],
-  },
-  {
-    name: "Trang",
-    icon: <PageIcon />,
-    subItems: [
-      { name: "Trang trống", path: "/blank", pro: false },
-      { name: "Lỗi 404", path: "/error-404", pro: false },
-    ],
+    name: "Khách hàng",
+    path: "/customers",
   },
 ];
 
 const othersItems: NavItem[] = [
   {
-    icon: <PieChartIcon />,
-    name: "Biểu đồ",
-    subItems: [
-      { name: "Biểu đồ đường", path: "/line-chart", pro: false },
-      { name: "Biểu đồ cột", path: "/bar-chart", pro: false },
-    ],
-  },
-  {
-    icon: <BoxCubeIcon />,
-    name: "Thành phần giao diện",
-    subItems: [
-      { name: "Cảnh báo", path: "/alerts", pro: false },
-      { name: "Ảnh đại diện", path: "/avatars", pro: false },
-      { name: "Huy hiệu", path: "/badge", pro: false },
-      { name: "Nút bấm", path: "/buttons", pro: false },
-      { name: "Hình ảnh", path: "/images", pro: false },
-      { name: "Video", path: "/videos", pro: false },
-    ],
+    icon: <PageIcon />,
+    name: "Đánh giá",
+    path: "/reviews",
   },
   {
     icon: <PlugInIcon />,
-    name: "Xác thực",
+    name: "Mã giảm giá",
+    path: "/discounts",
+  },
+  {
+    icon: <PieChartIcon />,
+    name: "Báo cáo",
     subItems: [
-      { name: "Đăng nhập", path: "/signin", pro: false },
-      { name: "Đăng ký", path: "/signup", pro: false },
+      { name: "Doanh thu", path: "/reports/revenue", pro: false },
+      { name: "Sản phẩm bán chạy", path: "/reports/top-products", pro: false },
+      { name: "Tồn kho thấp", path: "/reports/low-stock", pro: false },
     ],
   },
 ];

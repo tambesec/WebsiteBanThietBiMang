@@ -1,4 +1,7 @@
 import { Product } from "@/types/product";
+
+export type { Product };
+
 const shopData: Product[] = [
   {
     title: "TP-Link TL-WN725N - USB WiFi Nano 150Mbps",

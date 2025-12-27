@@ -28,7 +28,25 @@ const RecentView = () => {
           const products = JSON.parse(stored);
           // Sắp xếp theo thời gian xem (mới nhất trước)
           const sorted = products.sort((a: RecentProduct, b: RecentProduct) => b.viewedAt - a.viewedAt);
-          setRecentProducts(sorted);
+          
+          // Sanitize image URLs - replace external URLs with local fallback
+          const sanitized = sorted.map((p: RecentProduct) => {
+            let imageUrl = p.image;
+            if (imageUrl && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+              try {
+                const url = new URL(imageUrl);
+                // Only allow localhost
+                if (!url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1')) {
+                  imageUrl = '/images/products/product-01.png';
+                }
+              } catch {
+                imageUrl = '/images/products/product-01.png';
+              }
+            }
+            return { ...p, image: imageUrl };
+          });
+          
+          setRecentProducts(sanitized);
         }
       } catch (error) {
         console.error('Error loading recently viewed products:', error);

@@ -1,23 +1,17 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { authApi, updateAdminToken, clearAdminTokens, setLoggingOut } from '@/lib/api-client';
+import type { LoginDto } from '@/generated-api';
 
 interface AdminUser {
   id: number;
   email: string;
   username: string;
+  full_name?: string;
+  phone?: string;
+  role?: string;
   roles: string[];
-}
-
-interface AuthResponse {
-  id: number;
-  email: string;
-  username: string;
-  accessToken: string;
-  refreshToken: string;
 }
 
 interface AdminAuthContextType {
@@ -35,19 +29,55 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadUser = () => {
+    const loadUser = async () => {
       try {
         const token = localStorage.getItem('admin_token');
-        const savedUser = localStorage.getItem('admin_user');
         
-        if (token && savedUser) {
-          const userData = JSON.parse(savedUser);
-          setUser(userData);
+        if (token) {
+          // Fetch latest profile data from backend instead of using stale localStorage
+          try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/users/admin/profile`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+
+            if (response.ok) {
+              const profileData = await response.json();
+              // profileData might be wrapped in TransformInterceptor format
+              const admin = profileData.data || profileData;
+              
+              const userData = {
+                id: admin.id,
+                email: admin.email,
+                username: admin.full_name || admin.email,
+                full_name: admin.full_name,
+                phone: admin.phone,
+                role: admin.role,
+                roles: [admin.role],
+              };
+              
+              // Update localStorage with fresh data
+              localStorage.setItem('admin_user', JSON.stringify(userData));
+              setUser(userData);
+            } else {
+              // Token is invalid, clear it
+              clearAdminTokens();
+            }
+          } catch (error) {
+            console.error('Failed to fetch admin profile:', error);
+            // Network error - try using cached data
+            const savedUser = localStorage.getItem('admin_user');
+            if (savedUser) {
+              setUser(JSON.parse(savedUser));
+            } else {
+              clearAdminTokens();
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load user:', error);
-        localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_user');
+        clearAdminTokens();
       } finally {
         setIsLoading(false);
       }
@@ -59,38 +89,92 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const response = await axios.post<{ success: boolean; data: AuthResponse }>(
-        `${API_BASE_URL}/api/v1/auth/login`,
-        { email, password }
-      );
-
-      const data = response.data.data || response.data;
+      const loginDto: LoginDto = { email, password };
       
-      // Lưu token và user
-      localStorage.setItem('admin_token', data.accessToken);
-      localStorage.setItem('admin_user', JSON.stringify({
-        id: data.id,
-        email: data.email,
-        username: data.username,
-        roles: ['admin'], // Backend sẽ trả về roles
-      }));
-
-      setUser({
-        id: data.id,
-        email: data.email,
-        username: data.username,
-        roles: ['admin'],
+      // Use admin-specific endpoint that returns tokens in body (no cookies)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/auth/admin/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(loginDto),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Đăng nhập thất bại');
+      }
+
+      const response_json = await response.json();
+      
+      // DEBUG: Log response to check structure
+      console.log('[AdminAuth] Login response:', response_json);
+      
+      // Backend uses TransformInterceptor which wraps response:
+      // { success, statusCode, message, data: { accessToken, refreshToken, user }, timestamp }
+      const data = response_json.data || response_json;
+      
+      console.log('[AdminAuth] Extracted data:', data);
+      console.log('[AdminAuth] User object:', data.user);
+      console.log('[AdminAuth] User role:', data.user?.role);
+      
+      // SECURITY: Verify admin role (backend already checked, but double-check)
+      const userRole = data.user?.role;
+      if (userRole !== 'admin') {
+        console.error('[AdminAuth] Role check failed. Expected "admin", got:', userRole);
+        throw new Error('Email hoặc mật khẩu không đúng');
+      }
+      
+      // Save tokens to localStorage (NO cookies)
+      updateAdminToken(data.accessToken, data.refreshToken);
+      
+      const userData = {
+        id: data.user.id,
+        email: data.user.email,
+        username: data.user.full_name || data.user.email,
+        full_name: data.user.full_name,
+        phone: data.user.phone,
+        role: userRole,
+        roles: ['admin'],
+      };
+      
+      localStorage.setItem('admin_user', JSON.stringify(userData));
+      setUser(userData);
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_user');
+  const logout = async () => {
+    setLoggingOut(true);
+    
+    try {
+      const refreshToken = localStorage.getItem('admin_refresh_token');
+      if (refreshToken) {
+        // Call admin logout endpoint
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/auth/admin/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ refreshToken }),
+        }).catch(() => {});
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
+    clearAdminTokens();
     setUser(null);
-    window.location.href = '/signin';
+    setLoggingOut(false);
+    
+    // Use router instead of window.location for proper Next.js navigation
+    if (typeof window !== 'undefined') {
+      window.location.replace('/auth/signin');
+    }
   };
 
   const value = {

@@ -1,26 +1,40 @@
-import React from "react";
+import React, { useState } from "react";
 import { AppDispatch } from "@/redux/store";
 import { useDispatch } from "react-redux";
 
 import { removeItemFromWishlist } from "@/redux/features/wishlist-slice";
 import { addItemToCart } from "@/redux/features/cart-slice";
+import { useCart } from "@/contexts/CartContext";
 
 import Image from "next/image";
 
 const SingleItem = ({ item }) => {
   const dispatch = useDispatch<AppDispatch>();
+  const { addToCart } = useCart();
+  const [isAdding, setIsAdding] = useState(false);
 
   const handleRemoveFromWishlist = () => {
     dispatch(removeItemFromWishlist(item.id));
   };
 
-  const handleAddToCart = () => {
-    dispatch(
-      addItemToCart({
-        ...item,
-        quantity: 1,
-      })
-    );
+  const handleAddToCart = async () => {
+    setIsAdding(true);
+    try {
+      await addToCart(item.id, 1);
+      dispatch(
+        addItemToCart({
+          ...item,
+          quantity: 1,
+        })
+      );
+      // Có thể xóa khỏi wishlist sau khi thêm vào cart
+      handleRemoveFromWishlist();
+    } catch (error: any) {
+      console.error('Add to cart failed:', error.message);
+      alert(error.message || 'Không thể thêm vào giỏ hàng');
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   return (

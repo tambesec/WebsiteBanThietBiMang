@@ -1,29 +1,49 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CustomSelect from "./CustomSelect";
 import { menuData } from "./menuData";
 import Dropdown from "./Dropdown";
-import { useAppSelector } from "@/redux/store";
-import { useSelector } from "react-redux";
-import { selectTotalPrice } from "@/redux/features/cart-slice";
 import { useCartModalContext } from "@/app/context/CartSidebarModalContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import Image from "next/image";
 
 const Header = () => {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [stickyMenu, setStickyMenu] = useState(false);
   const { openCartModal } = useCartModalContext();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, isLoading } = useAuth();
+  const { cart } = useCart();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const product = useAppSelector((state) => state.cartReducer.items);
-  const totalPrice = useSelector(selectTotalPrice);
+  const cartItemsCount = cart?.summary?.items_count || 0;
+  const cartTotal = cart?.summary?.total || 0;
 
   const handleOpenCartModal = () => {
     openCartModal();
+  };
+
+  // Handle logout with loading state
+  const handleLogout = async () => {
+    if (isLoggingOut) return; // Prevent multiple clicks
+    setIsLoggingOut(true);
+    setShowUserMenu(false);
+    await logout();
+    // No need to reset isLoggingOut because page will redirect
+  };
+
+  // Handle search submit
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+      // Keep search query in input so user can see what they searched
+    }
   };
 
   // Sticky menu
@@ -83,7 +103,7 @@ const Header = () => {
             </Link>
 
             <div className="max-w-[450px] w-full min-w-0">
-              <form>
+              <form onSubmit={handleSearchSubmit}>
                 <div className="flex items-center min-w-0">
                   <CustomSelect options={options} />
 
@@ -102,6 +122,7 @@ const Header = () => {
                     />
 
                     <button
+                      type="submit"
                       id="search-btn"
                       aria-label="Search"
                       className="flex items-center justify-center absolute right-3 top-1/2 -translate-y-1/2 ease-in duration-200 hover:text-blue"
@@ -226,13 +247,11 @@ const Header = () => {
                           Đơn hàng
                         </Link>
                         <button 
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            logout();
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                          onClick={handleLogout}
+                          disabled={isLoggingOut}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Đăng xuất
+                          {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
                         </button>
                       </div>
                     )}
@@ -309,7 +328,7 @@ const Header = () => {
                     </svg>
 
                     <span className="flex items-center justify-center font-medium text-2xs absolute -right-2 -top-2.5 bg-blue w-4.5 h-4.5 rounded-full text-white">
-                      {product.length}
+                      {cartItemsCount}
                     </span>
                   </span>
 
@@ -317,8 +336,8 @@ const Header = () => {
                     <span className="block text-2xs text-dark-4 uppercase whitespace-nowrap">
                       Giỏ hàng
                     </span>
-                    <p className="font-medium text-custom-sm text-dark truncate" title={`${totalPrice.toLocaleString('vi-VN')}đ`}>
-                      {totalPrice.toLocaleString('vi-VN')}đ
+                    <p className="font-medium text-custom-sm text-dark truncate" title={`${cartTotal.toLocaleString('vi-VN')}đ`}>
+                      {cartTotal.toLocaleString('vi-VN')}đ
                     </p>
                   </div>
                 </button>

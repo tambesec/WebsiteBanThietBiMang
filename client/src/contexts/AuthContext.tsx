@@ -1,7 +1,25 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, User, AuthResponse } from '@/services/api';
+import { authApi, axiosInstance } from '@/lib/api-client';
+import type { LoginDto, RegisterDto } from '@/lib/api-client';
+
+// Re-define User type locally
+interface User {
+  id: string;
+  email: string;
+  username: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  avatar?: string;
+  role?: string;
+  isOAuthUser?: boolean;
+  hasPassword?: boolean;
+  oauthProviders?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -10,7 +28,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
   register: (userData: {
-    username: string;
+    firstName: string;
+    lastName?: string;
     email: string;
     password: string;
     phone?: string;
@@ -25,171 +44,155 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load user from localStorage on mount
+  /**
+   * Load auth session on mount
+   * Uses /auth/session endpoint which NEVER returns 401
+   * Returns { authenticated: false } for guest or { authenticated: true, user } for logged-in user
+   */
   useEffect(() => {
-    const loadUser = async () => {
+    const loadSession = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          // Verify token and get user info
-          const userData = await authApi.getMe();
-          setUser(userData);
+        // Call /auth/session - NEVER throws 401
+        const response = await axiosInstance.get('/auth/session');
+        const sessionData = response.data?.data || response.data;
+        
+        if (sessionData.authenticated && sessionData.user) {
+          // SECURITY: Only allow 'customer' role on client app
+          if (sessionData.user.role === 'admin') {
+            setUser(null);
+            // Clear admin cookies silently
+            await axiosInstance.post('/auth/logout').catch(() => {});
+            return;
+          }
+          
+          setUser({
+            id: sessionData.user.id.toString(),
+            email: sessionData.user.email,
+            username: sessionData.user.full_name || sessionData.user.email,
+            firstName: sessionData.user.full_name?.split(' ')[0] || '',
+            lastName: sessionData.user.full_name?.split(' ').slice(1).join(' ') || '',
+            phone: sessionData.user.phone || '',
+            avatar: '',
+            role: sessionData.user.role,
+            isOAuthUser: sessionData.user.is_oauth_user || false,
+            hasPassword: sessionData.user.has_password || false,
+            oauthProviders: sessionData.user.oauth_providers || [],
+            createdAt: sessionData.user.created_at || new Date().toISOString(),
+            updatedAt: sessionData.user.updated_at || new Date().toISOString(),
+          });
+        } else {
+          setUser(null);
         }
-      } catch (error) {
-        console.error('Failed to load user:', error);
-        // Token invalid, clear storage
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+      } catch (error: any) {
+        // Should not happen with /auth/session, but handle gracefully
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadUser();
+    loadSession();
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Validate input
-      if (!email || !email.trim()) {
-        throw new Error('Email không được để trống');
-      }
-      if (!password || !password.trim()) {
-        throw new Error('Mật khẩu không được để trống');
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        throw new Error('Email không hợp lệ');
-      }
-
-      const response: AuthResponse = await authApi.login(email.trim(), password);
+      // Call backend API - let backend handle all validation
+      const loginData: LoginDto = { email, password };
+      const response = await authApi.authControllerLogin(loginData);
       
-      if (!response || !response.accessToken) {
-        throw new Error('Phản hồi không hợp lệ từ máy chủ');
+      // Reset logging out flag after successful login
+      const { setLoggingOut } = await import('@/lib/api-client');
+      setLoggingOut(false);
+      
+      // Backend wraps response: { data: { user } }
+      const userData = response.data?.data?.user || response.data?.user;
+      if (userData) {
+        // SECURITY: Only allow 'customer' role on client app
+        if (userData.role === 'admin') {
+          await authApi.authControllerLogout({});
+          throw new Error('Email hoặc mật khẩu không đúng');
+        }
+        
+        setUser({
+          id: userData.id.toString(),
+          email: userData.email,
+          username: userData.full_name || userData.email,
+          firstName: userData.full_name?.split(' ')[0] || '',
+          lastName: userData.full_name?.split(' ').slice(1).join(' ') || '',
+          phone: userData.phone || '',
+          avatar: '',
+          role: userData.role,
+          createdAt: userData.created_at || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        
+        console.log('[AuthContext] Login successful, user state updated');
       }
-
-      // Save token and user to localStorage
-      localStorage.setItem('token', response.accessToken);
-      localStorage.setItem('user', JSON.stringify({
-        id: response.id,
-        email: response.email,
-        username: response.username,
-      }));
-
-      // Set user state
-      setUser({
-        id: response.id.toString(),
-        email: response.email,
-        username: response.username,
-        firstName: '',
-        lastName: '',
-        phone: '',
-        avatar: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
     } catch (error: any) {
-      // Clear any stale data on error
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
       setUser(null);
       
-      // Re-throw with user-friendly message
-      if (error.response) {
-        const message = error.response.data?.message || error.response.data?.error;
-        if (Array.isArray(message)) {
-          throw new Error(message.join(', '));
-        }
-        throw new Error(message || 'Đăng nhập thất bại');
+      // Backend returns error messages
+      const message = error.response?.data?.message || error.message;
+      const errorMessage = Array.isArray(message) ? message.join(', ') : message || 'Đăng nhập thất bại';
+      
+      // Log for debugging (only in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[AuthContext] Login failed:', errorMessage);
       }
-      throw error;
+      
+      throw new Error(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   const register = async (userData: {
-    username: string;
+    firstName: string;
+    lastName?: string;
     email: string;
     password: string;
     phone?: string;
   }) => {
     setIsLoading(true);
     try {
-      // Validate input
-      if (!userData.username || userData.username.trim().length < 3) {
-        throw new Error('Tên đăng nhập phải có ít nhất 3 ký tự');
-      }
-      if (!userData.email || !userData.email.trim()) {
-        throw new Error('Email không được để trống');
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
-        throw new Error('Email không hợp lệ');
-      }
-      if (!userData.password || userData.password.length < 12) {
-        throw new Error('Mật khẩu phải có ít nhất 12 ký tự');
-      }
-      if (!/[A-Z]/.test(userData.password)) {
-        throw new Error('Mật khẩu phải có ít nhất 1 chữ hoa');
-      }
-      if (!/[a-z]/.test(userData.password)) {
-        throw new Error('Mật khẩu phải có ít nhất 1 chữ thường');
-      }
-      if (!/[0-9]/.test(userData.password)) {
-        throw new Error('Mật khẩu phải có ít nhất 1 chữ số');
-      }
-      if (!/[!@#$%^&*(),.?":{}|<>]/.test(userData.password)) {
-        throw new Error('Mật khẩu phải có ít nhất 1 ký tự đặc biệt');
-      }
-
-      const cleanedData = {
-        username: userData.username.trim(),
-        email: userData.email.trim(),
+      // Call backend API - let backend handle all validation
+      const registerData: RegisterDto = {
+        full_name: `${userData.firstName} ${userData.lastName || ''}`.trim(),
+        email: userData.email,
         password: userData.password,
-        phone: userData.phone?.trim(),
+        phone: userData.phone,
       };
-
-      const response: AuthResponse = await authApi.register(cleanedData);
+      const response: any = await authApi.authControllerRegister(registerData);
       
-      if (!response || !response.accessToken) {
-        throw new Error('Phản hồi không hợp lệ từ máy chủ');
+      // Backend wraps response: { data: { user } }
+      const newUser = response.data?.data?.user || response.data?.user;
+      if (newUser) {
+        // SECURITY: Verify customer role after registration
+        if (newUser.role === 'admin') {
+          await authApi.authControllerLogout({});
+          throw new Error('Đăng ký thất bại. Vui lòng thử lại');
+        }
+        
+        setUser({
+          id: newUser.id.toString(),
+          email: newUser.email,
+          username: newUser.full_name || `${userData.firstName} ${userData.lastName}`.trim(),
+          firstName: userData.firstName,
+          lastName: userData.lastName || '',
+          phone: userData.phone || '',
+          avatar: '',
+          role: newUser.role,
+          createdAt: newUser.created_at || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
       }
-
-      // Save token and user to localStorage
-      localStorage.setItem('token', response.accessToken);
-      localStorage.setItem('user', JSON.stringify({
-        id: response.id,
-        email: response.email,
-        username: response.username,
-      }));
-
-      // Set user state
-      setUser({
-        id: response.id.toString(),
-        email: response.email,
-        username: response.username,
-        firstName: '',
-        lastName: '',
-        phone: userData.phone || '',
-        avatar: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
     } catch (error: any) {
-      // Clear any stale data on error
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
       setUser(null);
       
-      // Re-throw with user-friendly message
-      if (error.response) {
-        const message = error.response.data?.message || error.response.data?.error;
-        if (Array.isArray(message)) {
-          throw new Error(message.join(', '));
-        }
-        throw new Error(message || 'Đăng ký thất bại');
-      }
-      throw error;
+      // Backend returns error messages
+      const message = error.response?.data?.message || error.message;
+      throw new Error(Array.isArray(message) ? message.join(', ') : message || 'Đăng ký thất bại');
     } finally {
       setIsLoading(false);
     }
@@ -198,72 +201,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setIsLoading(true);
     try {
-      // Try to logout from server, but continue even if it fails
-      try {
-        await authApi.logout();
-      } catch (error) {
-        console.warn('Logout API call failed, continuing with local cleanup:', error);
-      }
-    } finally {
-      // Always clear local data
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('refreshToken');
+      // Set logging out flag to prevent refresh attempts
+      const { axiosInstance, setLoggingOut } = await import('@/lib/api-client');
+      setLoggingOut(true);
+      
+      // Call logout API using axios directly (no body needed - uses cookies)
+      await axiosInstance.post('/auth/logout', {});
+      
+      // Clear user state immediately
       setUser(null);
-      setIsLoading(false);
       
       // Redirect to signin
       if (typeof window !== 'undefined') {
         window.location.href = '/signin';
       }
+    } catch (error) {
+      // Ignore errors - logout anyway
+      console.error('Logout API error:', error);
+      setUser(null);
+      
+      // Redirect even on error
+      if (typeof window !== 'undefined') {
+        window.location.href = '/signin';
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const updateUser = async (userData: Partial<User>) => {
     try {
-      const updatedUser = await authApi.updateProfile(userData);
-      setUser(updatedUser);
-    } catch (error) {
+      // Call backend API to update profile
+      const response = await axiosInstance.patch('/auth/profile', {
+        full_name: userData.firstName && userData.lastName 
+          ? `${userData.firstName} ${userData.lastName}`.trim()
+          : undefined,
+        email: userData.email,
+        phone: userData.phone,
+      });
+
+      const updatedUserData = response.data?.user || response.data?.data?.user;
+      
+      // Update local user state with backend response
+      if (updatedUserData) {
+        setUser({
+          id: updatedUserData.id.toString(),
+          email: updatedUserData.email,
+          username: updatedUserData.full_name || updatedUserData.email,
+          firstName: updatedUserData.full_name?.split(' ')[0] || '',
+          lastName: updatedUserData.full_name?.split(' ').slice(1).join(' ') || '',
+          phone: updatedUserData.phone || '',
+          avatar: user?.avatar || '',
+          role: updatedUserData.role,
+          createdAt: updatedUserData.created_at || user?.createdAt || new Date().toISOString(),
+          updatedAt: updatedUserData.updated_at || new Date().toISOString(),
+        });
+      }
+    } catch (error: any) {
       console.error('Failed to update user:', error);
-      throw error;
+      const message = error.response?.data?.message || error.message || 'Failed to update profile';
+      throw new Error(message);
     }
   };
 
   const loginWithGoogle = async (credential: string) => {
     setIsLoading(true);
     try {
-      const response: AuthResponse = await authApi.loginWithGoogle(credential);
-      
-      if (!response || !response.accessToken) {
-        throw new Error('Phản hồi không hợp lệ từ máy chủ');
-      }
-
-      // Save token and user to localStorage
-      localStorage.setItem('token', response.accessToken);
-      localStorage.setItem('user', JSON.stringify({
-        id: response.id,
-        email: response.email,
-        username: response.username,
-      }));
-
-      // Get full user info from server
-      const userData = await authApi.getMe();
-      setUser(userData);
-      
+      // Redirect to backend Google OAuth endpoint
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      window.location.href = `${backendUrl}/api/v1/auth/google`;
     } catch (error: any) {
-      // Clear any stale data on error
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
       setUser(null);
-      
-      // Re-throw with user-friendly message
-      if (error.response) {
-        const message = error.response.data?.message || error.response.data?.error;
-        throw new Error(message || 'Đăng nhập Google thất bại');
-      }
-      throw error;
-    } finally {
       setIsLoading(false);
+      const message = error.response?.data?.message || error.message;
+      throw new Error(message || 'Đăng nhập Google thất bại');
     }
   };
 

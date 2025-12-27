@@ -88,12 +88,9 @@ const Footer = () => {
 
             {/* <!-- Social Links start --> */}
             <div className="flex items-center gap-4 mt-7.5">
-              <a
-                href="https://facebook.com/nettechpro"
-                target="_blank"
-                rel="noopener noreferrer"
+              <span
                 aria-label="Facebook Social Link"
-                className="flex ease-out duration-200 hover:text-blue"
+                className="flex ease-out duration-200 hover:text-blue cursor-pointer"
               >
                 <svg
                   className="fill-current"
@@ -113,14 +110,11 @@ const Footer = () => {
                     fill=""
                   />
                 </svg>
-              </a>
+              </span>
 
-              <a
-                href="https://twitter.com/nettechpro"
-                target="_blank"
-                rel="noopener noreferrer"
+              <span
                 aria-label="Twitter Social Link"
-                className="flex ease-out duration-200 hover:text-blue"
+                className="flex ease-out duration-200 hover:text-blue cursor-pointer"
               >
                 <svg
                   className="fill-current"
@@ -135,14 +129,11 @@ const Footer = () => {
                     fill=""
                   />
                 </svg>
-              </a>
+              </span>
 
-              <a
-                href="https://instagram.com/nettechpro"
-                target="_blank"
-                rel="noopener noreferrer"
+              <span
                 aria-label="Instagram Social Link"
-                className="flex ease-out duration-200 hover:text-blue"
+                className="flex ease-out duration-200 hover:text-blue cursor-pointer"
               >
                 <svg
                   className="fill-current"
@@ -172,14 +163,11 @@ const Footer = () => {
                     </clipPath>
                   </defs>
                 </svg>
-              </a>
+              </span>
 
-              <a
-                href="https://linkedin.com/company/nettechpro"
-                target="_blank"
-                rel="noopener noreferrer"
+              <span
                 aria-label="Linkedin Social Link"
-                className="flex ease-out duration-200 hover:text-blue"
+                className="flex ease-out duration-200 hover:text-blue cursor-pointer"
               >
                 <svg
                   className="fill-current"
@@ -199,7 +187,7 @@ const Footer = () => {
                     fill=""
                   />
                 </svg>
-              </a>
+              </span>
             </div>
             {/* <!-- Social Links end --> */}
           </div>
@@ -211,33 +199,33 @@ const Footer = () => {
 
             <ul className="flex flex-col gap-3.5">
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/shop">
-                  Card Mạng
-                </a>
-              </li>
-              <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/shop">
-                  Hub Switch
-                </a>
-              </li>
-              <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/shop">
+                <a className="ease-out duration-200 hover:text-blue" href="/shop?category=router">
                   Router
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/shop">
-                  Bộ Phát Sóng
+                <a className="ease-out duration-200 hover:text-blue" href="/shop?category=switch">
+                  Switch
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/shop">
-                  USB Wifi
+                <a className="ease-out duration-200 hover:text-blue" href="/shop?category=access-point">
+                  Access Point
                 </a>
               </li>
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/shop">
-                  Phụ Kiện Khác
+                <a className="ease-out duration-200 hover:text-blue" href="/shop?category=firewall">
+                  Firewall
+                </a>
+              </li>
+              <li>
+                <a className="ease-out duration-200 hover:text-blue" href="/shop?category=modem">
+                  Modem
+                </a>
+              </li>
+              <li>
+                <a className="ease-out duration-200 hover:text-blue" href="/shop?category=cable-adapter">
+                  Cáp & Adapter
                 </a>
               </li>
             </ul>
@@ -250,7 +238,7 @@ const Footer = () => {
 
             <ul className="flex flex-col gap-3.5">
               <li>
-                <a className="ease-out duration-200 hover:text-blue" href="/profile">
+                <a className="ease-out duration-200 hover:text-blue" href="/my-account">
                   Tài khoản của tôi
                 </a>
               </li>

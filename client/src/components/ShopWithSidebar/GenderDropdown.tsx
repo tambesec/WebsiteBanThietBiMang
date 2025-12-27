@@ -1,23 +1,22 @@
 "use client";
 import React, { useState } from "react";
 
-const GenderItem = ({ category }) => {
-  const [selected, setSelected] = useState(false);
+const GenderItem = ({ category, isSelected, onSelect }) => {
   return (
     <button
       className={`${
-        selected && "text-blue"
+        isSelected && "text-blue"
       } group flex items-center justify-between ease-out duration-200 hover:text-blue `}
-      onClick={() => setSelected(!selected)}
+      onClick={() => onSelect(category.name)}
     >
       <div className="flex items-center gap-2">
         <div
           className={`cursor-pointer flex items-center justify-center rounded w-4 h-4 border ${
-            selected ? "border-blue bg-blue" : "bg-white border-gray-3"
+            isSelected ? "border-blue bg-blue" : "bg-white border-gray-3"
           }`}
         >
           <svg
-            className={selected ? "block" : "hidden"}
+            className={isSelected ? "block" : "hidden"}
             width="10"
             height="10"
             viewBox="0 0 10 10"
@@ -36,19 +35,11 @@ const GenderItem = ({ category }) => {
 
         <span>{category.name}</span>
       </div>
-
-      <span
-        className={`${
-          selected ? "text-white bg-blue" : "bg-gray-2"
-        } inline-flex rounded-[30px] text-custom-xs px-2 ease-out duration-200 group-hover:text-white group-hover:bg-blue`}
-      >
-        {category.products}
-      </span>
     </button>
   );
 };
 
-const GenderDropdown = ({ genders }) => {
+const GenderDropdown = ({ genders, selectedBrand, onSelectBrand }) => {
   const [toggleDropdown, setToggleDropdown] = useState(true);
 
   return (
@@ -92,7 +83,12 @@ const GenderDropdown = ({ genders }) => {
         }`}
       >
         {genders.map((gender, key) => (
-          <GenderItem key={key} category={gender} />
+          <GenderItem 
+            key={key} 
+            category={gender}
+            isSelected={gender.name === selectedBrand}
+            onSelect={onSelectBrand}
+          />
         ))}
       </div>
     </div>

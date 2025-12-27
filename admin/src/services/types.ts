@@ -133,12 +133,10 @@ export interface OrdersChartData {
 }
 
 export interface AdminAuthResponse {
-  id: number;
-  email: string;
-  username: string;
-  role: string;
+  message?: string;
   accessToken: string;
   refreshToken: string;
+  user: User;
 }
 
 export interface PaginationParams {

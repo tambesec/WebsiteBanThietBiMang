@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import SingleOrder from "./SingleOrder";
 import ordersData from "./ordersData";
-import { ordersApi } from "@/services/api";
-import type { Order } from "@/services/api";
+import { ordersApi } from "@/lib/api-client";
+import type { OrderDto } from "@/generated-api";
 
 const Orders = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,12 +13,36 @@ const Orders = () => {
     const fetchOrders = async () => {
       try {
         setLoading(true);
-        const response = await ordersApi.getMyOrders({ page: 1, limit: 10 });
-        setOrders(response.data);
+        const response = await ordersApi.ordersControllerFindAll(
+          'all', // status
+          undefined, // search
+          'created_at', // sort_by
+          'desc', // sort_order
+          1, // page
+          100 // limit
+        );
+        // Backend: { data: { orders: [...], pagination: {...} } }
+        const result = response.data?.data || response.data;
+        const items = result?.orders || [];
+        
+        // Transform data to match SingleOrder component interface
+        const transformedOrders = items.map((order: any) => ({
+          orderId: order.order_number || order.id,
+          createdAt: new Date(order.created_at).toLocaleDateString('vi-VN', { 
+            day: '2-digit', 
+            month: 'long', 
+            year: 'numeric' 
+          }),
+          status: order.status?.name?.toLowerCase() || 'pending',
+          total: `${order.total_amount?.toLocaleString('vi-VN')}₫`,
+          title: order.items?.map((item: any) => item.product_name || item.product?.name).join(', ') || 'Đơn hàng',
+          rawOrder: order // Keep original data for details
+        }));
+        
+        setOrders(transformedOrders as any);
       } catch (err: any) {
         console.error('Error fetching orders:', err);
         setError(err.message || 'Không thể tải danh sách đơn hàng');
-        // Fallback to static data nếu API fail
         setOrders([]);
       } finally {
         setLoading(false);
@@ -41,7 +65,7 @@ const Orders = () => {
       <div className="w-full overflow-x-auto">
         <div className="min-w-[770px]">
           {/* <!-- order item --> */}
-          {ordersData.length > 0 && (
+          {orders.length > 0 && (
             <div className="items-center justify-between py-4.5 px-7.5 hidden md:flex ">
               <div className="min-w-[111px]">
                 <p className="text-custom-sm text-dark">Order</p>
@@ -67,19 +91,19 @@ const Orders = () => {
               </div>
             </div>
           )}
-          {ordersData.length > 0 ? (
-            ordersData.map((orderItem, key) => (
+          {orders.length > 0 ? (
+            orders.map((orderItem, key) => (
               <SingleOrder key={key} orderItem={orderItem} smallView={false} />
             ))
           ) : (
             <p className="py-9.5 px-4 sm:px-7.5 xl:px-10">
-              You don&apos;t have any orders!
+              Bạn chưa có đơn hàng nào!
             </p>
           )}
         </div>
 
-        {ordersData.length > 0 &&
-          ordersData.map((orderItem, key) => (
+        {orders.length > 0 &&
+          orders.map((orderItem, key) => (
             <SingleOrder key={key} orderItem={orderItem} smallView={true} />
           ))}
       </div>

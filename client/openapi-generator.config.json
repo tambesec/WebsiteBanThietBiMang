@@ -1,0 +1,22 @@
+{
+  "generatorName": "typescript-axios",
+  "inputSpec": "../swagger.json",
+  "outputDir": "./src/generated-api",
+  "additionalProperties": {
+    "npmName": "@networkstore/client-api-client",
+    "npmVersion": "1.0.0",
+    "supportsES6": true,
+    "withInterfaces": true,
+    "useSingleRequestParameter": false,
+    "withSeparateModelsAndApi": true,
+    "modelPackage": "models",
+    "apiPackage": "api",
+    "enumPropertyNaming": "UPPERCASE",
+    "basePath": ""
+  },
+  "globalProperties": {
+    "models": "",
+    "apis": "",
+    "supportingFiles": "configuration.ts,api.ts,base.ts,common.ts,index.ts"
+  }
+}

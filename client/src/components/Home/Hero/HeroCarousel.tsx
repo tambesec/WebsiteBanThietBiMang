@@ -38,7 +38,7 @@ const HeroCarousal = () => {
             </div>
 
             <h1 className="font-semibold text-dark text-xl sm:text-3xl mb-3">
-              <a href="#">Router WiFi 6 Asus RT-AX55 - Tốc độ vượt trội</a>
+              <a href="/shop?category=router">Router WiFi 6 Asus RT-AX55 - Tốc độ vượt trội</a>
             </h1>
 
             <p>
@@ -46,7 +46,7 @@ const HeroCarousal = () => {
             </p>
 
             <a
-              href="#"
+              href="/shop?category=router"
               className="inline-flex font-medium text-white text-custom-sm rounded-md bg-dark py-3 px-9 ease-out duration-200 hover:bg-blue mt-10"
             >
               Mua ngay
@@ -55,7 +55,7 @@ const HeroCarousal = () => {
 
           <div>
             <Image
-              src="/images/hero/hero-01.png"
+              src="https://res.cloudinary.com/diysxuomq/image/upload/v1766674132/rt_asus_ocs2ch.png"
               alt="router wifi 6"
               width={351}
               height={358}
@@ -79,7 +79,7 @@ const HeroCarousal = () => {
             </div>
 
             <h1 className="font-semibold text-dark text-xl sm:text-3xl mb-3">
-              <a href="#">Hệ thống Mesh WiFi TP-Link Deco M5 - Phủ sóng toàn diện</a>
+              <a href="/shop?category=bo-phat-song-wifi">Hệ thống Mesh WiFi TP-Link Deco M5 - Phủ sóng toàn diện</a>
             </h1>
 
             <p>
@@ -87,7 +87,7 @@ const HeroCarousal = () => {
             </p>
 
             <a
-              href="#"
+              href="/shop?category=bo-phat-song-wifi"
               className="inline-flex font-medium text-white text-custom-sm rounded-md bg-dark py-3 px-9 ease-out duration-200 hover:bg-blue mt-10"
             >
               Khám phá ngay
@@ -96,7 +96,7 @@ const HeroCarousal = () => {
 
           <div>
             <Image
-              src="/images/hero/hero-01.png"
+              src="https://res.cloudinary.com/diysxuomq/image/upload/v1766674132/rt_asus_ocs2ch.png"
               alt="mesh wifi system"
               width={351}
               height={358}

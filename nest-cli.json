@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "watchAssets": true
+  },
+  "watchOptions": {
+    "ignored": [
+      "node_modules",
+      "dist",
+      "client/**",
+      "admin/**",
+      "docker-export/**",
+      "team-package/**",
+      "*.log",
+      "*.md",
+      "swagger.json",
+      "generated/**",
+      "prisma/migrations/**",
+      ".git/**",
+      "backup.sql",
+      "*.sql"
+    ]
+  }
+}

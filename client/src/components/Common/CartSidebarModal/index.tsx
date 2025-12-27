@@ -2,21 +2,17 @@
 import React, { useEffect, useState } from "react";
 
 import { useCartModalContext } from "@/app/context/CartSidebarModalContext";
-import {
-  removeItemFromCart,
-  selectTotalPrice,
-} from "@/redux/features/cart-slice";
-import { useAppSelector } from "@/redux/store";
-import { useSelector } from "react-redux";
+import { useCart } from "@/contexts/CartContext";
 import SingleItem from "./SingleItem";
 import Link from "next/link";
 import EmptyCart from "./EmptyCart";
 
 const CartSidebarModal = () => {
   const { isCartModalOpen, closeCartModal } = useCartModalContext();
-  const cartItems = useAppSelector((state) => state.cartReducer.items);
+  const { cart, removeItem } = useCart();
 
-  const totalPrice = useSelector(selectTotalPrice);
+  const cartItems = cart?.items || [];
+  const totalPrice = cart?.summary?.total || 0;
 
   useEffect(() => {
     // closing modal while clicking outside
@@ -82,7 +78,7 @@ const CartSidebarModal = () => {
                   <SingleItem
                     key={key}
                     item={item}
-                    removeItemFromCart={removeItemFromCart}
+                    removeItemFromCart={removeItem}
                   />
                 ))
               ) : (
@@ -95,7 +91,7 @@ const CartSidebarModal = () => {
             <div className="flex items-center justify-between gap-5 mb-6">
               <p className="font-medium text-xl text-dark">Tạm tính:</p>
 
-              <p className="font-medium text-xl text-dark">${totalPrice}</p>
+              <p className="font-medium text-xl text-dark">{totalPrice.toLocaleString('vi-VN')}₫</p>
             </div>
 
             <div className="flex items-center gap-4">

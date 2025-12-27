@@ -1,14 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import RangeSlider from 'react-range-slider-input';
 import 'react-range-slider-input/dist/style.css';
 
-const PriceDropdown = () => {
+const PriceDropdown = ({ priceRange, onPriceChange }) => {
   const [toggleDropdown, setToggleDropdown] = useState(true);
-
-  const [selectedPrice, setSelectedPrice] = useState({
-    from: 0,
-    to: 100000000,
+  
+  const [localPrice, setLocalPrice] = useState({
+    from: priceRange?.min || 0,
+    to: priceRange?.max || 100000000,
   });
+
+  // Sync with parent state
+  useEffect(() => {
+    setLocalPrice({
+      from: priceRange?.min || 0,
+      to: priceRange?.max || 100000000,
+    });
+  }, [priceRange]);
+
+  const handleApply = () => {
+    onPriceChange({
+      min: localPrice.from > 0 ? localPrice.from : undefined,
+      max: localPrice.to < 100000000 ? localPrice.to : undefined,
+    });
+  };
 
   return (
     <div className="bg-white shadow-1 rounded-lg">
@@ -53,8 +68,9 @@ const PriceDropdown = () => {
               step={'any'}
               min={0}
               max={100000000}
+              value={[localPrice.from, localPrice.to]}
               onInput={(e) =>
-                setSelectedPrice({
+                setLocalPrice({
                   from: Math.floor(e[0]),
                   to: Math.ceil(e[1]),
                 })
@@ -67,7 +83,7 @@ const PriceDropdown = () => {
                   đ
                 </span>
                 <span id="minAmount" className="block px-3 py-1.5">
-                  {selectedPrice.from.toLocaleString('vi-VN')}
+                  {localPrice.from.toLocaleString('vi-VN')}
                 </span>
               </div>
 
@@ -76,10 +92,17 @@ const PriceDropdown = () => {
                   đ
                 </span>
                 <span id="maxAmount" className="block px-3 py-1.5">
-                  {selectedPrice.to.toLocaleString('vi-VN')}
+                  {localPrice.to.toLocaleString('vi-VN')}
                 </span>
               </div>
             </div>
+
+            <button
+              onClick={handleApply}
+              className="w-full mt-4 bg-blue text-white py-2 px-4 rounded hover:bg-blue/90 transition-colors"
+            >
+              Áp dụng
+            </button>
           </div>
         </div>
       </div>

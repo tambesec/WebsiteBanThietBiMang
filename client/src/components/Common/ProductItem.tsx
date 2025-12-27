@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { Product } from "@/types/product";
 import { useModalContext } from "@/app/context/QuickViewModalContext";
@@ -10,25 +10,36 @@ import { updateproductDetails } from "@/redux/features/product-details";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "@/redux/store";
 import Link from "next/link";
+import { useCart } from "@/contexts/CartContext";
 
 const ProductItem = ({ item }: { item: Product }) => {
   const { openModal } = useModalContext();
-
   const dispatch = useDispatch<AppDispatch>();
+  const { addToCart } = useCart();
+  const [isAdding, setIsAdding] = useState(false);
 
   // update the QuickView state
   const handleQuickViewUpdate = () => {
     dispatch(updateQuickView({ ...item }));
   };
 
-  // add to cart
-  const handleAddToCart = () => {
-    dispatch(
-      addItemToCart({
-        ...item,
-        quantity: 1,
-      })
-    );
+  // add to cart - Sync với backend API
+  const handleAddToCart = async () => {
+    setIsAdding(true);
+    try {
+      await addToCart(item.id, 1);
+      dispatch(
+        addItemToCart({
+          ...item,
+          quantity: 1,
+        })
+      );
+    } catch (error: any) {
+      console.error('Add to cart failed:', error.message);
+      alert(error.message || 'Không thể thêm vào giỏ hàng');
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   const handleItemToWishList = () => {
@@ -156,7 +167,7 @@ const ProductItem = ({ item }: { item: Product }) => {
         className="font-medium text-dark ease-out duration-200 hover:text-blue mb-1.5 line-clamp-2 h-[3rem]"
         onClick={() => handleProductDetails()}
       >
-        <Link href="/shop-details"> {item.title} </Link>
+        <Link href={`/shop-details/${item.id}`}> {item.title} </Link>
       </h3>
 
       <span className="flex items-center gap-2 font-medium text-lg">

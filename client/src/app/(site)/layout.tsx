@@ -10,6 +10,7 @@ import { ModalProvider } from "../context/QuickViewModalContext";
 import { CartModalProvider } from "../context/CartSidebarModalContext";
 import { ReduxProvider } from "@/redux/provider";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 import QuickViewModal from "@/components/Common/QuickViewModal";
 import CartSidebarModal from "@/components/Common/CartSidebarModal";
 import { PreviewSliderProvider } from "../context/PreviewSliderContext";
@@ -47,20 +48,22 @@ export default function RootLayout({
           <>
             <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
               <AuthProvider>
-                <ReduxProvider>
-                  <CartModalProvider>
-                    <ModalProvider>
-                      <PreviewSliderProvider>
-                        <Header />
-                        {children}
+                <CartProvider>
+                  <ReduxProvider>
+                    <CartModalProvider>
+                      <ModalProvider>
+                        <PreviewSliderProvider>
+                          <Header />
+                          {children}
 
-                      <QuickViewModal />
-                      <CartSidebarModal />
-                      <PreviewSliderModal />
-                    </PreviewSliderProvider>
-                  </ModalProvider>
-                </CartModalProvider>
-              </ReduxProvider>
+                        <QuickViewModal />
+                        <CartSidebarModal />
+                        <PreviewSliderModal />
+                      </PreviewSliderProvider>
+                    </ModalProvider>
+                  </CartModalProvider>
+                </ReduxProvider>
+              </CartProvider>
             </AuthProvider>
             </GoogleOAuthProvider>
             <ScrollToTop />
