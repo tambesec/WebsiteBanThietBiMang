@@ -38,9 +38,10 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // Session middleware for cart support
+  // Note: Using MemoryStore for simplicity (single instance only)
   app.use(
     session({
-      secret: configService.get<string>('jwtSecret') || 'networkstore-session-secret',
+      secret: configService.get<string>('jwt.access.secret') || 'networkstore-session-secret',
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -49,6 +50,8 @@ async function bootstrap() {
         secure: isProd, // Use isProd flag
         sameSite: isProd ? 'none' : 'lax', // 'none' for production (cross-site), 'lax' for dev
       },
+      // Suppress MemoryStore warning (we're using single PM2 instance)
+      store: undefined as any,
     }),
   );
 

@@ -1,6 +1,19 @@
-# Hướng Dẫn Deploy Client Lên Vercel
+# 🚀 Hướng Dẫn Deploy Client Lên Vercel
 
-## 📋 Checklist Trước Khi Deploy
+> **Cập nhật:** 26/12/2024
+
+## 📋 Tổng Quan
+
+| Thông tin | Giá trị |
+|-----------|---------|
+| Framework | Next.js 15.5.9 (App Router) |
+| Node.js | 18.x hoặc 20.x |
+| Build time | ~2-3 phút |
+| Hosting | Vercel (Free tier OK) |
+
+---
+
+## ✅ Checklist Trước Khi Deploy
 
 ### 1. Backend PHẢI Deploy Trước
 - ❌ **KHÔNG** deploy client trước khi backend hoạt động
@@ -49,40 +62,78 @@ https://nettechpro.me/signin
 
 ## 🚀 Deploy Lên Vercel
 
-### Bước 1: Push Code Lên GitHub
+### Phương pháp 1: Deploy qua GitHub (Khuyến nghị)
+
+#### Bước 1: Push Code Lên GitHub
 ```bash
-cd client
+# Từ thư mục gốc project
 git add .
 git commit -m "Production ready for Vercel"
 git push origin main
 ```
 
-### Bước 2: Import Project Vào Vercel
-1. Vào [vercel.com](https://vercel.com) → New Project
-2. Import GitHub repository
-3. **Root Directory:** `client`
-4. **Framework Preset:** Next.js
-5. **Build Command:** `npm run build` (mặc định)
-6. **Output Directory:** `.next` (mặc định)
+#### Bước 2: Import Project Vào Vercel
+1. Đăng nhập [vercel.com](https://vercel.com)
+2. Click **"Add New..."** → **"Project"**
+3. **Import Git Repository** → Chọn repo của bạn
+4. **Configure Project:**
 
-### Bước 3: Configure Environment Variables
-Trong Vercel Dashboard → Settings → Environment Variables:
+   | Setting | Value |
+   |---------|-------|
+   | **Root Directory** | `client` ⚠️ QUAN TRỌNG |
+   | **Framework Preset** | Next.js (auto-detect) |
+   | **Build Command** | `npm run build` |
+   | **Output Directory** | `.next` |
+   | **Install Command** | `npm install` |
+
+   ![Root Directory Setting](https://i.imgur.com/example.png)
+
+#### Bước 3: Configure Environment Variables
+Trong cùng màn hình → Mở **"Environment Variables"**:
 
 | Key | Value | Environments |
 |-----|-------|--------------|
-| `NEXT_PUBLIC_API_URL` | `https://api.nettechpro.me` | Production |
-| `NEXT_PUBLIC_SITE_URL` | `https://nettechpro.me` | Production |
+| `NEXT_PUBLIC_API_URL` | `https://your-api-domain.com` | Production, Preview |
+| `NEXT_PUBLIC_SITE_URL` | `https://your-site.vercel.app` | Production |
 | `NEXT_PUBLIC_SITE_NAME` | `NetTechPro` | All |
-| `NEXT_PUBLIC_SITE_DESCRIPTION` | `Cửa hàng thiết bị mạng` | All |
 
-### Bước 4: Deploy
-Click **Deploy** → Chờ build thành công
+⚠️ **Lưu ý:** Thay `your-api-domain.com` bằng URL backend thực tế của bạn!
+
+#### Bước 4: Deploy
+Click **"Deploy"** → Chờ 2-3 phút
 
 ---
 
-## ⚙️ Vercel Configuration (vercel.json)
+### Phương pháp 2: Deploy qua Vercel CLI
 
-File `vercel.json` đã được config để support Next.js App Router:
+```bash
+# 1. Cài đặt Vercel CLI
+npm i -g vercel
+
+# 2. Login
+vercel login
+
+# 3. Deploy từ thư mục client
+cd client
+vercel
+
+# 4. Trả lời các câu hỏi:
+# ? Set up and deploy? → Y
+# ? Which scope? → Chọn account
+# ? Link to existing project? → N (lần đầu)
+# ? What's your project's name? → nettechpro-client
+# ? In which directory is your code located? → ./
+# ? Want to modify settings? → N
+
+# 5. Deploy production
+vercel --prod
+```
+
+---
+
+## ⚙️ Vercel Configuration
+
+### File vercel.json (đã có sẵn)
 
 ```json
 {
@@ -224,38 +275,77 @@ NEXT_PUBLIC_SITE_URL=https://nettechpro.me
 
 ---
 
-## 📱 Mobile Testing
+## � Cấu hình Backend cho Production
 
-Sau khi deploy, test trên:
-- Chrome DevTools mobile emulator
-- Safari iOS
-- Chrome Android
-- Responsive breakpoints: 375px, 768px, 1024px, 1440px
+### 1. Thêm CORS Origin cho Frontend
+
+Trong backend `.env`:
+```env
+CORS_ORIGINS=https://your-site.vercel.app,https://your-custom-domain.com
+```
+
+### 2. Cập nhật Cookie Settings
+
+Đảm bảo backend `src/main.ts` có:
+```typescript
+session({
+  cookie: {
+    httpOnly: true,
+    secure: true,  // HTTPS only
+    sameSite: 'none',  // Cross-site cookies
+  },
+})
+```
+
+### 3. Google OAuth (nếu sử dụng)
+
+Thêm vào Google Console:
+```
+Authorized redirect URIs:
+- https://your-api-domain.com/api/v1/auth/google/callback
+
+Authorized JavaScript origins:
+- https://your-site.vercel.app
+```
 
 ---
 
-## 🔄 CI/CD Auto Deploy
+## 📱 Custom Domain (Tùy chọn)
 
-Vercel tự động deploy khi:
-- Push lên branch `main` → Deploy production
-- Push lên branch khác → Deploy preview
-- Create PR → Deploy preview với URL riêng
+### Bước 1: Thêm Domain trong Vercel
+1. Project → Settings → Domains
+2. Add domain: `www.yourdomain.com`
+3. Vercel sẽ hiển thị DNS records cần cấu hình
 
-**Configure:**
-Vercel Dashboard → Git → Production Branch → `main`
+### Bước 2: Cấu hình DNS
+Thêm record tại nhà cung cấp domain:
+
+| Type | Name | Value |
+|------|------|-------|
+| CNAME | www | cname.vercel-dns.com |
+| A | @ | 76.76.21.21 |
+
+### Bước 3: Đợi SSL Certificate
+- Vercel tự động cấp SSL (Let's Encrypt)
+- Thường mất 5-10 phút
 
 ---
 
-## 📞 Support
+## 📞 Hỗ Trợ
 
 Nếu gặp vấn đề:
-1. Check Vercel build logs
-2. Check browser DevTools console
+1. Check Vercel build logs: Project → Deployments → Click deployment → Logs
+2. Check browser DevTools console (F12)
 3. Test API endpoint riêng lẻ
-4. Verify environment variables
-5. Check CORS configuration
+4. Verify environment variables đã set đúng
+5. Check CORS configuration ở backend
 
-**Vercel Logs:**
+**Vercel Logs qua CLI:**
 ```bash
 vercel logs [deployment-url]
 ```
+
+**Useful Links:**
+- [Vercel Documentation](https://vercel.com/docs)
+- [Next.js Deployment](https://nextjs.org/docs/deployment)
+- [Vercel Environment Variables](https://vercel.com/docs/environment-variables)

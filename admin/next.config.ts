@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   images: {
     remotePatterns: [
       {
@@ -31,7 +30,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  webpack(config) {
+  webpack(config, { isServer }) {
+    // SVG as React components
     config.module.rules.push({
       test: /\.svg$/,
       use: ["@svgr/webpack"],
