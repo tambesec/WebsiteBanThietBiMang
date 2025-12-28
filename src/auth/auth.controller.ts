@@ -19,6 +19,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import {
@@ -30,6 +31,8 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   UpdateProfileDto,
+  VerifyEmailDto,
+  ResendVerificationDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
@@ -498,5 +501,98 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Password already set' })
   async setPassword(@Req() req: any, @Body('new_password') newPassword: string) {
     return this.authService.setPasswordForOAuthUser(req.user.id, newPassword);
+  }
+
+  // ============================================================================
+  // EMAIL VERIFICATION ENDPOINTS
+  // ============================================================================
+
+  /**
+   * POST /auth/verify-email
+   * Verify email address using token from email link
+   * Public endpoint - no auth required
+   */
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify email address with token' })
+  @ApiResponse({ status: 200, description: 'Email verified successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.authService.verifyEmail(verifyEmailDto.token);
+  }
+
+  /**
+   * GET /auth/verify-email
+   * Alternative: Verify email via GET request (for direct link clicks)
+   * Redirects to frontend with result
+   */
+  @Public()
+  @Get('verify-email')
+  @ApiOperation({ summary: 'Verify email via link (redirects to frontend)' })
+  @ApiQuery({ name: 'token', required: true, description: 'Verification token' })
+  @ApiResponse({ status: 302, description: 'Redirects to frontend' })
+  async verifyEmailGet(
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const token = (req.query as any).token as string;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://www.netcompro.tech';
+
+    if (!token) {
+      return (res as any).redirect(`${frontendUrl}/verify-email?error=missing_token`);
+    }
+
+    try {
+      await this.authService.verifyEmail(token);
+      return (res as any).redirect(`${frontendUrl}/verify-email?success=true`);
+    } catch (error) {
+      const errorMessage = error.message || 'verification_failed';
+      return (res as any).redirect(`${frontendUrl}/verify-email?error=${encodeURIComponent(errorMessage)}`);
+    }
+  }
+
+  /**
+   * POST /auth/resend-verification
+   * Resend verification email
+   * Can be called with or without authentication
+   * - Authenticated: Uses current user's email
+   * - Public: Requires email in body
+   */
+  @Public()
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend verification email' })
+  @ApiBody({ type: ResendVerificationDto, required: false })
+  @ApiResponse({ status: 200, description: 'Verification email sent' })
+  @ApiResponse({ status: 400, description: 'Email already verified or rate limited' })
+  async resendVerificationEmail(
+    @Body() body: ResendVerificationDto,
+    @Req() req: any,
+  ) {
+    // If authenticated user, use their ID
+    if (req.user?.id) {
+      return this.authService.resendVerificationEmail(req.user.id);
+    }
+    
+    // Otherwise, use email from body
+    if (body?.email) {
+      return this.authService.resendVerificationEmailByEmail(body.email);
+    }
+    
+    throw new UnauthorizedException('Email is required');
+  }
+
+  /**
+   * GET /auth/verification-status
+   * Get email verification status for current user
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('verification-status')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get email verification status' })
+  @ApiResponse({ status: 200, description: 'Returns verification status' })
+  async getVerificationStatus(@Req() req: any) {
+    return this.authService.getEmailVerificationStatus(req.user.id);
   }
 }

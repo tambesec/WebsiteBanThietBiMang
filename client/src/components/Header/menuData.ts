@@ -79,18 +79,6 @@ export const menuData: Menu[] = [
         newTab: false,
         path: "/contact",
       },
-      {
-        id: 62,
-        title: "Lỗi",
-        newTab: false,
-        path: "/error",
-      },
-      {
-        id: 63,
-        title: "Gửi mail thành công",
-        newTab: false,
-        path: "/mail-success",
-      },
     ],
   },
   {

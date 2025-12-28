@@ -177,10 +177,15 @@ const RecentView = () => {
                   >
                     <div className="relative w-full sm:w-32 h-32 flex-shrink-0 bg-gray-1 rounded-lg overflow-hidden">
                       <Image
-                        src={product.image}
+                        src={product.image || '/images/products/product-01.png'}
                         alt={product.name}
                         fill
                         className="object-cover"
+                        unoptimized
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/images/products/product-01.png';
+                        }}
                       />
                     </div>
                     <div className="flex-1 flex flex-col justify-between">

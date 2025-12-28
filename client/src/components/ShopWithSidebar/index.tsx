@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import axios from "axios";
 import Breadcrumb from "../Common/Breadcrumb";
 import CustomSelect from "./CustomSelect";
 import CategoryDropdown from "./CategoryDropdown";
@@ -11,8 +12,6 @@ import PriceDropdown from "./PriceDropdown";
 import SingleGridItem from "../Shop/SingleGridItem";
 import SingleListItem from "../Shop/SingleListItem";
 import type { Product } from "@/components/Shop/shopData";
-import { ProductsApi, CategoriesApi } from "@/generated-api";
-import { generatedApiAxios } from "@/lib/api-client";
 
 const ShopWithSidebar = () => {
   const router = useRouter();
@@ -128,29 +127,26 @@ const ShopWithSidebar = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const categoriesApi = new CategoriesApi(undefined, undefined, generatedApiAxios);
-        const response: any = await categoriesApi.categoriesControllerFindAll(
-          undefined, // search
-          undefined, // parentId
-          true, // isActive - only active categories
-          true, // includeProductsCount
-          undefined, // sortBy
-          undefined, // sortOrder
-          1, // page
-          50 // limit
-        );
-        // Backend: { data: { categories: [...], pagination: {...} } }
+        console.log('[Shop] Fetching categories...');
+        const response = await axios.get('/api/v1/categories', {
+          params: { is_active: true, include_products_count: true, limit: 50 }
+        });
+        
+        console.log('[Shop] Categories API response:', response.data);
+        
+        // Backend: { success, data: { categories: [...], pagination: {...} } }
         const result = response.data?.data || response.data;
         const items = result?.categories || [];
+        console.log('[Shop] Categories loaded:', items.length, 'categories');
         setCategories(items.map((cat: any) => ({
           id: cat.id,
           name: cat.name,
           slug: cat.slug,
-          products: cat.product_count || 0,
+          products: cat.products_count || cat.product_count || 0,
           isRefined: selectedCategory === cat.id
         })));
       } catch (error) {
-        console.error("Failed to load categories:", error);
+        console.error("[Shop] Failed to load categories:", error);
       }
     };
     fetchCategories();
@@ -183,48 +179,77 @@ const ShopWithSidebar = () => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const productsApi = new ProductsApi(undefined, undefined, generatedApiAxios);
-        const response: any = await productsApi.productsControllerFindAll(
-          searchQuery || undefined, // search
-          selectedCategory, // categoryId
-          selectedBrand, // brand
-          priceRange.min, // minPrice
-          priceRange.max, // maxPrice
-          undefined, // isFeatured
-          true, // isActive - only active products
-          sortBy as any, // sortBy
-          sortOrder as any, // sortOrder
-          currentPage, // page
-          12 // limit
-        );
+        console.log('[Shop] Fetching products with params:', {
+          searchQuery, selectedCategory, selectedBrand, priceRange, sortBy, sortOrder, currentPage
+        });
         
-        // Backend: { data: { products: [...], pagination: {...} } }
-        const result = response.data?.data || response.data;
-        const items = result?.products || [];
-        const pagination = result?.pagination;
-        if (!Array.isArray(items)) {
-          console.error('Invalid response format:', response.data);
+        // Use direct axios instead of generated API for better debugging
+        const params: Record<string, any> = {
+          is_active: true,
+          page: currentPage,
+          limit: 12,
+          sort_by: sortBy,
+          sort_order: sortOrder
+        };
+        
+        if (searchQuery) params.search = searchQuery;
+        if (selectedCategory) params.category_id = selectedCategory;
+        if (selectedBrand) params.brand = selectedBrand;
+        if (priceRange.min) params.min_price = priceRange.min;
+        if (priceRange.max) params.max_price = priceRange.max;
+        
+        const response = await axios.get('/api/v1/products', { params });
+        
+        console.log('[Shop] Full API response:', response.data);
+        
+        // Backend: { success, data: { products: [...], pagination: {...} } }
+        const data = response.data;
+        let items: any[] = [];
+        let pagination: any = null;
+        
+        if (data?.data?.products) {
+          items = data.data.products;
+          pagination = data.data.pagination;
+        } else if (data?.products) {
+          items = data.products;
+          pagination = data.pagination;
+        } else if (Array.isArray(data?.data)) {
+          items = data.data;
+        } else if (Array.isArray(data)) {
+          items = data;
+        }
+        
+        console.log('[Shop] Parsed items:', items?.length, 'products');
+        
+        if (!Array.isArray(items) || items.length === 0) {
+          console.warn('[Shop] No products found');
           setProducts([]);
           setTotalPages(1);
+          setTotalProducts(0);
           return;
         }
+        
         const mappedProducts: Product[] = items.map((p: any) => ({
           id: p.id,
-          title: p.name,
-          price: p.compare_at_price || p.price, // Giá niêm yết (cao hơn) - hiển thị gạch ngang
-          discountedPrice: p.price, // Giá bán thực tế (thấp hơn) - hiển thị rõ ràng
-          reviews: p.review_count || 0,
+          title: p.name || p.title || 'Sản phẩm',
+          price: Number(p.compare_at_price) || Number(p.price) || 0,
+          discountedPrice: Number(p.price) || 0,
+          reviews: p.review_count || p.reviews_count || 0,
           imgs: {
             thumbnails: p.primary_image ? [p.primary_image] : ["/images/products/product-01.png"],
             previews: p.primary_image ? [p.primary_image] : ["/images/products/product-01.png"]
           }
         }));
         
+        console.log('[Shop] Mapped products count:', mappedProducts.length);
+        
         setProducts(mappedProducts);
         setTotalPages(pagination?.total_pages || 1);
-        setTotalProducts(pagination?.total || 0);
-      } catch (error) {
-        console.error("Failed to load products:", error);
+        setTotalProducts(pagination?.total || items.length);
+      } catch (error: any) {
+        console.error("[Shop] Failed to load products:", error);
+        console.error("[Shop] Error response:", error.response?.data);
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -634,6 +659,24 @@ const ShopWithSidebar = () => {
               {/* <!-- Products Grid Tab Content Start --> */}
               {loading ? (
                 <div className="text-center py-10">Đang tải...</div>
+              ) : products.length === 0 ? (
+                <div className="text-center py-16">
+                  <svg
+                    className="mx-auto h-16 w-16 text-gray-400 mb-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
+                  <h3 className="text-lg font-medium text-dark mb-2">Không tìm thấy sản phẩm</h3>
+                  <p className="text-dark-4">Vui lòng thử lại với bộ lọc khác hoặc từ khóa khác.</p>
+                </div>
               ) : (
                 <div
                   className={`${

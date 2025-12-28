@@ -5,10 +5,15 @@ import {
   Logger,
   ForbiddenException,
   UnauthorizedException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CartService } from '../cart/cart.service';
 import { AddressesService } from '../addresses/addresses.service';
+import { MomoService } from '../payments/momo/momo.service';
+import { DiscountsService } from '../discounts/discounts.service';
 import { CreateOrderDto, PaymentMethod, ShippingMethod } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { QueryOrderDto, OrderQueryStatus } from './dto/query-order.dto';
@@ -16,12 +21,21 @@ import { QueryOrderDto, OrderQueryStatus } from './dto/query-order.dto';
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
+  private readonly frontendUrl: string;
+  private readonly backendUrl: string;
 
   constructor(
     private prisma: PrismaService,
     private cartService: CartService,
     private addressesService: AddressesService,
-  ) {}
+    private configService: ConfigService,
+    private discountsService: DiscountsService,
+    @Inject(forwardRef(() => MomoService))
+    private momoService: MomoService,
+  ) {
+    this.frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3001';
+    this.backendUrl = this.configService.get<string>('BACKEND_URL') || 'http://localhost:3000';
+  }
 
   /**
    * Create order from cart
@@ -91,10 +105,26 @@ export class OrdersService {
       cart.summary.subtotal,
     );
 
-    // Step 6: Calculate totals
+    // Step 6: Calculate discount if discount code provided
     const subtotal = cart.summary.subtotal;
+    let discountAmount = 0;
+    let validatedDiscount: any = null;
+
+    if (dto.discount_code) {
+      try {
+        validatedDiscount = await this.discountsService.validate(userId, {
+          code: dto.discount_code,
+          order_amount: subtotal,
+        });
+        discountAmount = validatedDiscount.discount.discount_amount;
+      } catch (error) {
+        // If discount validation fails, continue without discount
+        this.logger.warn(`Discount code ${dto.discount_code} validation failed: ${error.message}`);
+      }
+    }
+
+    // Step 7: Calculate totals
     const taxAmount = this.calculateTax(subtotal);
-    const discountAmount = 0; // TODO: Implement discount code logic
     const totalAmount = subtotal + shippingFee + taxAmount - discountAmount;
 
     // Step 7: Generate unique order number
@@ -191,8 +221,161 @@ export class OrdersService {
 
     this.logger.log(`Order ${orderNumber} created for user ${userId}`);
 
+    // Record discount usage if discount was applied
+    if (validatedDiscount && discountAmount > 0) {
+      try {
+        await this.discountsService.applyToOrder(
+          userId,
+          order.id,
+          dto.discount_code!,
+          subtotal,
+        );
+        this.logger.log(`Discount ${dto.discount_code} applied to order ${orderNumber}`);
+      } catch (error) {
+        // Log but don't fail the order
+        this.logger.error(`Failed to record discount usage: ${error.message}`);
+      }
+    }
+
+    // If payment method is MoMo, create MoMo payment
+    if (dto.payment_method === PaymentMethod.MOMO) {
+      const momoPayment = await this.createMomoPayment(order, cart, user);
+      return {
+        ...await this.findOne(userId, order.id),
+        paymentUrl: momoPayment.payUrl,
+        paymentDeeplink: momoPayment.deeplink,
+        paymentQrCode: momoPayment.qrCodeUrl,
+      };
+    }
+
     // Return full order details
     return this.findOne(userId, order.id);
+  }
+
+  /**
+   * Create MoMo payment for order
+   */
+  private async createMomoPayment(order: any, cart: any, user: any) {
+    const ipnUrl = this.configService.get<string>('MOMO_IPN_URL') || 
+      `${this.backendUrl}/api/v1/payments/momo/ipn`;
+    const redirectUrl = `${this.backendUrl}/api/v1/payments/momo/return`;
+
+    // Prepare items for MoMo
+    const items = cart.items.map((item: any) => ({
+      id: item.product.id.toString(),
+      name: item.product.name,
+      description: item.product.name,
+      price: Math.round(item.price),
+      currency: 'VND',
+      quantity: item.quantity,
+      totalPrice: Math.round(item.subtotal),
+    }));
+
+    // Create MoMo payment request
+    const momoResponse = await this.momoService.createPayment({
+      orderId: order.order_number,
+      orderInfo: `Thanh toán đơn hàng #${order.order_number}`,
+      amount: Math.round(Number(order.total_amount)),
+      redirectUrl,
+      ipnUrl,
+      items,
+      userInfo: {
+        name: user.full_name || 'Khách hàng',
+        phoneNumber: order.customer_phone,
+        email: user.email,
+      },
+    });
+
+    return momoResponse;
+  }
+
+  /**
+   * Retry payment for pending/unpaid order
+   * User can retry payment for their own orders that are unpaid
+   */
+  async retryPayment(userId: number, orderId: number) {
+    // Step 1: Find order and verify ownership
+    const order = await this.prisma.orders.findFirst({
+      where: {
+        id: orderId,
+        user_id: userId,
+      },
+      include: {
+        order_items: true,
+        users: {
+          select: { id: true, email: true, full_name: true },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Đơn hàng không tồn tại hoặc không thuộc về bạn');
+    }
+
+    // Step 2: Check if order is eligible for retry payment
+    if (order.payment_status !== 'unpaid' && order.payment_status !== 'failed') {
+      throw new BadRequestException(
+        `Đơn hàng này đã được thanh toán hoặc đang xử lý. Trạng thái: ${order.payment_status}`
+      );
+    }
+
+    // Only allow retry for MoMo payment method
+    if (order.payment_method !== PaymentMethod.MOMO) {
+      throw new BadRequestException(
+        'Chức năng thanh toán lại chỉ hỗ trợ cho phương thức MoMo'
+      );
+    }
+
+    // Step 3: Check order status (only pending orders can be retried)
+    if (order.status_id > 2) {
+      throw new BadRequestException(
+        'Không thể thanh toán lại cho đơn hàng đã được xử lý'
+      );
+    }
+
+    // Step 4: Create new MoMo payment with timestamp to avoid duplicate orderId
+    const ipnUrl = this.configService.get<string>('MOMO_IPN_URL') || 
+      `${this.backendUrl}/api/v1/payments/momo/ipn`;
+    const redirectUrl = `${this.backendUrl}/api/v1/payments/momo/return`;
+
+    // Prepare items for MoMo
+    const items = order.order_items.map((item: any) => ({
+      id: item.product_id.toString(),
+      name: item.product_name,
+      description: item.product_name,
+      price: Math.round(Number(item.unit_price)),
+      currency: 'VND',
+      quantity: item.quantity,
+      totalPrice: Math.round(Number(item.subtotal)),
+    }));
+
+    // Add timestamp suffix to orderId to make it unique
+    const retryOrderId = `${order.order_number}_R${Date.now()}`;
+
+    // Create MoMo payment request
+    const momoResponse = await this.momoService.createPayment({
+      orderId: retryOrderId,
+      orderInfo: `Thanh toán lại đơn hàng #${order.order_number}`,
+      amount: Math.round(Number(order.total_amount)),
+      redirectUrl,
+      ipnUrl,
+      items,
+      userInfo: {
+        name: order.users?.full_name || 'Khách hàng',
+        phoneNumber: order.customer_phone,
+        email: order.users?.email || '',
+      },
+      extraData: Buffer.from(JSON.stringify({ originalOrderNumber: order.order_number })).toString('base64'),
+    });
+
+    this.logger.log(`Retry payment created for order ${order.order_number}: ${retryOrderId}`);
+
+    return {
+      order: await this.findOne(userId, order.id),
+      paymentUrl: momoResponse.payUrl,
+      paymentDeeplink: momoResponse.deeplink,
+      paymentQrCode: momoResponse.qrCodeUrl,
+    };
   }
 
   /**

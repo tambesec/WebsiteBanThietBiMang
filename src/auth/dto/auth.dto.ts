@@ -39,16 +39,16 @@ export class RegisterDto {
   phone?: string;
 
   @ApiProperty({
-    description: 'Password (min 8 chars, must contain uppercase, lowercase, number, and special character)',
-    example: 'StrongPass123!',
-    minLength: 8,
+    description: 'Password (min 12 chars, must contain uppercase, lowercase, number, and special character)',
+    example: 'StrongPass123!@#',
+    minLength: 12,
     maxLength: 100,
   })
   @IsNotEmpty({ message: 'Password is required' })
   @IsString()
-  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @MinLength(12, { message: 'Password must be at least 12 characters' })
   @MaxLength(100, { message: 'Password must not exceed 100 characters' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]+$/, {
+  @Matches(/^(?=.*[a-zà-ỹ])(?=.*[A-ZÀ-Ụ])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{12,}$/, {
     message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
   password: string;
@@ -114,16 +114,16 @@ export class ChangePasswordDto {
   current_password: string;
 
   @ApiProperty({
-    description: 'New password (min 8 chars, must contain uppercase, lowercase, number, and special character)',
-    example: 'NewStrongPass456!',
-    minLength: 8,
+    description: 'New password (min 12 chars, must contain uppercase, lowercase, number, and special character)',
+    example: 'NewStrongPass123!@#',
+    minLength: 12,
     maxLength: 100,
   })
   @IsNotEmpty({ message: 'New password is required' })
   @IsString()
-  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @MinLength(12, { message: 'New password must be at least 12 characters' })
   @MaxLength(100, { message: 'Password must not exceed 100 characters' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]+$/, {
+  @Matches(/^(?=.*[a-zà-ỹ])(?=.*[A-ZÀ-Ụ])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{12,}$/, {
     message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
   new_password: string;
@@ -155,16 +155,16 @@ export class ResetPasswordDto {
   token: string;
 
   @ApiProperty({
-    description: 'New password (min 8 chars, must contain uppercase, lowercase, number, and special character)',
-    example: 'NewStrongPass456!',
-    minLength: 8,
+    description: 'New password (min 12 chars, must contain uppercase, lowercase, number, and special character)',
+    example: 'NewStrongPass456!@#',
+    minLength: 12,
     maxLength: 100,
   })
   @IsNotEmpty({ message: 'New password is required' })
   @IsString()
-  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  @MinLength(12, { message: 'Password must be at least 12 characters' })
   @MaxLength(100, { message: 'Password must not exceed 100 characters' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]+$/, {
+  @Matches(/^(?=.*[a-zà-ỹ])(?=.*[A-ZÀ-Ụ])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{12,}$/, {
     message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
   new_password: string;
@@ -208,4 +208,29 @@ export class UpdateProfileDto {
   @IsString()
   @Matches(/^[0-9]{10,20}$/, { message: 'Phone number must be 10-20 digits' })
   phone?: string;
+}
+
+/**
+ * DTO for email verification
+ */
+export class VerifyEmailDto {
+  @ApiProperty({
+    description: 'Email verification token from email link',
+    example: 'abc123def456789...',
+  })
+  @IsNotEmpty({ message: 'Token is required' })
+  @IsString()
+  token: string;
+}
+/**
+ * DTO for resend verification email (public endpoint)
+ */
+export class ResendVerificationDto {
+  @ApiProperty({
+    description: 'User email address',
+    example: 'john.doe@example.com',
+  })
+  @IsNotEmpty({ message: 'Email is required' })
+  @IsEmail({}, { message: 'Invalid email format' })
+  email: string;
 }

@@ -1,7 +1,41 @@
-import React from "react";
+"use client";
+import React, { useState } from "react";
 import Image from "next/image";
+import axios from "axios";
 
 const Newsletter = () => {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+
+    if (!email || !email.includes("@")) {
+      setError("Vui lòng nhập email hợp lệ");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+      const response = await axios.post(`${API_URL}/api/v1/newsletter/subscribe`, {
+        email: email.trim(),
+      });
+
+      setMessage(response.data.message || "Đăng ký thành công!");
+      setEmail("");
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại.";
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section className="overflow-hidden">
       <div className="max-w-[1170px] mx-auto px-4 sm:px-8 xl:px-0">
@@ -27,22 +61,32 @@ const Newsletter = () => {
             </div>
 
             <div className="max-w-[477px] w-full">
-              <form>
+              <form onSubmit={handleSubmit}>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <input
                     type="email"
                     name="email"
                     id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="Nhập địa chỉ email của bạn"
                     className="w-full bg-gray-1 border border-gray-3 outline-none rounded-md placeholder:text-dark-4 py-3 px-5"
+                    disabled={loading}
                   />
                   <button
                     type="submit"
-                    className="inline-flex justify-center py-3 px-7 text-white bg-blue font-medium rounded-md ease-out duration-200 hover:bg-blue-dark"
+                    disabled={loading}
+                    className="inline-flex justify-center py-3 px-7 text-white bg-blue font-medium rounded-md ease-out duration-200 hover:bg-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Đăng ký
+                    {loading ? "Đang gửi..." : "Đăng ký"}
                   </button>
                 </div>
+                {message && (
+                  <p className="mt-3 text-green-300 text-sm">{message}</p>
+                )}
+                {error && (
+                  <p className="mt-3 text-red-300 text-sm">{error}</p>
+                )}
               </form>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
+import { EmailModule } from './email/email.module';
 import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -15,6 +16,9 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { DiscountsModule } from './discounts/discounts.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { UsersModule } from './users/users.module';
+import { PaymentsModule } from './payments/payments.module';
+import { ContactsModule } from './contacts/contacts.module';
+import { NewsletterModule } from './newsletter/newsletter.module';
 import configuration from './config/configuration';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -40,6 +44,9 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     // Database
     PrismaModule,
 
+    // Email (Global)
+    EmailModule,
+
     // Feature Modules
     AuthModule,
     ProductsModule,
@@ -51,6 +58,9 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     DiscountsModule,
     DashboardModule,
     UsersModule,
+    PaymentsModule,
+    ContactsModule,
+    NewsletterModule,
   ],
   controllers: [AppController],
   providers: [

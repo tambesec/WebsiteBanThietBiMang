@@ -17,6 +17,7 @@ interface User {
   isOAuthUser?: boolean;
   hasPassword?: boolean;
   oauthProviders?: string[];
+  emailVerified?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isOAuthUser: sessionData.user.is_oauth_user || false,
             hasPassword: sessionData.user.has_password || false,
             oauthProviders: sessionData.user.oauth_providers || [],
+            emailVerified: sessionData.user.email_verified || false,
             createdAt: sessionData.user.created_at || new Date().toISOString(),
             updatedAt: sessionData.user.updated_at || new Date().toISOString(),
           });
@@ -123,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           phone: userData.phone || '',
           avatar: '',
           role: userData.role,
+          emailVerified: userData.email_verified || false,
           createdAt: userData.created_at || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
@@ -183,6 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           phone: userData.phone || '',
           avatar: '',
           role: newUser.role,
+          emailVerified: newUser.email_verified || false,
           createdAt: newUser.created_at || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
@@ -253,6 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           phone: updatedUserData.phone || '',
           avatar: user?.avatar || '',
           role: updatedUserData.role,
+          emailVerified: updatedUserData.email_verified || user?.emailVerified || false,
           createdAt: updatedUserData.created_at || user?.createdAt || new Date().toISOString(),
           updatedAt: updatedUserData.updated_at || new Date().toISOString(),
         });

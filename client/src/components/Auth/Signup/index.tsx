@@ -34,6 +34,8 @@ const Signup = () => {
     phone: false,
   });
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   const calculatePasswordStrength = (password: string): number => {
     let strength = 0;
@@ -211,10 +213,9 @@ const Signup = () => {
         password: formData.password,
         phone: formData.phone.trim() || undefined,
       });
-      // Redirect after successful registration
-      setTimeout(() => {
-        router.push('/');
-      }, 100);
+      // Show email verification success screen
+      setRegisteredEmail(formData.email);
+      setRegistrationSuccess(true);
     } catch (err: any) {
       console.error('Đăng ký thất bại:', err);
       
@@ -277,6 +278,99 @@ const Signup = () => {
 
   // (Đã loại bỏ Facebook OAuth - chỉ giữ Google)
 
+  // Registration Success Screen
+  if (registrationSuccess) {
+    return (
+      <>
+        <Breadcrumb title={"Đăng Ký Thành Công"} pages={["Đăng Ký", "Xác Thực Email"]} />
+        <section className="overflow-hidden py-20 bg-gray-2">
+          <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
+            <div className="max-w-[570px] w-full mx-auto rounded-xl bg-white shadow-1 p-4 sm:p-7.5 xl:p-11">
+              <div className="text-center">
+                {/* Success Icon */}
+                <div className="w-20 h-20 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg 
+                    className="w-10 h-10 text-green-500" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
+                    />
+                  </svg>
+                </div>
+
+                <h2 className="font-semibold text-xl sm:text-2xl xl:text-heading-5 text-dark mb-3">
+                  Kiểm Tra Email Của Bạn
+                </h2>
+                
+                <p className="text-dark-5 mb-4">
+                  Chúng tôi đã gửi một email xác thực đến:
+                </p>
+                
+                <p className="text-blue font-medium text-lg mb-6">
+                  {registeredEmail}
+                </p>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+                  <h3 className="font-medium text-dark mb-2">Bước tiếp theo:</h3>
+                  <ol className="text-dark-5 text-sm space-y-2 list-decimal list-inside">
+                    <li>Mở hộp thư email của bạn</li>
+                    <li>Tìm email từ NetworkStore</li>
+                    <li>Click vào liên kết xác thực trong email</li>
+                    <li>Quay lại đây và đăng nhập</li>
+                  </ol>
+                </div>
+
+                <p className="text-dark-5 text-sm mb-6">
+                  Không nhận được email? Kiểm tra thư mục spam hoặc{" "}
+                  <Link 
+                    href={`/verify-email?email=${encodeURIComponent(registeredEmail)}`}
+                    className="text-blue hover:underline"
+                  >
+                    yêu cầu gửi lại
+                  </Link>
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Link
+                    href="/signin"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue py-3 px-6 text-white font-medium hover:bg-blue-dark transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
+                    Đi tới Đăng Nhập
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegistrationSuccess(false);
+                      setFormData({
+                        fullName: "",
+                        email: "",
+                        password: "",
+                        confirmPassword: "",
+                        phone: "",
+                      });
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-3 py-3 px-6 text-dark font-medium hover:bg-gray-1 transition-colors"
+                  >
+                    Đăng ký tài khoản khác
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <Breadcrumb title={"Đăng Ký"} pages={["Đăng Ký"]} />
@@ -289,7 +383,7 @@ const Signup = () => {
               </h2>
               <p>Nhập thông tin của bạn bên dưới</p>
               <p className="text-sm text-dark-5 mt-2">
-                Mật khẩu phải có ít nhất 12 ký tự bao gồm: chữ hoa, chữ thường, số và ký tự đặc biệt
+                Mật khẩu phải có ít nhất 12 ký tự bao gồm: chữ HOA, chữ thường, chữ số và ký tự đặc biệt (!@#$...)
               </p>
             </div>
 

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Breadcrumb from "@/components/Common/Breadcrumb";
-import { ordersApi } from "@/lib/api-client";
+import { ordersApi, axiosInstance } from "@/lib/api-client";
 import Link from "next/link";
 
 const OrderDetailPage = () => {
@@ -13,6 +13,7 @@ const OrderDetailPage = () => {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
     const fetchOrderDetail = async () => {
@@ -33,6 +34,46 @@ const OrderDetailPage = () => {
 
     fetchOrderDetail();
   }, [orderId]);
+
+  // Handler for retry payment
+  const handleRetryPayment = async () => {
+    if (!orderId) return;
+    
+    try {
+      setIsRetrying(true);
+      const response = await axiosInstance.post(`/orders/${orderId}/retry-payment`);
+      const data = response.data?.data || response.data;
+      
+      if (data.paymentUrl) {
+        // Redirect to MoMo payment
+        window.location.href = data.paymentUrl;
+      } else {
+        alert('Không thể tạo thanh toán. Vui lòng thử lại.');
+      }
+    } catch (err: any) {
+      console.error('Retry payment error:', err);
+      alert(err.response?.data?.message || 'Có lỗi xảy ra khi thanh toán lại');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  // Check if retry payment is available
+  const canRetryPayment = () => {
+    if (!order) return false;
+    
+    const paymentStatus = order.payment?.status || order.payment_status;
+    const paymentMethod = order.payment?.method || order.payment_method;
+    const orderStatus = order.status?.id || 1;
+    
+    console.log('Retry payment check:', { paymentMethod, paymentStatus, orderStatus });
+    
+    return (
+      paymentMethod === 'momo' &&
+      (paymentStatus === 'unpaid' || paymentStatus === 'failed') &&
+      orderStatus <= 2 // Pending or Confirmed
+    );
+  };
 
   if (loading) {
     return (
@@ -220,6 +261,34 @@ const OrderDetailPage = () => {
                     {(order.payment?.status || order.payment_status) === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
                   </span>
                 </p>
+                
+                {/* Retry Payment Button */}
+                {canRetryPayment() && (
+                  <div className="mt-4 pt-4 border-t border-gray-3">
+                    <button
+                      onClick={handleRetryPayment}
+                      disabled={isRetrying}
+                      className="w-full bg-pink-500 text-white py-3 px-4 rounded-lg hover:bg-pink-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isRetrying ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white"></div>
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                          </svg>
+                          Thanh toán lại qua MoMo
+                        </>
+                      )}
+                    </button>
+                    <p className="text-sm text-gray-6 mt-2 text-center">
+                      Nhấn để tạo mã thanh toán MoMo mới
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -178,6 +178,10 @@ model orders {
   payment_method                                  String                @db.VarChar(50)
   payment_status                                  orders_payment_status @default(unpaid)
   paid_at                                         DateTime?             @db.DateTime(0)
+  payment_time                                    DateTime?             @db.DateTime(0)
+  momo_trans_id                                   String?               @db.VarChar(100)
+  momo_result_code                                Int?
+  momo_message                                    String?               @db.VarChar(500)
   shipping_method                                 String                @db.VarChar(50)
   tracking_number                                 String?               @db.VarChar(100)
   shipped_at                                      DateTime?             @db.DateTime(0)
@@ -419,7 +423,9 @@ enum addresses_address_type {
 }
 enum orders_payment_status {
   unpaid
+  pending
   paid
+  failed
   refunded
 }
 
@@ -450,4 +456,49 @@ enum oauth_provider {
   facebook
   github
   apple
+}
+
+/// Contact submissions from website visitors
+model contacts {
+  id         Int                @id @default(autoincrement())
+  first_name String             @db.VarChar(100)
+  last_name  String             @db.VarChar(100)
+  email      String?            @db.VarChar(320)
+  phone      String?            @db.VarChar(20)
+  subject    String?            @db.VarChar(200)
+  message    String             @db.Text
+  status     contacts_status    @default(new)
+  admin_note String?            @db.Text
+  is_read    Int                @default(0) @db.TinyInt
+  created_at DateTime           @default(now()) @db.DateTime(0)
+  updated_at DateTime           @default(now()) @db.DateTime(0)
+
+  @@index([status], map: "idx_contact_status")
+  @@index([is_read], map: "idx_contact_read")
+  @@index([created_at], map: "idx_contact_date")
+}
+
+enum contacts_status {
+  new
+  read
+  replied
+  resolved
+  spam
+}
+
+/// Newsletter email subscribers
+model newsletter_subscribers {
+  id               Int                        @id @default(autoincrement())
+  email            String                     @unique @db.VarChar(320)
+  status           newsletter_status          @default(active)
+  subscribed_at    DateTime                   @default(now()) @db.DateTime(0)
+  unsubscribed_at  DateTime?                  @db.DateTime(0)
+
+  @@index([email], map: "idx_email")
+  @@index([status], map: "idx_status")
+}
+
+enum newsletter_status {
+  active
+  unsubscribed
 }

@@ -25,6 +25,42 @@ const QuickViewModal = () => {
 
   const [activePreview, setActivePreview] = useState(0);
 
+  // Save to recently viewed when modal opens
+  useEffect(() => {
+    if (isModalOpen && product && product.id && product.title) {
+      try {
+        const recentlyViewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+        
+        // Get image URL - prioritize thumbnails as they are usually smaller
+        let imageUrl = product.imgs?.thumbnails?.[0] || product.imgs?.previews?.[0] || '/images/products/product-01.png';
+        
+        // Handle empty string
+        if (!imageUrl || imageUrl.trim() === '') {
+          imageUrl = '/images/products/product-01.png';
+        }
+        
+        const productData = {
+          id: product.id,
+          name: product.title,
+          price: product.discountedPrice || product.price || 0,
+          image: imageUrl,
+          category: (product as any).category || 'Sản phẩm',
+          slug: (product as any).slug || `product-${product.id}`,
+          viewedAt: Date.now()
+        };
+        
+        // Remove if already exists and add to front
+        const filtered = recentlyViewed.filter((p: any) => p.id !== product.id);
+        const updated = [productData, ...filtered].slice(0, 20);
+        
+        localStorage.setItem('recentlyViewed', JSON.stringify(updated));
+        console.log('Saved to recently viewed:', productData);
+      } catch (error) {
+        console.error('Error saving to recently viewed:', error);
+      }
+    }
+  }, [isModalOpen, product.id]);
+
   // preview modal
   const handlePreviewSlider = () => {
     dispatch(updateproductDetails(product));
