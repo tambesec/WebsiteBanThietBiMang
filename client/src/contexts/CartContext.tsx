@@ -63,7 +63,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const response = await cartApi.cartControllerGetCart();
       // Backend: { data: { id, items, summary, ... } }
       const cart: any = response.data?.data || response.data;
-      setCart(cart as Cart);
+      
+      // Ensure cart has proper structure or set to null
+      if (cart && typeof cart === 'object' && 'items' in cart) {
+        setCart(cart as Cart);
+      } else {
+        setCart(null);
+      }
     } catch (error) {
       // User not logged in or cart not found - this is normal
       setCart(null);

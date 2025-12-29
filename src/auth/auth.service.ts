@@ -8,9 +8,11 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
-import { users, users_role } from '@prisma/client';
+import { users, users_role, verification_tokens_token_type } from '@prisma/client';
 
 /**
  * Auth Service - Core authentication business logic
@@ -29,6 +31,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private emailService: EmailService,
   ) {
     this.bcryptRounds = this.configService.get<number>('security.bcryptRounds') || 10;
     this.maxLoginAttempts = this.configService.get<number>('security.maxLoginAttempts') || 5;
@@ -119,8 +122,13 @@ export class AuthService {
       },
     });
 
+    // Send verification email (async, don't wait)
+    this.sendVerificationEmail(user.id, user.email, user.full_name).catch((err) => {
+      this.logger.error(`Failed to send verification email: ${err.message}`);
+    });
+
     return {
-      message: 'User registered successfully',
+      message: 'User registered successfully. Please check your email to verify your account.',
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       user: {
@@ -128,6 +136,7 @@ export class AuthService {
         email: user.email,
         full_name: user.full_name,
         role: user.role,
+        is_email_verified: false,
       },
     };
   }
@@ -187,6 +196,13 @@ export class AuthService {
       // Increment failed login attempts
       await this.handleFailedLogin(user.id, ipAddress);
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Check if email is verified (only for non-OAuth users)
+    if (user.is_email_verified !== 1) {
+      throw new UnauthorizedException(
+        'Email chưa được xác thực. Vui lòng kiểm tra email và xác thực tài khoản trước khi đăng nhập.'
+      );
     }
 
     // Reset failed login attempts on successful login
@@ -274,6 +290,7 @@ export class AuthService {
               phone: true,
               role: true,
               is_active: true,
+              is_email_verified: true,
               password_hash: true,
               oauth_accounts: {
                 select: {
@@ -302,6 +319,7 @@ export class AuthService {
           is_oauth_user: hasOAuth, // Has OAuth = cannot change email
           has_password: !!session.users.password_hash,
           oauth_providers: session.users.oauth_accounts?.map(oa => oa.provider) || [],
+          email_verified: session.users.is_email_verified === 1,
         },
       };
     } catch (error) {
@@ -557,7 +575,7 @@ export class AuthService {
     const isPasswordReused = await this.isPasswordReused(userId, newPassword);
     if (isPasswordReused) {
       throw new BadRequestException(
-        `Cannot reuse any of your last ${this.passwordHistoryCount} passwords`,
+        'Không thể sử dụng mật khẩu cũ',
       );
     }
 
@@ -893,9 +911,12 @@ export class AuthService {
       });
     });
 
-    // TODO: Send email with reset link
-    // const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
-    // await this.emailService.sendPasswordResetEmail(user.email, resetUrl);
+    // Send email with reset link
+    await this.emailService.sendPasswordResetEmail(
+      user.email,
+      user.full_name || 'Khách hàng',
+      resetToken,
+    );
     
     this.logger.log(`Password reset requested for: ${user.email}`);
 
@@ -937,7 +958,7 @@ export class AuthService {
     const isPasswordReused = await this.isPasswordReused(user.id, newPassword);
     if (isPasswordReused) {
       throw new BadRequestException(
-        `Cannot reuse any of your last ${this.passwordHistoryCount} passwords`,
+        'Không thể sử dụng mật khẩu cũ',
       );
     }
 
@@ -1340,7 +1361,7 @@ export class AuthService {
     const isPasswordReused = await this.isPasswordReused(userId, password);
     if (isPasswordReused) {
       throw new BadRequestException(
-        `Cannot reuse any of your last ${this.passwordHistoryCount} passwords`
+        'Không thể sử dụng mật khẩu cũ'
       );
     }
 
@@ -1375,6 +1396,254 @@ export class AuthService {
 
     return {
       message: 'Password set successfully. You can now login with email and password.',
+    };
+  }
+
+  // ============================================================================
+  // EMAIL VERIFICATION METHODS
+  // ============================================================================
+
+  /**
+   * Generate a secure random token for email verification
+   */
+  private generateVerificationToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Hash verification token for storage
+   */
+  private hashVerificationToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  /**
+   * Send verification email to user
+   */
+  async sendVerificationEmail(userId: number, email: string, fullName: string): Promise<void> {
+    // Generate token
+    const token = this.generateVerificationToken();
+    const tokenHash = this.hashVerificationToken(token);
+
+    // Delete any existing verification tokens for this user
+    await this.prisma.verification_tokens.deleteMany({
+      where: {
+        user_id: userId,
+        token_type: verification_tokens_token_type.email_verification,
+      },
+    });
+
+    // Create new verification token (expires in 24 hours)
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    await this.prisma.verification_tokens.create({
+      data: {
+        user_id: userId,
+        token_hash: tokenHash,
+        token_type: verification_tokens_token_type.email_verification,
+        expires_at: expiresAt,
+      },
+    });
+
+    // Send email
+    await this.emailService.sendVerificationEmail(email, fullName, token);
+
+    this.logger.log(`Verification email sent to: ${email}`);
+  }
+
+  /**
+   * Verify email with token
+   */
+  async verifyEmail(token: string): Promise<{ message: string; user: any }> {
+    const tokenHash = this.hashVerificationToken(token);
+
+    // Find token
+    const verificationToken = await this.prisma.verification_tokens.findFirst({
+      where: {
+        token_hash: tokenHash,
+        token_type: verification_tokens_token_type.email_verification,
+      },
+      include: {
+        users: true,
+      },
+    });
+
+    // If token not found, check if it was already used (user is verified)
+    if (!verificationToken) {
+      // Token might have been deleted after successful verification
+      // This is a normal case when user clicks link twice
+      throw new BadRequestException('Link xác thực không hợp lệ hoặc đã được sử dụng');
+    }
+
+    // Check if token expired
+    if (verificationToken.expires_at < new Date()) {
+      // Delete expired token
+      await this.prisma.verification_tokens.deleteMany({
+        where: { id: verificationToken.id },
+      });
+      throw new BadRequestException('Link xác thực đã hết hạn. Vui lòng yêu cầu gửi lại email xác thực.');
+    }
+
+    const user = verificationToken.users;
+
+    // Check if already verified
+    if (user.is_email_verified === 1) {
+      // Delete token anyway (use deleteMany to avoid error if not exists)
+      await this.prisma.verification_tokens.deleteMany({
+        where: { id: verificationToken.id },
+      });
+
+      return {
+        message: 'Email already verified',
+        user: {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          is_email_verified: true,
+        },
+      };
+    }
+
+    // Update user and delete token in transaction
+    await this.prisma.$transaction(async (prisma) => {
+      // Mark email as verified
+      await prisma.users.update({
+        where: { id: user.id },
+        data: { is_email_verified: 1 },
+      });
+
+      // Delete verification token (use deleteMany to avoid error if already deleted)
+      await prisma.verification_tokens.deleteMany({
+        where: { id: verificationToken.id },
+      });
+
+      // Log security event
+      await prisma.security_logs.create({
+        data: {
+          user_id: user.id,
+          event_type: 'email_verified',
+          details: JSON.stringify({ email: user.email }),
+        },
+      });
+    });
+
+    // Send welcome email (async)
+    this.emailService.sendWelcomeEmail(user.email, user.full_name).catch((err) => {
+      this.logger.error(`Failed to send welcome email: ${err.message}`);
+    });
+
+    this.logger.log(`Email verified for user: ${user.email}`);
+
+    return {
+      message: 'Email verified successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        is_email_verified: true,
+      },
+    };
+  }
+
+  /**
+   * Resend verification email
+   */
+  async resendVerificationEmail(userId: number): Promise<{ message: string }> {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (user.is_email_verified === 1) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    // Check rate limiting - only allow resend every 2 minutes
+    const recentToken = await this.prisma.verification_tokens.findFirst({
+      where: {
+        user_id: userId,
+        token_type: verification_tokens_token_type.email_verification,
+        created_at: {
+          gt: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
+        },
+      },
+    });
+
+    if (recentToken) {
+      throw new BadRequestException('Please wait 2 minutes before requesting another verification email');
+    }
+
+    // Send new verification email
+    await this.sendVerificationEmail(userId, user.email, user.full_name);
+
+    return {
+      message: 'Verification email sent successfully',
+    };
+  }
+
+  /**
+   * Resend verification email by email address (public endpoint)
+   */
+  async resendVerificationEmailByEmail(email: string): Promise<{ message: string }> {
+    // Always return success message to prevent email enumeration
+    const successMessage = { message: 'If the email exists and is not verified, a verification email has been sent' };
+    
+    const user = await this.prisma.users.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return successMessage;
+    }
+
+    if (user.is_email_verified === 1) {
+      return successMessage;
+    }
+
+    // Check rate limiting - only allow resend every 2 minutes
+    const recentToken = await this.prisma.verification_tokens.findFirst({
+      where: {
+        user_id: user.id,
+        token_type: verification_tokens_token_type.email_verification,
+        created_at: {
+          gt: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
+        },
+      },
+    });
+
+    if (recentToken) {
+      return successMessage; // Don't reveal rate limiting to public
+    }
+
+    // Send new verification email
+    await this.sendVerificationEmail(user.id, user.email, user.full_name);
+
+    return successMessage;
+  }
+
+  /**
+   * Check email verification status
+   */
+  async getEmailVerificationStatus(userId: number): Promise<{ is_verified: boolean; email: string }> {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        is_email_verified: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return {
+      is_verified: user.is_email_verified === 1,
+      email: user.email,
     };
   }
 }

@@ -43,6 +43,12 @@ const CategoryItem = ({ category, isSelected, onSelect }) => {
 const CategoryDropdown = ({ categories, selectedCategory, onSelectCategory }) => {
   const [toggleDropdown, setToggleDropdown] = useState(true);
 
+  console.log('[CategoryDropdown] Rendering with:', { 
+    categoriesCount: categories?.length, 
+    selectedCategory,
+    categories 
+  });
+
   return (
     <div className="bg-white shadow-1 rounded-lg">
       <div

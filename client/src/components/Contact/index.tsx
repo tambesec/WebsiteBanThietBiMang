@@ -1,7 +1,63 @@
-import React from "react";
+"use client";
+import React, { useState } from "react";
+import { axiosInstance } from "@/lib/api-client";
 import Breadcrumb from "../Common/Breadcrumb";
 
 const Contact = () => {
+  const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    subject: "",
+    message: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitResult(null);
+
+    try {
+      const response = await axiosInstance.post("/contacts", formData);
+      setSubmitResult({
+        success: true,
+        message: response.data.message || "Gửi liên hệ thành công!",
+      });
+      // Reset form
+      setFormData({
+        first_name: "",
+        last_name: "",
+        email: "",
+        phone: "",
+        subject: "",
+        message: "",
+      });
+    } catch (error: any) {
+      console.error("Submit contact error:", error);
+      setSubmitResult({
+        success: false,
+        message:
+          error.response?.data?.message ||
+          "Có lỗi xảy ra. Vui lòng thử lại sau.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <>
       <Breadcrumb title={"Liên Hệ"} pages={["Liên Hệ"]} />
@@ -33,7 +89,7 @@ const Contact = () => {
                         fill="#3C50E0"
                       />
                     </svg>
-                    Name: James Septimus
+                    Name: Than Trung Tam
                   </p>
 
                   <p className="flex items-center gap-4">
@@ -80,39 +136,57 @@ const Contact = () => {
                         fill="#3C50E0"
                       />
                     </svg>
-                    Address: 7398 Smoke Ranch RoadLas Vegas, Nevada 89128
+                    Address: PTIT HCM
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="xl:max-w-[770px] w-full bg-white rounded-xl shadow-1 p-4 sm:p-7.5 xl:p-10">
-              <form>
+              {submitResult && (
+                <div
+                  className={`mb-5 p-4 rounded-md ${
+                    submitResult.success
+                      ? "bg-green-100 text-green-700 border border-green-300"
+                      : "bg-red-100 text-red-700 border border-red-300"
+                  }`}
+                >
+                  {submitResult.message}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit}>
                 <div className="flex flex-col lg:flex-row gap-5 sm:gap-8 mb-5">
                   <div className="w-full">
-                    <label htmlFor="firstName" className="block mb-2.5">
+                    <label htmlFor="first_name" className="block mb-2.5">
                       Tên <span className="text-red">*</span>
                     </label>
 
                     <input
                       type="text"
-                      name="firstName"
-                      id="firstName"
+                      name="first_name"
+                      id="first_name"
+                      value={formData.first_name}
+                      onChange={handleChange}
                       placeholder="Tên"
+                      required
                       className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                     />
                   </div>
 
                   <div className="w-full">
-                    <label htmlFor="lastName" className="block mb-2.5">
+                    <label htmlFor="last_name" className="block mb-2.5">
                       Họ <span className="text-red">*</span>
                     </label>
 
                     <input
                       type="text"
-                      name="lastName"
-                      id="lastName"
+                      name="last_name"
+                      id="last_name"
+                      value={formData.last_name}
+                      onChange={handleChange}
                       placeholder="Họ"
+                      required
                       className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                     />
                   </div>
@@ -120,15 +194,18 @@ const Contact = () => {
 
                 <div className="flex flex-col lg:flex-row gap-5 sm:gap-8 mb-5">
                   <div className="w-full">
-                    <label htmlFor="subject" className="block mb-2.5">
-                      Chủ đề
+                    <label htmlFor="email" className="block mb-2.5">
+                      Email <span className="text-red">*</span>
                     </label>
 
                     <input
-                      type="text"
-                      name="subject"
-                      id="subject"
-                      placeholder="Nhập chủ đề"
+                      type="email"
+                      name="email"
+                      id="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="Nhập email"
+                      required
                       className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                     />
                   </div>
@@ -142,21 +219,42 @@ const Contact = () => {
                       type="text"
                       name="phone"
                       id="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
                       placeholder="Nhập số điện thoại"
                       className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                     />
                   </div>
                 </div>
 
+                <div className="mb-5">
+                  <label htmlFor="subject" className="block mb-2.5">
+                    Chủ đề
+                  </label>
+
+                  <input
+                    type="text"
+                    name="subject"
+                    id="subject"
+                    value={formData.subject}
+                    onChange={handleChange}
+                    placeholder="Nhập chủ đề"
+                    className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full py-2.5 px-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
+                  />
+                </div>
+
                 <div className="mb-7.5">
                   <label htmlFor="message" className="block mb-2.5">
-                    Tin nhắn
+                    Tin nhắn <span className="text-red">*</span>
                   </label>
 
                   <textarea
                     name="message"
                     id="message"
+                    value={formData.message}
+                    onChange={handleChange}
                     rows={5}
+                    required
                     placeholder="Nhập tin nhắn của bạn"
                     className="rounded-md border border-gray-3 bg-gray-1 placeholder:text-dark-5 w-full p-5 outline-none duration-200 focus:border-transparent focus:shadow-input focus:ring-2 focus:ring-blue/20"
                   ></textarea>
@@ -164,9 +262,36 @@ const Contact = () => {
 
                 <button
                   type="submit"
-                  className="inline-flex font-medium text-white bg-blue py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue-dark"
+                  disabled={isSubmitting}
+                  className="inline-flex font-medium text-white bg-blue py-3 px-7 rounded-md ease-out duration-200 hover:bg-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Gửi tin nhắn
+                  {isSubmitting ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Đang gửi...
+                    </>
+                  ) : (
+                    "Gửi tin nhắn"
+                  )}
                 </button>
               </form>
             </div>

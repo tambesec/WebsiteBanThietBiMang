@@ -62,13 +62,40 @@ export const setLoggingOut = (state: boolean) => {
   }
 };
 
+// Helper function to get cookie value
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+};
+
 // Add request interceptor to add admin token
 generatedApiAxios.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('admin_token');
+      // Try localStorage first (admin_token), then fallback to cookie (access_token)
+      let token = localStorage.getItem('admin_token');
+      const tokenSource = token ? 'localStorage' : 'cookie';
+      if (!token) {
+        token = getCookie('access_token');
+      }
+      
+      console.log(`[API] Token source: ${tokenSource}, Token exists: ${!!token}`);
+      
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+        
+        // Debug: decode token to see user info (only payload, not signature)
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          console.log('[API] Token payload:', payload);
+        } catch (e) {
+          console.log('[API] Could not decode token');
+        }
+      } else {
+        console.warn('[API] No token found! User needs to login.');
       }
     }
     return config;

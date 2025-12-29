@@ -83,6 +83,52 @@ export class OrdersController {
   }
 
   /**
+   * Retry payment for pending order
+   * Protected: Users can retry payment for their own unpaid orders
+   */
+  @Post(':id/retry-payment')
+  @ApiOperation({
+    summary: 'Retry payment for order',
+    description:
+      'Retry MoMo payment for an unpaid/failed order. Returns new payment URL.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Order ID',
+    type: 'number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'New payment created',
+    schema: {
+      example: {
+        order: {
+          id: 1,
+          order_number: 'ORD-20251205-0001',
+          status: { id: 1, name: 'Pending' },
+          payment_status: 'unpaid',
+          total_amount: 560000,
+        },
+        paymentUrl: 'https://test-payment.momo.vn/...',
+        paymentDeeplink: 'momo://...',
+        paymentQrCode: 'https://...',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Order is already paid or not eligible for retry',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Order not found',
+  })
+  retryPayment(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.ordersService.retryPayment(req.user.id, id);
+  }
+
+  /**
    * Get all orders for current user
    * Protected: Users see only their orders
    */

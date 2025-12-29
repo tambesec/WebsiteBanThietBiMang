@@ -56,6 +56,15 @@ function CheckoutContent() {
     
     try {
       const order = await submitOrder();
+      
+      // If MoMo payment, redirect to MoMo payment page
+      if (order.paymentUrl) {
+        // Redirect to MoMo payment page
+        window.location.href = order.paymentUrl;
+        return;
+      }
+      
+      // For other payment methods (COD, bank transfer)
       setOrderSuccess(true);
       alert(`Đặt hàng thành công! Mã đơn hàng: ${order.order_number}`);
       router.push(`/orders/${order.id}`);
@@ -213,7 +222,7 @@ function CheckoutContent() {
                 {/* <!-- checkout button --> */}
                 <button
                   type="submit"
-                  disabled={isSubmitting || !cart || cart.items.length === 0}
+                  disabled={isSubmitting || !cart || !cart.items || cart.items.length === 0}
                   className="w-full flex justify-center font-medium text-white bg-blue py-3 px-6 rounded-md ease-out duration-200 hover:bg-blue-dark mt-7.5 disabled:bg-gray-4 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Đang xử lý...' : 'Tiến hành thanh toán'}

@@ -2,6 +2,14 @@
 /dist
 /node_modules
 /build
+node_modules/
+**/node_modules/
+
+# Next.js
+.next/
+**/.next/
+next-env.d.ts
+out/
 
 # Environment
 .env
@@ -59,3 +67,18 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Generated files
+generated-api/
+**/generated-api/
+swagger.json
+
+# Archives
+*.rar
+*.zip
+*.tar.gz
+
+# Test files
+test-*.js
+!test/**/*.spec.ts
+!test/**/*.e2e-spec.ts

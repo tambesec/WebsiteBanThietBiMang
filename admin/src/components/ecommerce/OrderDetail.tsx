@@ -350,10 +350,33 @@ const OrderDetail = ({ orderId }: OrderDetailProps) => {
                     {getPaymentStatusText(order.payment?.status || order.payment_status)}
                   </Badge>
                 </div>
-                {(order.payment?.paid_at || order.paid_at) && (
-                  <p><span className="font-medium">Thanh toán lúc:</span> {formatDate(order.payment?.paid_at || order.paid_at)}</p>
+                {(order.payment?.paid_at || order.paid_at || order.payment_time) && (
+                  <p><span className="font-medium">Thanh toán lúc:</span> {formatDate(order.payment?.paid_at || order.paid_at || order.payment_time)}</p>
                 )}
                 <p><span className="font-medium">Ngày đặt:</span> {formatDate(order.created_at)}</p>
+                
+                {/* MoMo Payment Info */}
+                {order.momo_trans_id && (
+                  <div className="mt-3 pt-3 border-t border-stroke dark:border-strokedark">
+                    <p className="font-medium text-primary mb-2">Thông tin MoMo:</p>
+                    <div className="space-y-1">
+                      <p><span className="font-medium">Mã giao dịch:</span> <span className="font-mono text-primary">{order.momo_trans_id}</span></p>
+                      <p>
+                        <span className="font-medium">Kết quả:</span>
+                        <Badge
+                          size="sm"
+                          color={order.momo_result_code === 0 ? 'success' : 'error'}
+                          className="ml-2"
+                        >
+                          {order.momo_result_code === 0 ? 'Thành công' : `Lỗi (${order.momo_result_code})`}
+                        </Badge>
+                      </p>
+                      {order.momo_message && (
+                        <p><span className="font-medium">Message:</span> {order.momo_message}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

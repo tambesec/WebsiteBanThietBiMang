@@ -66,6 +66,16 @@ const othersItems: NavItem[] = [
     path: "/discounts",
   },
   {
+    icon: <CalenderIcon />,
+    name: "Liên hệ",
+    path: "/contacts",
+  },
+  {
+    icon: <CalenderIcon />,
+    name: "Newsletter",
+    path: "/newsletter",
+  },
+  {
     icon: <PieChartIcon />,
     name: "Báo cáo",
     subItems: [

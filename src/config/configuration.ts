@@ -45,5 +45,12 @@ export default () => ({
   frontend: {
     url: process.env.FRONTEND_URL || 'http://localhost:3001',
   },
+  email: {
+    host: process.env.EMAIL_HOST || '',
+    port: getInt(process.env.EMAIL_PORT, 587),
+    user: process.env.EMAIL_USER || '',
+    pass: process.env.EMAIL_PASS || '',
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER || '',
+  },
   corsOrigins: process.env.CORS_ORIGINS || '', // Comma-separated list of allowed origins
 });

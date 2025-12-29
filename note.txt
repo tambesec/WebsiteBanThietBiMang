@@ -1,0 +1,29 @@
+
+
+# Đăng nhập admin 
+
+admin@networkstore.com
+Admin@123456
+
+# Lưu y
+đổi FRONTEND_URL=http://localhost:3001 thành FRONTEND_URL=https://www.netcompro.tech de khi hosting thì nhận xác thực nó chuyển qua domain xác thực mặc định là local host sẽ lỗi và không xác thưc được
+
+# DB đã thêm một số bảng.
+
+
+https://147795258599.signin.aws.amazon.com/console
+147795258599.signin.aws.amazon.com
+Duy
+username: EC2_user
+Duy
+mk: iam_user@EC2
+
+
+# JWT_ACCESS_SECRET
+b7f8298a89e1c396a8f18197638fe33853237112c11c06c89576a9229108039b2c1a4946e1c13f7a3d1920f8b12b23e42760946e0a5323ed4ac6ba186ee8b254
+
+
+#JWT_REFRESH_SECRET
+
+61e86831ca4515461565726a40dfdc9e0e85c902c0da7d99364fac77c3c09ff07dae431be8fd431bc3e2a990442e04a311164e9f5efc5a88608dcbaff0590484
+

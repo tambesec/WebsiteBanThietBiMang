@@ -40,8 +40,8 @@ const RecentlyViewdItems = () => {
         const mappedProducts: Product[] = items.map((p: any) => ({
           id: p.id,
           title: p.name,
-          price: p.compare_at_price || p.price, // Giá niêm yết (cao hơn) - hiển thị gạch ngang
-          discountedPrice: p.price, // Giá bán thực tế (thấp hơn) - hiển thị rõ ràng
+          price: Number(p.compare_at_price) || Number(p.price) || 0,
+          discountedPrice: Number(p.price) || 0,
           reviews: p.review_count || 0,
           imgs: {
             thumbnails: p.primary_image ? [p.primary_image] : ["/images/products/product-01.png"],

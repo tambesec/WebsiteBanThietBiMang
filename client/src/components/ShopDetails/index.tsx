@@ -122,8 +122,8 @@ const ShopDetails = () => {
           name: product.title,
           price: product.price || 0,
           image: imageUrl,
-          category: 'Sáº£n pháº©m',
-          slug: `shop-details-${product.id}`,
+          category: (product as any).category || 'Sản phẩm',
+          slug: (product as any).slug || `product-${product.id}`,
           viewedAt: Date.now()
         };
         

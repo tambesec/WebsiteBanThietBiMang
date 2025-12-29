@@ -1,7 +1,7 @@
-"use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 import CustomSelect from "./CustomSelect";
 import { menuData } from "./menuData";
 import Dropdown from "./Dropdown";
@@ -9,6 +9,12 @@ import { useCartModalContext } from "@/app/context/CartSidebarModalContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import Image from "next/image";
+
+interface CategoryOption {
+  label: string;
+  value: string;
+  slug?: string;
+}
 
 const Header = () => {
   const router = useRouter();
@@ -20,9 +26,53 @@ const Header = () => {
   const { cart } = useCart();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([
+    { label: "Danh mục", value: "0" }
+  ]);
 
   const cartItemsCount = cart?.summary?.items_count || 0;
   const cartTotal = cart?.summary?.total || 0;
+
+  // Fetch categories from API
+  useEffect(() => {
+    console.log('[Header] useEffect running - fetching categories...');
+    console.log('[Header] Window object exists:', typeof window !== 'undefined');
+    
+    const fetchCategories = async () => {
+      try {
+        console.log('[Header] Starting fetch...');
+        const response = await axios.get('/api/v1/categories', {
+          params: { is_active: true, limit: 20 }
+        });
+        
+        console.log('[Header] API response received:', response.status);
+        console.log('[Header] API data:', response.data);
+        
+        const result = response.data?.data || response.data;
+        const items = result?.categories || [];
+        
+        console.log('[Header] Categories parsed:', items.length, 'items');
+        
+        const options: CategoryOption[] = [
+          { label: "Danh mục", value: "0" },
+          ...items.map((cat: any) => ({
+            label: cat.name,
+            value: String(cat.id),
+            slug: cat.slug
+          }))
+        ];
+        console.log('[Header] Final options:', options.length, 'options');
+        setCategoryOptions(options);
+      } catch (error: any) {
+        console.error("[Header] ERROR - Failed to load categories");
+        console.error("[Header] Error object:", error);
+        console.error("[Header] Error message:", error.message);
+        console.error("[Header] Error response:", error.response);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
 
   const handleOpenCartModal = () => {
     openCartModal();
@@ -57,18 +107,8 @@ const Header = () => {
 
   useEffect(() => {
     window.addEventListener("scroll", handleStickyMenu);
-  });
-
-  const options = [
-    { label: "Danh mục", value: "0" },
-    { label: "Card mạng", value: "1" },
-    { label: "Hub switch", value: "2" },
-    { label: "Router", value: "3" },
-    { label: "Bộ phát sóng", value: "4" },
-    { label: "Bộ định tuyến", value: "5" },
-    { label: "USB wifi", value: "6" },
-    { label: "Phụ kiện khác", value: "7" },
-  ];
+    return () => window.removeEventListener("scroll", handleStickyMenu);
+  }, []);
 
   return (
     <header
@@ -105,7 +145,7 @@ const Header = () => {
             <div className="max-w-[450px] w-full min-w-0">
               <form onSubmit={handleSearchSubmit}>
                 <div className="flex items-center min-w-0">
-                  <CustomSelect options={options} />
+                  <CustomSelect options={categoryOptions} />
 
                   <div className="relative flex-1 min-w-[150px]">
                     {/* <!-- divider --> */}
