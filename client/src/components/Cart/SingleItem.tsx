@@ -1,35 +1,65 @@
 import React, { useState } from "react";
-import { AppDispatch } from "@/redux/store";
-import { useDispatch } from "react-redux";
-import {
-  removeItemFromCart,
-  updateCartItemQuantity,
-} from "@/redux/features/cart-slice";
-
+import { useCart } from "@/contexts/CartContext";
 import Image from "next/image";
+import Link from "next/link";
 
-const SingleItem = ({ item }) => {
+interface CartItemProps {
+  item: {
+    id: number;
+    product_id: number;
+    quantity: number;
+    price: number;
+    product?: {
+      id: number;
+      name: string;
+      slug: string;
+      price: number;
+      discount_price?: number;
+      main_image?: string;
+    };
+  };
+}
+
+const SingleItem = ({ item }: CartItemProps) => {
   const [quantity, setQuantity] = useState(item.quantity);
+  const { updateQuantity, removeItem, isLoading } = useCart();
 
-  const dispatch = useDispatch<AppDispatch>();
-
-  const handleRemoveFromCart = () => {
-    dispatch(removeItemFromCart(item.id));
-  };
-
-  const handleIncreaseQuantity = () => {
-    setQuantity(quantity + 1);
-    dispatch(updateCartItemQuantity({ id: item.id, quantity: quantity + 1 }));
-  };
-
-  const handleDecreaseQuantity = () => {
-    if (quantity > 1) {
-      setQuantity(quantity - 1);
-      dispatch(updateCartItemQuantity({ id: item.id, quantity: quantity - 1 }));
-    } else {
-      return;
+  const handleRemoveFromCart = async () => {
+    if (confirm('Đồng ý xóa sản phẩm này?')) {
+      try {
+        await removeItem(item.id);
+      } catch (error: any) {
+        alert(error.message);
+      }
     }
   };
+
+  const handleIncreaseQuantity = async () => {
+    const newQuantity = quantity + 1;
+    setQuantity(newQuantity);
+    try {
+      await updateQuantity(item.id, newQuantity);
+    } catch (error: any) {
+      setQuantity(quantity); // Rollback on error
+      alert(error.message);
+    }
+  };
+
+  const handleDecreaseQuantity = async () => {
+    if (quantity > 1) {
+      const newQuantity = quantity - 1;
+      setQuantity(newQuantity);
+      try {
+        await updateQuantity(item.id, newQuantity);
+      } catch (error: any) {
+        setQuantity(quantity); // Rollback on error
+        alert(error.message);
+      }
+    }
+  };
+
+  const displayPrice = item.product?.discount_price || item.product?.price || item.price;
+  const displayImage = item.product?.main_image || '/images/placeholder.png';
 
   return (
     <div className="flex items-center border-t border-gray-3 py-5 px-7.5">
@@ -37,12 +67,24 @@ const SingleItem = ({ item }) => {
         <div className="flex items-center justify-between gap-5">
           <div className="w-full flex items-center gap-5.5">
             <div className="flex items-center justify-center rounded-[5px] bg-gray-2 max-w-[80px] w-full h-17.5">
-              <Image width={200} height={200} src={item.imgs?.thumbnails[0]} alt="product" />
+              <Image 
+                width={80} 
+                height={70} 
+                src={displayImage} 
+                alt={item.product?.name || 'product'}
+                className="object-contain"
+              />
             </div>
 
             <div>
               <h3 className="text-dark ease-out duration-200 hover:text-blue">
-                <a href="#"> {item.title} </a>
+                {item.product ? (
+                  <Link href={`/products/${item.product.slug}`}>
+                    {item.product.name}
+                  </Link>
+                ) : (
+                  <span>Sản phẩm</span>
+                )}
               </h3>
             </div>
           </div>
@@ -50,15 +92,16 @@ const SingleItem = ({ item }) => {
       </div>
 
       <div className="min-w-[180px]">
-        <p className="text-dark">{item.discountedPrice.toLocaleString('vi-VN')}đ</p>
+        <p className="text-dark">{displayPrice.toLocaleString('vi-VN')}đ</p>
       </div>
 
       <div className="min-w-[275px]">
         <div className="w-max flex items-center rounded-md border border-gray-3">
           <button
-            onClick={() => handleDecreaseQuantity()}
+            onClick={handleDecreaseQuantity}
+            disabled={isLoading || quantity <= 1}
             aria-label="button for remove product"
-            className="flex items-center justify-center w-11.5 h-11.5 ease-out duration-200 hover:text-blue"
+            className="flex items-center justify-center w-11.5 h-11.5 ease-out duration-200 hover:text-blue disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg
               className="fill-current"
@@ -80,9 +123,10 @@ const SingleItem = ({ item }) => {
           </span>
 
           <button
-            onClick={() => handleIncreaseQuantity()}
+            onClick={handleIncreaseQuantity}
+            disabled={isLoading}
             aria-label="button for add product"
-            className="flex items-center justify-center w-11.5 h-11.5 ease-out duration-200 hover:text-blue"
+            className="flex items-center justify-center w-11.5 h-11.5 ease-out duration-200 hover:text-blue disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg
               className="fill-current"
@@ -106,7 +150,7 @@ const SingleItem = ({ item }) => {
       </div>
 
       <div className="min-w-[200px]">
-        <p className="text-dark">${item.discountedPrice * quantity}</p>
+        <p className="text-dark">{(displayPrice * quantity).toLocaleString('vi-VN')}đ</p>
       </div>
 
       <div className="min-w-[50px] flex justify-end">

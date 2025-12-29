@@ -1,11 +1,15 @@
-import { selectTotalPrice } from "@/redux/features/cart-slice";
-import { useAppSelector } from "@/redux/store";
+import { useCart } from "@/contexts/CartContext";
 import React from "react";
-import { useSelector } from "react-redux";
+import Link from "next/link";
 
 const OrderSummary = () => {
-  const cartItems = useAppSelector((state) => state.cartReducer.items);
-  const totalPrice = useSelector(selectTotalPrice);
+  const { cart } = useCart();
+  const cartItems = cart?.items || [];
+  const summary = cart?.summary;
+
+  if (!summary) {
+    return null;
+  }
 
   return (
     <div className="lg:max-w-[455px] w-full">
@@ -30,11 +34,13 @@ const OrderSummary = () => {
           {cartItems.map((item, key) => (
             <div key={key} className="flex items-center justify-between py-5 border-b border-gray-3">
               <div>
-                <p className="text-dark">{item.title}</p>
+                <p className="text-dark">
+                  {item.product?.name || 'Sản phẩm'} x {item.quantity}
+                </p>
               </div>
               <div>
                 <p className="text-dark text-right">
-                  ${item.discountedPrice * item.quantity}
+                  {((item.product?.discount_price || item.product?.price || item.price) * item.quantity).toLocaleString('vi-VN')}đ
                 </p>
               </div>
             </div>
@@ -47,18 +53,18 @@ const OrderSummary = () => {
             </div>
             <div>
               <p className="font-medium text-lg text-dark text-right">
-                {totalPrice.toLocaleString('vi-VN')}đ
+                {summary.total.toLocaleString('vi-VN')}đ
               </p>
             </div>
           </div>
 
           {/* <!-- checkout button --> */}
-          <button
-            type="submit"
+          <Link
+            href="/checkout"
             className="w-full flex justify-center font-medium text-white bg-blue py-3 px-6 rounded-md ease-out duration-200 hover:bg-blue-dark mt-7.5"
           >
             Tiến hành thanh toán
-          </button>
+          </Link>
         </div>
       </div>
     </div>

@@ -2,13 +2,24 @@
 import React from "react";
 import Discount from "./Discount";
 import OrderSummary from "./OrderSummary";
-import { useAppSelector } from "@/redux/store";
+import { useCart } from "@/contexts/CartContext";
 import SingleItem from "./SingleItem";
 import Breadcrumb from "../Common/Breadcrumb";
 import Link from "next/link";
 
 const Cart = () => {
-  const cartItems = useAppSelector((state) => state.cartReducer.items);
+  const { cart, clearCart, isLoading } = useCart();
+  const cartItems = cart?.items || [];
+
+  const handleClearCart = async () => {
+    if (confirm('Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?')) {
+      try {
+        await clearCart();
+      } catch (error: any) {
+        alert(error.message);
+      }
+    }
+  };
 
   return (
     <>
@@ -22,7 +33,13 @@ const Cart = () => {
           <div className="max-w-[1170px] w-full mx-auto px-4 sm:px-8 xl:px-0">
             <div className="flex flex-wrap items-center justify-between gap-5 mb-7.5">
               <h2 className="font-medium text-dark text-2xl">Giỏ hàng của bạn</h2>
-              <button className="text-blue">Xóa giỏ hàng</button>
+              <button 
+                onClick={handleClearCart}
+                disabled={isLoading}
+                className="text-blue hover:text-blue-dark disabled:opacity-50"
+              >
+                Xóa giỏ hàng
+              </button>
             </div>
 
             <div className="bg-white rounded-[10px] shadow-1">

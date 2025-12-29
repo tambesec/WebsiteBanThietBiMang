@@ -11,8 +11,7 @@ import PriceDropdown from "./PriceDropdown";
 import SingleGridItem from "../Shop/SingleGridItem";
 import SingleListItem from "../Shop/SingleListItem";
 import type { Product } from "@/components/Shop/shopData";
-import { ProductsApi, CategoriesApi } from "@/generated-api";
-import { generatedApiAxios } from "@/lib/api-client";
+import { productsApi, categoriesApi } from "@/lib/api-client";
 
 const ShopWithSidebar = () => {
   const router = useRouter();
@@ -128,7 +127,6 @@ const ShopWithSidebar = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const categoriesApi = new CategoriesApi(undefined, undefined, generatedApiAxios);
         const response: any = await categoriesApi.categoriesControllerFindAll(
           undefined, // search
           undefined, // parentId
@@ -183,7 +181,6 @@ const ShopWithSidebar = () => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const productsApi = new ProductsApi(undefined, undefined, generatedApiAxios);
         const response: any = await productsApi.productsControllerFindAll(
           searchQuery || undefined, // search
           selectedCategory, // categoryId

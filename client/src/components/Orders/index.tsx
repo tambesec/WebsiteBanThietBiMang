@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import SingleOrder from "./SingleOrder";
 import ordersData from "./ordersData";
 import { ordersApi } from "@/lib/api-client";
-import type { OrderDto } from "@/generated-api";
+import type { OrderDto } from "@/lib/api-client";
 
 const Orders = () => {
   const [orders, setOrders] = useState<OrderDto[]>([]);

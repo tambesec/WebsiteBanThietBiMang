@@ -7,6 +7,7 @@ import Image from "next/image";
 import "swiper/css/navigation";
 import "swiper/css";
 import SingleItem from "./SingleItem";
+import { categoriesApi } from "@/lib/api-client";
 
 const Categories = () => {
   const sliderRef = useRef(null);
@@ -26,17 +27,26 @@ const Categories = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories?is_active=true&sort_by=display_order&sort_order=asc`
+        const response = await categoriesApi.categoriesControllerFindAll(
+          undefined, // search
+          undefined, // parent_id
+          true, // is_active
+          false, // include_products_count
+          'display_order', // sort_by
+          'asc', // sort_order
+          1, // page
+          100 // limit
         );
         
-        if (!response.ok) throw new Error("Failed to fetch categories");
+        // Backend wraps response: { success, statusCode, message, data: { categories, pagination } }
+        // Axios response.data = full backend response
+        const backendData = response.data?.data || response.data;
         
-        const result = await response.json();
-        const data = result.data || result;
+        // Access categories array
+        const categoriesArray = backendData?.categories || [];
         
         // Map backend data to frontend format
-        const categoriesData = (data.categories || []).map((cat: any) => ({
+        const categoriesData = categoriesArray.map((cat: any) => ({
           id: cat.id,
           title: cat.name,
           slug: cat.slug,

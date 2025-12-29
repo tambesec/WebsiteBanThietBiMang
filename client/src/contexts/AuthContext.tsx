@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, axiosInstance } from '@/lib/api-client';
+import { authApi } from '@/lib/api-client';
 import type { LoginDto, RegisterDto } from '@/lib/api-client';
 
 // Re-define User type locally
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadSession = async () => {
       try {
         // Call /auth/session - NEVER throws 401
-        const response = await axiosInstance.get('/auth/session');
+        const response = await authApi.authControllerGetSession();
         const sessionData = response.data?.data || response.data;
         
         if (sessionData.authenticated && sessionData.user) {
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (sessionData.user.role === 'admin') {
             setUser(null);
             // Clear admin cookies silently
-            await axiosInstance.post('/auth/logout').catch(() => {});
+            await authApi.authControllerLogout().catch(() => {});
             return;
           }
           
@@ -202,11 +202,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       // Set logging out flag to prevent refresh attempts
-      const { axiosInstance, setLoggingOut } = await import('@/lib/api-client');
+      const { setLoggingOut } = await import('@/lib/api-client');
       setLoggingOut(true);
       
-      // Call logout API using axios directly (no body needed - uses cookies)
-      await axiosInstance.post('/auth/logout', {});
+      // Call logout API using generated API (uses cookies)
+      await authApi.authControllerLogout();
       
       // Clear user state immediately
       setUser(null);
@@ -232,13 +232,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUser = async (userData: Partial<User>) => {
     try {
       // Call backend API to update profile
-      const response = await axiosInstance.patch('/auth/profile', {
+      const updateDto = {
         full_name: userData.firstName && userData.lastName 
           ? `${userData.firstName} ${userData.lastName}`.trim()
           : undefined,
         email: userData.email,
         phone: userData.phone,
-      });
+      };
+      const response = await authApi.authControllerUpdateProfile(updateDto);
 
       const updatedUserData = response.data?.user || response.data?.data?.user;
       
@@ -268,8 +269,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       // Redirect to backend Google OAuth endpoint
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-      window.location.href = `${backendUrl}/api/v1/auth/google`;
+      // NEXT_PUBLIC_API_URL already includes /api/v1
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+      window.location.href = `${backendUrl}/auth/google`;
     } catch (error: any) {
       setUser(null);
       setIsLoading(false);

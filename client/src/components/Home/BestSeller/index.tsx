@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import SingleItem from "./SingleItem";
 import Image from "next/image";
 import Link from "next/link";
-import { axiosInstance } from '@/lib/api-client';
+import { productsApi } from '@/lib/api-client';
 import type { Product } from "@/components/Shop/shopData";
 
 const BestSeller = () => {
@@ -13,9 +13,10 @@ const BestSeller = () => {
   useEffect(() => {
     const fetchBestSellers = async () => {
       try {
-        const response: any = await axiosInstance.get('/products', {
-          params: { page: 1, limit: 6, sort_by: 'created_at', sort_order: 'desc' },
-        });
+        const response = await productsApi.productsControllerFindAll(
+          undefined, undefined, undefined, undefined,
+          undefined, undefined, undefined, 'created_at', 'desc', 1, 6
+        );
         
         // Backend: { data: { products: [...], pagination: {...} } }
         const result = response.data?.data || response.data;

@@ -271,8 +271,9 @@ const Signup = () => {
 
   const handleGoogleSignup = () => {
     // Redirect to backend Google OAuth endpoint
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-    window.location.href = `${backendUrl}/api/v1/auth/google`;
+    // NEXT_PUBLIC_API_URL already includes /api/v1
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+    window.location.href = `${backendUrl}/auth/google`;
   };
 
   // (Đã loại bỏ Facebook OAuth - chỉ giữ Google)
